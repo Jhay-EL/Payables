@@ -1,0 +1,306 @@
+import 'package:flutter/material.dart';
+import 'package:payables/models/currency.dart';
+
+class CurrencyDatabase {
+  static final List<Currency> currencies = [
+    const Currency(
+      name: 'US Dollar',
+      code: 'USD',
+      symbol: '\$',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF10B981),
+    ),
+    const Currency(
+      name: 'Euro',
+      code: 'EUR',
+      symbol: '€',
+      icon: Icons.euro_rounded,
+      color: Color(0xFF3B82F6),
+    ),
+    const Currency(
+      name: 'British Pound',
+      code: 'GBP',
+      symbol: '£',
+      icon: Icons.currency_pound_rounded,
+      color: Color(0xFF8B5CF6),
+    ),
+    const Currency(
+      name: 'Japanese Yen',
+      code: 'JPY',
+      symbol: '¥',
+      icon: Icons.currency_yen_rounded,
+      color: Color(0xFFEF4444),
+    ),
+    const Currency(
+      name: 'Canadian Dollar',
+      code: 'CAD',
+      symbol: 'C\$',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFFF59E0B),
+    ),
+    const Currency(
+      name: 'Australian Dollar',
+      code: 'AUD',
+      symbol: 'A\$',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF06B6D4),
+    ),
+    const Currency(
+      name: 'Swiss Franc',
+      code: 'CHF',
+      symbol: 'Fr',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF8B5CF6),
+    ),
+    const Currency(
+      name: 'Chinese Yuan',
+      code: 'CNY',
+      symbol: '¥',
+      icon: Icons.currency_yen_rounded,
+      color: Color(0xFFEF4444),
+    ),
+    const Currency(
+      name: 'Indian Rupee',
+      code: 'INR',
+      symbol: '₹',
+      icon: Icons.currency_rupee_rounded,
+      color: Color(0xFFF59E0B),
+    ),
+    const Currency(
+      name: 'South Korean Won',
+      code: 'KRW',
+      symbol: '₩',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF10B981),
+    ),
+    const Currency(
+      name: 'Brazilian Real',
+      code: 'BRL',
+      symbol: 'R\$',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF22C55E),
+    ),
+    const Currency(
+      name: 'Mexican Peso',
+      code: 'MXN',
+      symbol: '\$',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFFEF4444),
+    ),
+    const Currency(
+      name: 'Russian Ruble',
+      code: 'RUB',
+      symbol: '₽',
+      icon: Icons.currency_ruble_rounded,
+      color: Color(0xFF3B82F6),
+    ),
+    const Currency(
+      name: 'Singapore Dollar',
+      code: 'SGD',
+      symbol: 'S\$',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF8B5CF6),
+    ),
+    const Currency(
+      name: 'Hong Kong Dollar',
+      code: 'HKD',
+      symbol: 'HK\$',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFFF59E0B),
+    ),
+    const Currency(
+      name: 'New Zealand Dollar',
+      code: 'NZD',
+      symbol: 'NZ\$',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF06B6D4),
+    ),
+    const Currency(
+      name: 'Swedish Krona',
+      code: 'SEK',
+      symbol: 'kr',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF10B981),
+    ),
+    const Currency(
+      name: 'Norwegian Krone',
+      code: 'NOK',
+      symbol: 'kr',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF3B82F6),
+    ),
+    const Currency(
+      name: 'Danish Krone',
+      code: 'DKK',
+      symbol: 'kr',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFFEF4444),
+    ),
+    const Currency(
+      name: 'Polish Zloty',
+      code: 'PLN',
+      symbol: 'zł',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF8B5CF6),
+    ),
+    const Currency(
+      name: 'Czech Koruna',
+      code: 'CZK',
+      symbol: 'Kč',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFFF59E0B),
+    ),
+    const Currency(
+      name: 'Hungarian Forint',
+      code: 'HUF',
+      symbol: 'Ft',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF06B6D4),
+    ),
+    const Currency(
+      name: 'Turkish Lira',
+      code: 'TRY',
+      symbol: '₺',
+      icon: Icons.currency_lira_rounded,
+      color: Color(0xFFEF4444),
+    ),
+    const Currency(
+      name: 'South African Rand',
+      code: 'ZAR',
+      symbol: 'R',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF22C55E),
+    ),
+    const Currency(
+      name: 'Israeli Shekel',
+      code: 'ILS',
+      symbol: '₪',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF3B82F6),
+    ),
+    const Currency(
+      name: 'Thai Baht',
+      code: 'THB',
+      symbol: '฿',
+      icon: Icons.currency_bitcoin_rounded,
+      color: Color(0xFFF59E0B),
+    ),
+    const Currency(
+      name: 'Malaysian Ringgit',
+      code: 'MYR',
+      symbol: 'RM',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF10B981),
+    ),
+    const Currency(
+      name: 'Indonesian Rupiah',
+      code: 'IDR',
+      symbol: 'Rp',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF8B5CF6),
+    ),
+    const Currency(
+      name: 'Philippine Peso',
+      code: 'PHP',
+      symbol: '₱',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF06B6D4),
+    ),
+    const Currency(
+      name: 'Vietnamese Dong',
+      code: 'VND',
+      symbol: '₫',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFFEF4444),
+    ),
+    const Currency(
+      name: 'Egyptian Pound',
+      code: 'EGP',
+      symbol: '£',
+      icon: Icons.currency_pound_rounded,
+      color: Color(0xFF22C55E),
+    ),
+    const Currency(
+      name: 'Nigerian Naira',
+      code: 'NGN',
+      symbol: '₦',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF3B82F6),
+    ),
+    const Currency(
+      name: 'Kenyan Shilling',
+      code: 'KES',
+      symbol: 'KSh',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFFF59E0B),
+    ),
+    const Currency(
+      name: 'Argentine Peso',
+      code: 'ARS',
+      symbol: '\$',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF10B981),
+    ),
+    const Currency(
+      name: 'Chilean Peso',
+      code: 'CLP',
+      symbol: '\$',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF8B5CF6),
+    ),
+    const Currency(
+      name: 'Colombian Peso',
+      code: 'COP',
+      symbol: '\$',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF06B6D4),
+    ),
+    const Currency(
+      name: 'Peruvian Sol',
+      code: 'PEN',
+      symbol: 'S/',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFFEF4444),
+    ),
+    const Currency(
+      name: 'Uruguayan Peso',
+      code: 'UYU',
+      symbol: '\$U',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF22C55E),
+    ),
+    const Currency(
+      name: 'UAE Dirham',
+      code: 'AED',
+      symbol: 'د.إ',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF3B82F6),
+    ),
+    const Currency(
+      name: 'Saudi Riyal',
+      code: 'SAR',
+      symbol: '﷼',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF22C55E),
+    ),
+    const Currency(
+      name: 'Qatari Riyal',
+      code: 'QAR',
+      symbol: '﷼',
+      icon: Icons.attach_money_rounded,
+      color: Color(0xFF8B5CF6),
+    ),
+  ];
+
+  static List<Currency> getCurrencies() {
+    return currencies;
+  }
+
+  static Currency? getCurrencyByCode(String code) {
+    try {
+      return currencies.firstWhere((currency) => currency.code == code);
+    } catch (e) {
+      return null;
+    }
+  }
+}
