@@ -1,6 +1,8 @@
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:payables/utils/theme_provider.dart';
+import 'package:provider/provider.dart';
 import 'ui/dashboard_screen.dart';
 import 'data/subscription_database.dart';
 
@@ -26,7 +28,12 @@ void main() async {
   // Initialize subscription database
   await initializeDatabase();
 
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 Future<void> initializeDatabase() async {
@@ -43,58 +50,65 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DynamicColorBuilder(
-      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-        ColorScheme lightColorScheme;
-        ColorScheme darkColorScheme;
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return DynamicColorBuilder(
+          builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+            ColorScheme lightColorScheme;
+            ColorScheme darkColorScheme;
 
-        if (lightDynamic != null && darkDynamic != null) {
-          lightColorScheme = lightDynamic.harmonized();
-          darkColorScheme = darkDynamic.harmonized();
-        } else {
-          // Fallback to default theme if dynamic colors are not available
-          lightColorScheme = ColorScheme.fromSeed(
-            seedColor: Colors.deepPurple,
-            brightness: Brightness.light,
-          );
-          darkColorScheme = ColorScheme.fromSeed(
-            seedColor: Colors.deepPurple,
-            brightness: Brightness.dark,
-          );
-        }
-
-        return MaterialApp(
-          title: 'Payables App',
-          debugShowCheckedModeBanner: false,
-          theme: ThemeData(useMaterial3: true, colorScheme: lightColorScheme),
-          darkTheme: ThemeData(
-            useMaterial3: true,
-            colorScheme: darkColorScheme,
-          ),
-          themeMode: ThemeMode.system,
-          home: Builder(
-            builder: (context) {
-              final isDarkMode =
-                  Theme.of(context).brightness == Brightness.dark;
-
-              // Update system UI overlay style based on current theme
-              SystemChrome.setSystemUIOverlayStyle(
-                SystemUiOverlayStyle(
-                  statusBarIconBrightness: isDarkMode
-                      ? Brightness.light
-                      : Brightness.dark,
-                  statusBarBrightness: isDarkMode
-                      ? Brightness.dark
-                      : Brightness.light,
-                  systemNavigationBarIconBrightness: isDarkMode
-                      ? Brightness.light
-                      : Brightness.dark,
-                ),
+            if (lightDynamic != null && darkDynamic != null) {
+              lightColorScheme = lightDynamic.harmonized();
+              darkColorScheme = darkDynamic.harmonized();
+            } else {
+              // Fallback to default theme if dynamic colors are not available
+              lightColorScheme = ColorScheme.fromSeed(
+                seedColor: Colors.deepPurple,
+                brightness: Brightness.light,
               );
+              darkColorScheme = ColorScheme.fromSeed(
+                seedColor: Colors.deepPurple,
+                brightness: Brightness.dark,
+              );
+            }
 
-              return const DashboardScreen();
-            },
-          ),
+            return MaterialApp(
+              title: 'Payables App',
+              debugShowCheckedModeBanner: false,
+              theme: ThemeData(
+                useMaterial3: true,
+                colorScheme: lightColorScheme,
+              ),
+              darkTheme: ThemeData(
+                useMaterial3: true,
+                colorScheme: darkColorScheme,
+              ),
+              themeMode: themeProvider.themeMode,
+              home: Builder(
+                builder: (context) {
+                  final isDarkMode =
+                      Theme.of(context).brightness == Brightness.dark;
+
+                  // Update system UI overlay style based on current theme
+                  SystemChrome.setSystemUIOverlayStyle(
+                    SystemUiOverlayStyle(
+                      statusBarIconBrightness: isDarkMode
+                          ? Brightness.light
+                          : Brightness.dark,
+                      statusBarBrightness: isDarkMode
+                          ? Brightness.dark
+                          : Brightness.light,
+                      systemNavigationBarIconBrightness: isDarkMode
+                          ? Brightness.light
+                          : Brightness.dark,
+                    ),
+                  );
+
+                  return const DashboardScreen();
+                },
+              ),
+            );
+          },
         );
       },
     );

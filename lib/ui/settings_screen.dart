@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:payables/utils/theme_provider.dart';
+import 'package:provider/provider.dart';
 import 'about_screen.dart';
 import 'widget_settings_screen.dart';
 import 'package:payables/models/currency.dart';
@@ -884,16 +886,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildAppearanceBottomSheet(BuildContext context) {
-    String selectedTheme =
-        'system'; // This should be managed by state management
-    bool dynamicColorEnabled =
-        true; // This should be managed by state management
+    final themeProvider = Provider.of<ThemeProvider>(context);
 
     return StatefulBuilder(
       builder: (context, setState) {
+        String selectedTheme = themeProvider.themeMode
+            .toString()
+            .split('.')
+            .last;
+        bool dynamicColorEnabled =
+            true; // This should be managed by state management
+
         return Container(
           constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.90,
+            maxHeight: MediaQuery.of(context).size.height * 0.80,
           ),
           decoration: BoxDecoration(
             color: backgroundColor,
@@ -962,10 +968,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 24),
               // M3 Content
-              Expanded(
+              Flexible(
                 child: SingleChildScrollView(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -988,7 +994,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             const Color(0xFFF59E0B),
                             'light',
                             selectedTheme,
-                            setState,
+                            (newTheme) {
+                              // No need to call setState here anymore,
+                              // the themeProvider will notify listeners
+                            },
                             isFirst: true,
                           ),
                           _buildThemeOption(
@@ -998,7 +1007,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             const Color(0xFF6366F1),
                             'dark',
                             selectedTheme,
-                            setState,
+                            (newTheme) {
+                              // No need to call setState here anymore
+                            },
                           ),
                           _buildThemeOption(
                             'System',
@@ -1007,7 +1018,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             const Color(0xFF8B5CF6),
                             'system',
                             selectedTheme,
-                            setState,
+                            (newTheme) {
+                              // No need to call setState here anymore
+                            },
                             isLast: true,
                           ),
                         ]),
@@ -1082,7 +1095,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Color iconColor,
     String value,
     String selectedValue,
-    StateSetter setState, {
+    Function(String) onThemeSelected, {
     bool isFirst = false,
     bool isLast = false,
   }) {
@@ -1123,12 +1136,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
         shape: RoundedRectangleBorder(borderRadius: borderRadius),
         child: InkWell(
           onTap: () {
-            setState(() {
-              selectedValue = value;
-            });
-            // Handle theme change
-            // ignore: avoid_print
-            print('Theme changed to: $value');
+            late ThemeMode newThemeMode;
+            switch (value) {
+              case 'light':
+                newThemeMode = ThemeMode.light;
+                break;
+              case 'dark':
+                newThemeMode = ThemeMode.dark;
+                break;
+              case 'system':
+              default:
+                newThemeMode = ThemeMode.system;
+                break;
+            }
+            Provider.of<ThemeProvider>(
+              context,
+              listen: false,
+            ).setThemeMode(newThemeMode);
+            // The onThemeSelected call is no longer needed here
           },
           borderRadius: borderRadius,
           splashColor: iconColor.withAlpha(31),
