@@ -1063,7 +1063,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               // M3 Safe Area with Navigation Bar Space
-              SizedBox(height: MediaQuery.of(context).padding.bottom + 32),
+              SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
             ],
           ),
         );
