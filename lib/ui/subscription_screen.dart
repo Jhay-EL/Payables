@@ -16,13 +16,15 @@ class SubscriptionScreen extends StatefulWidget {
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
-  bool _isSearchActive = false;
   bool _isLoading = true;
+  bool _isSearchOpen = false;
   List<Subscription> _subscriptions = [];
   List<Subscription> _filteredSubscriptions = [];
   double _scrollOffset = 0.0;
   String _selectedDisplayCurrency = 'EUR';
   double _totalMonthlyAmount = 0.0;
+  String? _activeBillingCycleFilter;
+  String? _activeCategoryFilter;
 
   // Dynamic color system that adapts to dark/light mode
   Color get backgroundColor {
@@ -145,27 +147,64 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         _filteredSubscriptions = List.from(_subscriptions);
       } else {
         _filteredSubscriptions = _subscriptions.where((subscription) {
-          return subscription.title.toLowerCase().contains(
+          final titleMatches = subscription.title.toLowerCase().contains(
+            query.toLowerCase(),
+          );
+          final descriptionMatches =
+              subscription.shortDescription?.toLowerCase().contains(
                 query.toLowerCase(),
-              ) ||
-              (subscription.shortDescription?.toLowerCase().contains(
-                    query.toLowerCase(),
-                  ) ??
-                  false) ||
-              subscription.category.toLowerCase().contains(query.toLowerCase());
+              ) ??
+              false;
+          final categoryMatches = subscription.category.toLowerCase().contains(
+            query.toLowerCase(),
+          );
+
+          return titleMatches || descriptionMatches || categoryMatches;
         }).toList();
+      }
+
+      // Apply filters if they are active
+      if (_activeBillingCycleFilter != null) {
+        _filteredSubscriptions = _filteredSubscriptions
+            .where((s) => s.billingCycle == _activeBillingCycleFilter)
+            .toList();
+      }
+      if (_activeCategoryFilter != null) {
+        _filteredSubscriptions = _filteredSubscriptions
+            .where((s) => s.category == _activeCategoryFilter)
+            .toList();
       }
     });
   }
 
-  void _toggleSearch() {
+  void _showSearchBottomSheet() {
     setState(() {
-      _isSearchActive = !_isSearchActive;
-      if (!_isSearchActive) {
-        _searchController.clear();
-        _filteredSubscriptions = List.from(_subscriptions);
-      }
+      _isSearchOpen = true;
     });
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return _buildM3SearchInterface();
+      },
+    ).whenComplete(() {
+      _searchController.clear();
+      setState(() {
+        _isSearchOpen = false;
+      });
+    });
+  }
+
+  void _showFilterBottomSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return _buildM3FilterInterface();
+      },
+    );
   }
 
   @override
@@ -192,15 +231,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 elevation: 0,
                 surfaceTintColor: lightColor,
                 backgroundColor: backgroundColor,
-                leading: IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: Icon(
-                    Icons.chevron_left_rounded,
-                    color: highContrastDarkBlue,
-                    size: 28,
-                  ),
-                  splashRadius: 24,
-                ),
+                leading: BackButton(color: highContrastDarkBlue),
                 actions: [
                   Padding(
                     padding: const EdgeInsets.only(right: 16.0),
@@ -215,7 +246,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   delegate: SliverChildListDelegate([
                     _buildTotalAmountCard(),
                     const SizedBox(height: 24),
-                    _buildSubscriptionsList(),
+                    _buildSubscriptionsContent(),
                     SizedBox(
                       height: 32 + MediaQuery.of(context).padding.bottom,
                     ),
@@ -224,9 +255,77 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               ),
             ],
           ),
-          // M3 Expressive Search Interface
-          if (_isSearchActive) _buildM3SearchInterface(),
+          // Empty State
+          if (!_isLoading && _filteredSubscriptions.isEmpty && !_isSearchOpen)
+            _buildEmptyState(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              _subscriptions.isEmpty ? 'No Payables Yet' : 'No Results Found',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w500,
+                color: highContrastDarkBlue,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _subscriptions.isEmpty
+                  ? 'Add your first payable to get started tracking your recurring payments.'
+                  : 'Try adjusting your search terms or clearing the search.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: darkColor.withAlpha(153),
+                height: 1.5,
+              ),
+            ),
+            if (_subscriptions.isEmpty) ...[
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddSubsScreen(),
+                    ),
+                  ).then((result) {
+                    if (result == true) {
+                      _loadSubscriptions();
+                    }
+                  });
+                },
+                icon: Icon(Icons.add_rounded, color: Colors.white),
+                label: Text(
+                  'Add Payable',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: highContrastBlue,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -352,10 +451,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Widget _buildM3SearchInterface() {
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         decoration: BoxDecoration(
           color: backgroundColor,
@@ -428,7 +527,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     ),
                     const SizedBox(width: 16),
                     TextButton(
-                      onPressed: _toggleSearch,
+                      onPressed: () => Navigator.of(context).pop(),
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 20,
@@ -481,7 +580,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       onSelected: (String value) {
         switch (value) {
           case 'search':
-            _toggleSearch();
+            _showSearchBottomSheet();
             break;
           case 'add':
             Navigator.push(
@@ -495,7 +594,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             });
             break;
           case 'filter':
-            debugPrint('Filter subscriptions');
+            _showFilterBottomSheet();
             break;
           case 'sort':
             debugPrint('Sort subscriptions');
@@ -565,7 +664,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
   }
 
-  Widget _buildSubscriptionsList() {
+  Widget _buildSubscriptionsContent() {
     if (_isLoading) {
       return Card(
         elevation: 0,
@@ -579,74 +678,205 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         ),
       );
     }
-
     if (_filteredSubscriptions.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                _subscriptions.isEmpty ? 'No Payables Yet' : 'No Results Found',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: highContrastDarkBlue,
+      return const SizedBox.shrink(); // Empty state is handled by the Stack now
+    }
+    return _buildSubscriptionsList();
+  }
+
+  Widget _buildM3FilterInterface() {
+    return StatefulBuilder(
+      builder: (BuildContext context, StateSetter setState) {
+        return Container(
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(28),
+              topRight: Radius.circular(28),
+            ),
+          ),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              24.0,
+              16.0,
+              24.0,
+              24.0 + MediaQuery.of(context).padding.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16.0),
+                    decoration: BoxDecoration(
+                      color: darkColor.withAlpha(102),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                _subscriptions.isEmpty
-                    ? 'Add your first payable to get started tracking your recurring payments.'
-                    : 'Try adjusting your search terms or clearing the search.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: darkColor.withAlpha(153),
-                  height: 1.5,
+                Text(
+                  'Filter Payables',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: highContrastDarkBlue,
+                  ),
                 ),
-              ),
-              if (_subscriptions.isEmpty) ...[
                 const SizedBox(height: 24),
-                FilledButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AddSubsScreen(),
+                Text(
+                  'By Billing Cycle',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: darkColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8.0,
+                  runSpacing: 8.0,
+                  children: ['Daily', 'Weekly', 'Monthly', 'Yearly']
+                      .map(
+                        (cycle) => FilterChip(
+                          label: Text(cycle),
+                          selected: _activeBillingCycleFilter == cycle,
+                          onSelected: (selected) {
+                            setState(() {
+                              _activeBillingCycleFilter = selected
+                                  ? cycle
+                                  : null;
+                            });
+                          },
+                          backgroundColor: lightColor.withAlpha(100),
+                          selectedColor: highContrastBlue,
+                          labelStyle: TextStyle(
+                            color: _activeBillingCycleFilter == cycle
+                                ? Colors.white
+                                : highContrastDarkBlue,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: _activeBillingCycleFilter == cycle
+                                  ? Colors.transparent
+                                  : darkColor.withAlpha(51),
+                              width: 1,
+                            ),
+                          ),
+                          showCheckmark: false,
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'By Category',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: darkColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8.0,
+                  runSpacing: 8.0,
+                  children:
+                      [
+                            'Entertainment',
+                            'Productivity',
+                            'Health',
+                            'Finance',
+                            'Education',
+                            'Not set',
+                          ]
+                          .map(
+                            (category) => FilterChip(
+                              label: Text(category),
+                              selected: _activeCategoryFilter == category,
+                              onSelected: (selected) {
+                                setState(() {
+                                  _activeCategoryFilter = selected
+                                      ? category
+                                      : null;
+                                });
+                              },
+                              backgroundColor: lightColor.withAlpha(100),
+                              selectedColor: highContrastBlue,
+                              labelStyle: TextStyle(
+                                color: _activeCategoryFilter == category
+                                    ? Colors.white
+                                    : highContrastDarkBlue,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(
+                                  color: _activeCategoryFilter == category
+                                      ? Colors.transparent
+                                      : darkColor.withAlpha(51),
+                                  width: 1,
+                                ),
+                              ),
+                              showCheckmark: false,
+                            ),
+                          )
+                          .toList(),
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          setState(() {
+                            _activeBillingCycleFilter = null;
+                            _activeCategoryFilter = null;
+                          });
+                        },
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          side: BorderSide(color: darkColor),
+                          foregroundColor: darkColor,
+                        ),
+                        child: const Text('Reset'),
                       ),
-                    ).then((result) {
-                      if (result == true) {
-                        _loadSubscriptions();
-                      }
-                    });
-                  },
-                  icon: Icon(Icons.add_rounded, color: Colors.white),
-                  label: Text(
-                    'Add Payable',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
                     ),
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: highContrastBlue,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 16,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () {
+                          this.setState(() {
+                            _filterSubscriptions(_searchController.text);
+                          });
+                          Navigator.pop(context);
+                        },
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          backgroundColor: highContrastBlue,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Apply Filters'),
+                      ),
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
+                  ],
                 ),
               ],
-            ],
+            ),
           ),
-        ),
-      );
-    }
+        );
+      },
+    );
+  }
 
+  Widget _buildSubscriptionsList() {
     return Column(
       children: [
         for (int i = 0; i < _filteredSubscriptions.length; i++) ...[
