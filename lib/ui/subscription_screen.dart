@@ -26,6 +26,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   String? _activeBillingCycleFilter;
   String? _activeCategoryFilter;
 
+  // Sorting state
+  SortBy _sortBy = SortBy.createdDate;
+  SortDirection _sortDirection = SortDirection.descending;
+
   // Dynamic color system that adapts to dark/light mode
   Color get backgroundColor {
     final brightness = Theme.of(context).brightness;
@@ -174,6 +178,33 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             .where((s) => s.category == _activeCategoryFilter)
             .toList();
       }
+
+      // Apply sorting
+      _sortSubscriptions();
+    });
+  }
+
+  void _sortSubscriptions() {
+    _filteredSubscriptions.sort((a, b) {
+      int comparison;
+      switch (_sortBy) {
+        case SortBy.title:
+          comparison = a.title.toLowerCase().compareTo(b.title.toLowerCase());
+          break;
+        case SortBy.amount:
+          comparison = a.amount.compareTo(b.amount);
+          break;
+        case SortBy.nextBilling:
+          comparison = a.billingDate.compareTo(b.billingDate);
+          break;
+        case SortBy.createdDate:
+          comparison = a.createdAt.compareTo(b.createdAt);
+          break;
+      }
+      // Apply direction
+      return _sortDirection == SortDirection.ascending
+          ? comparison
+          : -comparison;
     });
   }
 
@@ -203,6 +234,17 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       backgroundColor: Colors.transparent,
       builder: (BuildContext context) {
         return _buildM3FilterInterface();
+      },
+    );
+  }
+
+  void _showSortBottomSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return _buildM3SortInterface();
       },
     );
   }
@@ -476,16 +518,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Handle bar
-                Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 24),
-                  decoration: BoxDecoration(
-                    color: darkColor.withAlpha(102),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
                 // Search field with M3 styling
                 Row(
                   children: [
@@ -597,7 +629,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             _showFilterBottomSheet();
             break;
           case 'sort':
-            debugPrint('Sort subscriptions');
+            _showSortBottomSheet();
             break;
         }
       },
@@ -765,7 +797,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                               width: 1,
                             ),
                           ),
-                          showCheckmark: false,
+                          showCheckmark: true,
+                          checkmarkColor: Colors.white,
+                          selectedShadowColor: highContrastBlue.withAlpha(100),
+                          elevation: _activeBillingCycleFilter == cycle ? 4 : 0,
                         ),
                       )
                       .toList(),
@@ -819,7 +854,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                   width: 1,
                                 ),
                               ),
-                              showCheckmark: false,
+                              showCheckmark: true,
+                              checkmarkColor: Colors.white,
+                              selectedShadowColor: highContrastBlue.withAlpha(
+                                100,
+                              ),
+                              elevation: _activeCategoryFilter == category
+                                  ? 4
+                                  : 0,
                             ),
                           )
                           .toList(),
@@ -842,6 +884,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           ),
                           side: BorderSide(color: darkColor),
                           foregroundColor: darkColor,
+                          textStyle: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         child: const Text('Reset'),
                       ),
@@ -862,8 +908,222 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           ),
                           backgroundColor: highContrastBlue,
                           foregroundColor: Colors.white,
+                          elevation: 2,
+                          textStyle: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         child: const Text('Apply Filters'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildM3SortInterface() {
+    return StatefulBuilder(
+      builder: (BuildContext context, StateSetter setState) {
+        return Container(
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(28),
+              topRight: Radius.circular(28),
+            ),
+          ),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              24.0,
+              16.0,
+              24.0,
+              24.0 + MediaQuery.of(context).padding.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16.0),
+                    decoration: BoxDecoration(
+                      color: darkColor.withAlpha(102),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Text(
+                  'Sort Payables',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: highContrastDarkBlue,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Sort By section
+                Text(
+                  'Sort By',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: darkColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8.0,
+                  runSpacing: 8.0,
+                  children: SortBy.values
+                      .map(
+                        (sortBy) => FilterChip(
+                          label: Text(sortBy.displayName),
+                          selected: _sortBy == sortBy,
+                          onSelected: (selected) {
+                            if (selected) {
+                              setState(() {
+                                _sortBy = sortBy;
+                              });
+                            }
+                          },
+                          showCheckmark: true,
+                          checkmarkColor: Colors.white,
+                          backgroundColor: lightColor.withAlpha(100),
+                          selectedColor: highContrastBlue,
+                          labelStyle: TextStyle(
+                            color: _sortBy == sortBy
+                                ? Colors.white
+                                : highContrastDarkBlue,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: _sortBy == sortBy
+                                  ? Colors.transparent
+                                  : darkColor.withAlpha(51),
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Direction section
+                Text(
+                  'Direction',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: darkColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8.0,
+                  runSpacing: 8.0,
+                  children: SortDirection.values
+                      .map(
+                        (direction) => FilterChip(
+                          label: Text(direction.displayName),
+                          selected: _sortDirection == direction,
+                          onSelected: (selected) {
+                            if (selected) {
+                              setState(() {
+                                _sortDirection = direction;
+                              });
+                            }
+                          },
+                          avatar: Icon(
+                            direction == SortDirection.ascending
+                                ? Icons.arrow_upward_rounded
+                                : Icons.arrow_downward_rounded,
+                            size: 16,
+                            color: _sortDirection == direction
+                                ? Colors.white
+                                : highContrastDarkBlue,
+                          ),
+                          showCheckmark: false,
+                          backgroundColor: lightColor.withAlpha(100),
+                          selectedColor: highContrastBlue,
+                          labelStyle: TextStyle(
+                            color: _sortDirection == direction
+                                ? Colors.white
+                                : highContrastDarkBlue,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: _sortDirection == direction
+                                  ? Colors.transparent
+                                  : darkColor.withAlpha(51),
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+
+                const SizedBox(height: 32),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          setState(() {
+                            _sortBy = SortBy.createdDate;
+                            _sortDirection = SortDirection.descending;
+                          });
+                        },
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          side: BorderSide(color: darkColor),
+                          foregroundColor: darkColor,
+                          textStyle: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        child: const Text('Reset'),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () {
+                          this.setState(() {
+                            _filterSubscriptions(_searchController.text);
+                          });
+                          Navigator.pop(context);
+                        },
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          backgroundColor: highContrastBlue,
+                          foregroundColor: Colors.white,
+                          elevation: 2,
+                          textStyle: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        child: const Text('Apply'),
                       ),
                     ),
                   ],
@@ -1164,6 +1424,40 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       } else {
         return 'Overdue';
       }
+    }
+  }
+}
+
+enum SortBy {
+  title,
+  amount,
+  nextBilling,
+  createdDate;
+
+  String get displayName {
+    switch (this) {
+      case SortBy.title:
+        return 'Title';
+      case SortBy.amount:
+        return 'Amount';
+      case SortBy.nextBilling:
+        return 'Next Billing';
+      case SortBy.createdDate:
+        return 'Date Added';
+    }
+  }
+}
+
+enum SortDirection {
+  ascending,
+  descending;
+
+  String get displayName {
+    switch (this) {
+      case SortDirection.ascending:
+        return 'Ascending';
+      case SortDirection.descending:
+        return 'Descending';
     }
   }
 }
