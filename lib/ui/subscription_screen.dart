@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:payables/data/currency_provider.dart';
+import 'package:provider/provider.dart';
 import 'addsubs_screen.dart';
 import '../data/subscription_database.dart';
 import '../models/subscription.dart';
@@ -21,7 +23,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   List<Subscription> _subscriptions = [];
   List<Subscription> _filteredSubscriptions = [];
   double _scrollOffset = 0.0;
-  String _selectedDisplayCurrency = 'EUR';
   double _totalMonthlyAmount = 0.0;
   String? _activeBillingCycleFilter;
   String? _activeCategoryFilter;
@@ -74,9 +75,15 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Move the subscription loading here to ensure context is available for Provider
+    _loadSubscriptions();
+  }
+
+  @override
   void initState() {
     super.initState();
-    _loadSubscriptions();
     _scrollController.addListener(_onScroll);
     _searchController.addListener(() {
       _filterSubscriptions(_searchController.text);
@@ -111,8 +118,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   void _calculateTotalMonthlyAmount() {
     double total = 0;
+    final selectedDisplayCurrency = Provider.of<CurrencyProvider>(
+      context,
+      listen: false,
+    ).selectedCurrency;
     for (final subscription in _subscriptions) {
-      if (subscription.currency == _selectedDisplayCurrency) {
+      if (subscription.currency == selectedDisplayCurrency) {
         total += _getMonthlyAmount(subscription);
       }
     }
@@ -373,6 +384,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Widget _buildTotalAmountCard() {
+    final currencyProvider = Provider.of<CurrencyProvider>(context);
+    final selectedDisplayCurrency = currencyProvider.selectedCurrency;
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 24),
       child: Row(
@@ -396,7 +410,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                '${_getCurrencySymbol(_selectedDisplayCurrency)}${_totalMonthlyAmount.toStringAsFixed(2)}',
+                '${_getCurrencySymbol(selectedDisplayCurrency)}${_totalMonthlyAmount.toStringAsFixed(2)}',
                 style: Theme.of(context).textTheme.displaySmall?.copyWith(
                   color: highContrastDarkBlue,
                   fontWeight: FontWeight.w600,
@@ -423,6 +437,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Widget _buildCurrencyDropdown() {
+    final currencyProvider = Provider.of<CurrencyProvider>(context);
+    final selectedDisplayCurrency = currencyProvider.selectedCurrency;
+
     return Container(
       decoration: BoxDecoration(
         color: lightColor,
@@ -442,7 +459,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Text(
-                  _selectedDisplayCurrency,
+                  selectedDisplayCurrency,
                   style: TextStyle(
                     color: highContrastDarkBlue,
                     fontWeight: FontWeight.w500,
@@ -458,10 +475,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               child: PopupMenuButton<String>(
                 icon: Icon(Icons.keyboard_arrow_down_rounded, color: darkColor),
                 onSelected: (String newValue) {
-                  setState(() {
-                    _selectedDisplayCurrency = newValue;
-                    _calculateTotalMonthlyAmount();
-                  });
+                  currencyProvider.setCurrency(newValue);
+                  _calculateTotalMonthlyAmount();
                 },
                 itemBuilder: (BuildContext context) {
                   return CurrencyDatabase.getCurrencies().map((

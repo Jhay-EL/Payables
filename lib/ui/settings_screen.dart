@@ -6,6 +6,7 @@ import 'about_screen.dart';
 import 'widget_settings_screen.dart';
 import 'package:payables/models/currency.dart';
 import 'package:payables/data/currency_database.dart';
+import 'package:payables/data/currency_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -1244,8 +1245,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildCurrencyBottomSheet(BuildContext context) {
-    String selectedCurrency =
-        'USD'; // This should be managed by state management
+    final currencyProvider = Provider.of<CurrencyProvider>(context);
+    String selectedCurrency = currencyProvider.selectedCurrency;
     String searchQuery = '';
     TextEditingController searchController = TextEditingController();
 
@@ -1545,8 +1546,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               selectedValue = currency.code;
             });
             // Handle currency change
-            // ignore: avoid_print
-            print('Currency changed to: ${currency.code}');
+            Provider.of<CurrencyProvider>(
+              context,
+              listen: false,
+            ).setCurrency(currency.code);
             if (context.mounted) {
               Navigator.pop(context);
             }

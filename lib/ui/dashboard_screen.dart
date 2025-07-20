@@ -72,14 +72,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   final List<Map<String, dynamic>> _categories = [
     {
-      'icon': Icons.cloud_upload_rounded,
-      'name': 'Cloud storage',
-      'count': 0,
-      'color': const Color(0xFF3B82F6),
-      'originalColor': const Color(0xFF6750A4),
-      'originalBackgroundColor': const Color(0xFFEADDFF),
-    },
-    {
       'icon': Icons.play_circle_filled_rounded,
       'name': 'Entertainment',
       'count': 0,
@@ -88,52 +80,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'originalBackgroundColor': const Color(0xFFA6F2FF),
     },
     {
-      'icon': Icons.fitness_center_rounded,
-      'name': 'Fitness',
+      'icon': Icons.cloud_upload_rounded,
+      'name': 'Cloud & Software',
       'count': 0,
-      'color': const Color(0xFFEF4444),
-      'originalColor': const Color(0xFF8B5000),
-      'originalBackgroundColor': const Color(0xFFFFDCC5),
+      'color': const Color(0xFF3B82F6),
+      'originalColor': const Color(0xFF6750A4),
+      'originalBackgroundColor': const Color(0xFFEADDFF),
     },
     {
-      'icon': Icons.local_hospital_rounded,
-      'name': 'Insurance',
+      'icon': Icons.bolt_rounded,
+      'name': 'Utilities & Household',
       'count': 0,
-      'color': const Color(0xFF06B6D4),
-      'originalColor': const Color(0xFF006E1C),
-      'originalBackgroundColor': const Color(0xFFA6F7B1),
+      'color': const Color(0xFFF59E0B),
+      'originalColor': const Color(0xFF795548),
+      'originalBackgroundColor': const Color(0xFFEFEBE9),
     },
     {
-      'icon': Icons.account_balance_wallet_rounded,
-      'name': 'Finance',
-      'count': 0,
-      'color': const Color(0xFF10B981),
-      'originalColor': const Color(0xFF8E4EC6),
-      'originalBackgroundColor': const Color(0xFFE8DEF8),
-    },
-    {
-      'icon': Icons.code_rounded,
-      'name': 'Development',
-      'count': 0,
-      'color': const Color(0xFF8B5CF6),
-      'originalColor': const Color(0xFF984061),
-      'originalBackgroundColor': const Color(0xFFFFD8E4),
-    },
-    {
-      'icon': Icons.directions_car_rounded,
-      'name': 'Transportation',
+      'icon': Icons.phone_android_rounded,
+      'name': 'Mobile & Connectivity',
       'count': 0,
       'color': const Color(0xFF84CC16),
       'originalColor': const Color(0xFF006B5D),
       'originalBackgroundColor': const Color(0xFFA6F2ED),
     },
     {
-      'icon': Icons.bolt_rounded,
-      'name': 'Utilities',
+      'icon': Icons.account_balance_wallet_rounded,
+      'name': 'Insurance & Finance',
       'count': 0,
-      'color': const Color(0xFFF59E0B),
-      'originalColor': const Color(0xFF795548),
-      'originalBackgroundColor': const Color(0xFFEFEBE9),
+      'color': const Color(0xFF10B981),
+      'originalColor': const Color(0xFF8E4EC6),
+      'originalBackgroundColor': const Color(0xFFE8DEF8),
     },
   ];
 
@@ -225,14 +201,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     switch (dashboardCategory.toLowerCase()) {
       case 'entertainment':
         return 'Entertainment';
-      case 'cloud storage':
+      case 'cloud & software':
         return 'Productivity';
-      case 'fitness':
-        return 'Health';
-      case 'finance':
+      case 'insurance & finance':
         return 'Finance';
-      case 'development':
-        return 'Education';
       default:
         return 'Not set';
     }
@@ -2941,12 +2913,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final availableIcons = [
       Icons.cloud_upload_rounded,
       Icons.play_circle_filled_rounded,
-      Icons.fitness_center_rounded,
-      Icons.local_hospital_rounded,
+      Icons.bolt_rounded,
+      Icons.phone_rounded,
       Icons.account_balance_wallet_rounded,
       Icons.code_rounded,
       Icons.directions_car_rounded,
-      Icons.bolt_rounded,
       Icons.shopping_bag_rounded,
       Icons.restaurant_rounded,
       Icons.home_rounded,
@@ -2962,7 +2933,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       Icons.beach_access_rounded,
       Icons.sports_basketball_rounded,
       Icons.local_gas_station_rounded,
-      Icons.phone_rounded,
       Icons.tv_rounded,
       Icons.laptop_rounded,
       Icons.watch_rounded,
@@ -3018,7 +2988,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       Icons.payments_rounded,
       Icons.credit_card_rounded,
       Icons.receipt_long_rounded,
-      Icons.shopping_cart_rounded,
       Icons.storefront_rounded,
       Icons.apartment_rounded,
       Icons.house_rounded,

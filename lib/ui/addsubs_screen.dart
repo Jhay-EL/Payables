@@ -9,6 +9,8 @@ import '../data/payment_method_database.dart';
 import '../models/subscription.dart';
 import '../models/payment_method.dart';
 import '../data/currency_database.dart';
+import 'package:provider/provider.dart';
+import '../data/currency_provider.dart';
 
 class AddSubsScreen extends StatefulWidget {
   const AddSubsScreen({super.key});
@@ -24,7 +26,6 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
 
-  String _selectedCurrency = 'EUR';
   String _selectedBillingCycle = 'Monthly';
   String _selectedPaymentMethod = 'Not set';
   final List<Map<String, dynamic>> _paymentMethods = [
@@ -219,7 +220,10 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
 
       final subscription = Subscription(
         title: _titleController.text.trim(),
-        currency: _selectedCurrency,
+        currency: Provider.of<CurrencyProvider>(
+          context,
+          listen: false,
+        ).selectedCurrency,
         amount: amount,
         billingDate:
             _billingDate ?? DateTime.now().add(const Duration(days: 1)),
@@ -475,9 +479,12 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
         ? _descriptionController.text
         : _selectedCategory;
     final dueDate = _getBillingInfo();
+    final selectedCurrency = Provider.of<CurrencyProvider>(
+      context,
+    ).selectedCurrency;
     final price = _amountController.text.isEmpty
-        ? '$_selectedCurrency 0.00'
-        : '$_selectedCurrency ${_amountController.text}';
+        ? '$selectedCurrency 0.00'
+        : '$selectedCurrency ${_amountController.text}';
 
     return Card(
       elevation: 0,
@@ -596,8 +603,10 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
   }
 
   Widget _buildBasicInformationCard() {
+    final currencyProvider = Provider.of<CurrencyProvider>(context);
+    final selectedCurrency = currencyProvider.selectedCurrency;
     final selectedCurrencyObject = CurrencyDatabase.getCurrencyByCode(
-      _selectedCurrency,
+      selectedCurrency,
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -639,12 +648,11 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
               flex: 1,
               child: _buildM3DropdownField(
                 label: 'Currency',
-                value: _selectedCurrency,
+                value: selectedCurrency,
                 items: CurrencyDatabase.getCurrencies()
                     .map((c) => c.code)
                     .toList(),
-                onChanged: (value) =>
-                    setState(() => _selectedCurrency = value!),
+                onChanged: (value) => currencyProvider.setCurrency(value!),
               ),
             ),
           ],
