@@ -13,7 +13,8 @@ import 'package:provider/provider.dart';
 import '../data/currency_provider.dart';
 
 class AddSubsScreen extends StatefulWidget {
-  const AddSubsScreen({super.key});
+  final List<Map<String, dynamic>>? categories;
+  const AddSubsScreen({super.key, this.categories});
 
   @override
   State<AddSubsScreen> createState() => _AddSubsScreenState();
@@ -58,48 +59,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
   Object _selectedIcon = Icons.category_rounded;
   Color _selectedColor = const Color(0xFF6B7280);
 
-  final List<Map<String, dynamic>> _categories = [
-    {
-      'name': 'Not set',
-      'icon': Icons.category_rounded,
-      'color': const Color(0xFF6B7280),
-    },
-    {
-      'name': 'Entertainment',
-      'icon': Icons.play_circle_filled_rounded,
-      'color': const Color(0xFFEC4899),
-    },
-    {
-      'name': 'Productivity',
-      'icon': Icons.cloud_upload_rounded,
-      'color': const Color(0xFF3B82F6),
-    },
-    {
-      'name': 'Health',
-      'icon': Icons.fitness_center_rounded,
-      'color': const Color(0xFFEF4444),
-    },
-    {
-      'name': 'Finance',
-      'icon': Icons.account_balance_wallet_rounded,
-      'color': const Color(0xFF10B981),
-    },
-    {
-      'name': 'Education',
-      'icon': Icons.code_rounded,
-      'color': const Color(0xFF8B5CF6),
-    },
-    {
-      'name': 'Transportation',
-      'icon': Icons.directions_car_rounded,
-      'color': const Color(0xFF84CC16),
-    },
-    {
-      'name': 'Utilities',
-      'icon': Icons.bolt_rounded,
-      'color': const Color(0xFFF59E0B),
-    },
-  ];
+  List<Map<String, dynamic>> _categories = [];
 
   // Dynamic color system that adapts to dark/light mode
   Color get backgroundColor {
@@ -153,11 +113,74 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
   @override
   void initState() {
     super.initState();
+    _initializeCategories();
     _titleController.addListener(() => setState(() {}));
     _amountController.addListener(() => setState(() {}));
     _descriptionController.addListener(() => setState(() {}));
     _websiteController.addListener(() => setState(() {}));
     _loadCustomPaymentMethods();
+  }
+
+  void _initializeCategories() {
+    final defaultCategories = [
+      {
+        'name': 'Entertainment',
+        'icon': Icons.play_circle_filled_rounded,
+        'color': const Color(0xFFEC4899),
+      },
+      {
+        'name': 'Productivity',
+        'icon': Icons.cloud_upload_rounded,
+        'color': const Color(0xFF3B82F6),
+      },
+      {
+        'name': 'Health',
+        'icon': Icons.fitness_center_rounded,
+        'color': const Color(0xFFEF4444),
+      },
+      {
+        'name': 'Finance',
+        'icon': Icons.account_balance_wallet_rounded,
+        'color': const Color(0xFF10B981),
+      },
+      {
+        'name': 'Education',
+        'icon': Icons.code_rounded,
+        'color': const Color(0xFF8B5CF6),
+      },
+      {
+        'name': 'Transportation',
+        'icon': Icons.directions_car_rounded,
+        'color': const Color(0xFF84CC16),
+      },
+      {
+        'name': 'Utilities',
+        'icon': Icons.bolt_rounded,
+        'color': const Color(0xFFF59E0B),
+      },
+    ];
+
+    List<Map<String, dynamic>> dashboardCategories;
+    if (widget.categories != null && widget.categories!.isNotEmpty) {
+      dashboardCategories = widget.categories!.map((c) {
+        return {
+          'name': c['name'],
+          'icon': c['icon'],
+          'color': c['originalColor'] ?? c['color'],
+        };
+      }).toList();
+    } else {
+      dashboardCategories = defaultCategories;
+    }
+
+    _categories = [
+      {
+        'name': 'Not set',
+        'icon': Icons.category_rounded,
+        'color': const Color(0xFF6B7280),
+      },
+      ...dashboardCategories,
+    ];
   }
 
   // Load custom payment methods from database
@@ -896,21 +919,11 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                       color: _selectedColor.withAlpha(31),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: _selectedIcon is IconData
-                        ? Icon(
-                            _selectedIcon as IconData,
-                            color: _selectedColor,
-                            size: 24,
-                          )
-                        : ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.file(
-                              _selectedIcon as File,
-                              fit: BoxFit.cover,
-                              width: 24,
-                              height: 24,
-                            ),
-                          ),
+                    child: Icon(
+                      Icons.palette_rounded,
+                      color: _selectedColor,
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -982,7 +995,21 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                       color: darkColor.withAlpha(31),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(Icons.apps_rounded, color: darkColor, size: 24),
+                    child: _selectedIcon is IconData
+                        ? Icon(
+                            _selectedIcon as IconData,
+                            color: darkColor,
+                            size: 24,
+                          )
+                        : ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.file(
+                              _selectedIcon as File,
+                              fit: BoxFit.cover,
+                              width: 24,
+                              height: 24,
+                            ),
+                          ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -1419,41 +1446,6 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            // Category selection hint
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: userSelectedColor.withAlpha(100),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: userSelectedColor.withAlpha(120),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline_rounded,
-                      color: darkColor,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Use category dropdown below to select predefined colors with icons',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: highContrastDarkBlue,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
             // M3 Safe Area
             SizedBox(height: MediaQuery.of(context).padding.bottom + 32),
           ],
@@ -1619,15 +1611,8 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
       value: _selectedCategory,
       items: _categories.map((c) => c['name'] as String).toList(),
       onChanged: (value) {
-        setState(() => _selectedCategory = value!);
-        // Update color and icon based on category
-        final category = _categories.firstWhere(
-          (cat) => cat['name'] == value,
-          orElse: () => _categories.first,
-        );
         setState(() {
-          _selectedColor = category['color'];
-          _selectedIcon = category['icon'];
+          _selectedCategory = value!;
         });
       },
     );
@@ -2259,7 +2244,6 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                                         16,
                                         16,
                                       ),
-                                      counterText: '',
                                     ),
                                   ),
                                 ],

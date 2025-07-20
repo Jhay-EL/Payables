@@ -1521,7 +1521,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const AddSubsScreen(),
+                        builder: (context) =>
+                            AddSubsScreen(categories: _categories),
                       ),
                     );
                   },
