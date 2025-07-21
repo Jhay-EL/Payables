@@ -526,7 +526,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                       _selectedIcon as File,
                       width: 48,
                       height: 48,
-                      fit: BoxFit.cover,
+                      fit: BoxFit.contain,
                     ),
                   )
                 : Container(
@@ -1005,7 +1005,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                             borderRadius: BorderRadius.circular(12),
                             child: Image.file(
                               _selectedIcon as File,
-                              fit: BoxFit.cover,
+                              fit: BoxFit.contain,
                               width: 24,
                               height: 24,
                             ),
@@ -1461,7 +1461,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
     required IconData icon,
     required Color activeColor,
   }) {
-    Color pickedColor = initialColor;
+    HSVColor pickedHsvColor = HSVColor.fromColor(initialColor);
     final hexController = TextEditingController(
       text: initialColor
           .toARGB32()
@@ -1475,12 +1475,13 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            void updateColor(Color newColor) {
-              if (newColor == pickedColor) return;
+            void updateColor(HSVColor newHsvColor) {
+              if (newHsvColor == pickedHsvColor) return;
 
               setState(() {
-                pickedColor = newColor;
-                final newHex = newColor
+                pickedHsvColor = newHsvColor;
+                final newHex = newHsvColor
+                    .toColor()
                     .toARGB32()
                     .toRadixString(16)
                     .substring(2)
@@ -1520,7 +1521,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: pickedColor,
+                        color: pickedHsvColor.toColor(),
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: darkColor.withAlpha(77),
@@ -1530,10 +1531,42 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                     ),
                     const SizedBox(height: 24),
                     _ColorWheelWidget(
-                      currentColor: pickedColor,
-                      onColorChanged: updateColor,
+                      currentColor: pickedHsvColor.toColor(),
+                      onColorChanged: (wheelColor) {
+                        final wheelHsv = HSVColor.fromColor(wheelColor);
+                        updateColor(
+                          pickedHsvColor
+                              .withHue(wheelHsv.hue)
+                              .withSaturation(wheelHsv.saturation),
+                        );
+                      },
                     ),
                     const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.brightness_4_rounded,
+                          color: darkColor.withAlpha(179),
+                        ),
+                        Expanded(
+                          child: Slider(
+                            value: pickedHsvColor.value,
+                            min: 0.0,
+                            max: 1.0,
+                            activeColor: activeColor,
+                            inactiveColor: activeColor.withOpacity(0.3),
+                            onChanged: (value) {
+                              updateColor(pickedHsvColor.withValue(value));
+                            },
+                          ),
+                        ),
+                        Icon(
+                          Icons.brightness_7_rounded,
+                          color: darkColor.withAlpha(179),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
                     TextField(
                       controller: hexController,
                       textAlign: TextAlign.center,
@@ -1563,7 +1596,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                             final newColor = Color(
                               int.parse('FF$value', radix: 16),
                             );
-                            updateColor(newColor);
+                            updateColor(HSVColor.fromColor(newColor));
                           } catch (e) {
                             // Ignore invalid hex codes
                           }
@@ -1586,7 +1619,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                 ),
                 TextButton(
                   onPressed: () {
-                    onColorSelected(pickedColor);
+                    onColorSelected(pickedHsvColor.toColor());
                     Navigator.of(context).pop();
                   },
                   child: Text(

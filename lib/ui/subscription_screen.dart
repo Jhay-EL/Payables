@@ -1177,25 +1177,40 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     final price =
         '${subscription.currency} ${subscription.amount.toStringAsFixed(2)}';
 
-    Widget iconContent;
+    Widget iconWidget;
     if (subscription.iconFilePath != null) {
-      iconContent = ClipRRect(
-        borderRadius: BorderRadius.circular(16.0),
-        child: Image.file(
-          File(subscription.iconFilePath!),
-          width: 24,
-          height: 24,
-          fit: BoxFit.cover,
+      iconWidget = SizedBox(
+        width: 48,
+        height: 48,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16.0),
+          child: Image.file(
+            File(subscription.iconFilePath!),
+            fit: BoxFit.contain,
+          ),
         ),
       );
     } else {
-      iconContent = Icon(
-        IconData(
-          subscription.iconCodePoint ?? 0xe047, // Default to category icon
-          fontFamily: 'MaterialIcons',
+      iconWidget = Container(
+        width: 48,
+        height: 48,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.white.withAlpha(153), Colors.white.withAlpha(128)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
         ),
-        size: 24,
-        color: Colors.white,
+        child: Icon(
+          IconData(
+            subscription.iconCodePoint ?? 0xe047, // Default to category icon
+            fontFamily: 'MaterialIcons',
+          ),
+          size: 24,
+          color: Colors.white,
+        ),
       );
     }
 
@@ -1242,21 +1257,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           child: Row(
             children: [
               // Icon with enhanced styling
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.white.withAlpha(153),
-                      Colors.white.withAlpha(128),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: iconContent,
-              ),
+              iconWidget,
               const SizedBox(width: 16),
               // Content
               Expanded(

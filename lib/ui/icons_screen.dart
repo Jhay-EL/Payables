@@ -779,7 +779,7 @@ class _IconsScreenState extends State<IconsScreen>
                             borderRadius: BorderRadius.circular(16),
                             image: DecorationImage(
                               image: FileImage(file),
-                              fit: BoxFit.cover,
+                              fit: BoxFit.contain,
                             ),
                           ),
                         ),
