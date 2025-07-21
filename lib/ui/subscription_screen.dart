@@ -10,7 +10,8 @@ import '../models/currency.dart';
 import '../data/currency_database.dart';
 
 class SubscriptionScreen extends StatefulWidget {
-  const SubscriptionScreen({super.key});
+  final List<Map<String, dynamic>>? categories;
+  const SubscriptionScreen({super.key, this.categories});
 
   @override
   State<SubscriptionScreen> createState() => _SubscriptionScreenState();
@@ -349,7 +350,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const AddSubsScreen(),
+                      builder: (context) =>
+                          AddSubsScreen(categories: widget.categories),
                     ),
                   ).then((result) {
                     if (result == true) {
@@ -633,7 +635,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           case 'add':
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const AddSubsScreen()),
+              MaterialPageRoute(
+                builder: (context) =>
+                    AddSubsScreen(categories: widget.categories),
+              ),
             ).then((result) {
               // Reload subscriptions if a new one was added
               if (result == true) {

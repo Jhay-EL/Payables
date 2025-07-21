@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
-import 'dart:math' as math;
+
 import 'icons_screen.dart';
 import '../data/subscription_database.dart';
 import '../data/payment_method_database.dart';
@@ -11,6 +11,7 @@ import '../models/payment_method.dart';
 import '../data/currency_database.dart';
 import 'package:provider/provider.dart';
 import '../data/currency_provider.dart';
+import 'color_picker_screen.dart';
 
 class AddSubsScreen extends StatefulWidget {
   final List<Map<String, dynamic>>? categories;
@@ -122,44 +123,6 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
   }
 
   void _initializeCategories() {
-    final defaultCategories = [
-      {
-        'name': 'Entertainment',
-        'icon': Icons.play_circle_filled_rounded,
-        'color': const Color(0xFFEC4899),
-      },
-      {
-        'name': 'Productivity',
-        'icon': Icons.cloud_upload_rounded,
-        'color': const Color(0xFF3B82F6),
-      },
-      {
-        'name': 'Health',
-        'icon': Icons.fitness_center_rounded,
-        'color': const Color(0xFFEF4444),
-      },
-      {
-        'name': 'Finance',
-        'icon': Icons.account_balance_wallet_rounded,
-        'color': const Color(0xFF10B981),
-      },
-      {
-        'name': 'Education',
-        'icon': Icons.code_rounded,
-        'color': const Color(0xFF8B5CF6),
-      },
-      {
-        'name': 'Transportation',
-        'icon': Icons.directions_car_rounded,
-        'color': const Color(0xFF84CC16),
-      },
-      {
-        'name': 'Utilities',
-        'icon': Icons.bolt_rounded,
-        'color': const Color(0xFFF59E0B),
-      },
-    ];
-
     List<Map<String, dynamic>> dashboardCategories;
     if (widget.categories != null && widget.categories!.isNotEmpty) {
       dashboardCategories = widget.categories!.map((c) {
@@ -170,7 +133,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
         };
       }).toList();
     } else {
-      dashboardCategories = defaultCategories;
+      dashboardCategories = [];
     }
 
     _categories = [
@@ -907,7 +870,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
             side: BorderSide(color: darkColor.withAlpha(77), width: 1),
           ),
           child: InkWell(
-            onTap: () => _showColorPicker(),
+            onTap: () => _showColorPickerDialog(),
             borderRadius: BorderRadius.circular(4),
             child: Container(
               padding: const EdgeInsets.all(20),
@@ -1287,354 +1250,24 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
     );
   }
 
-  void _showColorPicker() {
-    final List<Color> colors = [
-      const Color(0xFF6B7280), // Gray (default)
-      const Color(0xFFEC4899), // Entertainment - Pink
-      const Color(0xFF3B82F6), // Productivity - Blue
-      const Color(0xFFEF4444), // Health - Red
-      const Color(0xFF10B981), // Finance - Green
-      const Color(0xFF8B5CF6), // Education - Purple
-      const Color(0xFF84CC16), // Transportation - Lime
-      const Color(0xFFF59E0B), // Utilities - Orange
-      const Color(0xFF06B6D4), // Cyan
-      const Color(0xFF1DB954), // Spotify green
-      const Color(0xFF2B2B2B), // Dark
-      const Color(0xFFFBBF24), // Yellow
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(28),
-            topRight: Radius.circular(28),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // M3 Handle
-            Container(
-              width: 32,
-              height: 4,
-              margin: const EdgeInsets.only(top: 12, bottom: 16),
-              decoration: BoxDecoration(
-                color: darkColor.withAlpha(102),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            // M3 Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: darkColor.withAlpha(41),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Icon(
-                      Icons.palette_rounded,
-                      color: darkColor,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Choose Color',
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.w500,
-                                color: highContrastDarkBlue,
-                              ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Select a color for your payable card',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: darkColor,
-                                fontWeight: FontWeight.w400,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            // Color Grid
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-              child: Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  // Pre-defined Colors
-                  ...colors.map((color) {
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedColor = color;
-                        });
-                        Navigator.pop(context);
-                      },
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: _selectedColor == color
-                                ? highContrastDarkBlue
-                                : Colors.transparent,
-                            width: 3,
-                          ),
-                        ),
-                        child: _selectedColor == color
-                            ? Icon(Icons.check, color: Colors.white, size: 24)
-                            : null,
-                      ),
-                    );
-                  }),
-                  // Custom Color Button
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context); // Close the bottom sheet
-                      _showColorWheelDialog(
-                        onColorSelected: (color) {
-                          setState(() {
-                            _selectedColor = color;
-                          });
-                        },
-                        initialColor: _selectedColor,
-                        title: 'Choose Color',
-                        icon: Icons.palette_rounded,
-                        activeColor: highContrastBlue,
-                      );
-                    },
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: darkColor.withAlpha(102),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          Icons.color_lens_rounded,
-                          color: highContrastBlue,
-                          size: 24,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // M3 Safe Area
-            SizedBox(height: MediaQuery.of(context).padding.bottom + 32),
-          ],
+  void _showColorPickerDialog() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ColorPickerScreen(
+          initialColor: _selectedColor,
+          currentTitle: _titleController.text,
+          currentIcon: _selectedIcon,
+          currentAmount: _amountController.text,
+          currentDescription: _descriptionController.text,
+          currentDueDate: _getBillingInfo(),
+          onColorSelected: (color) {
+            setState(() {
+              _selectedColor = color;
+            });
+          },
         ),
       ),
-    );
-  }
-
-  void _showColorWheelDialog({
-    required Function(Color) onColorSelected,
-    required Color initialColor,
-    required String title,
-    required IconData icon,
-    required Color activeColor,
-  }) {
-    HSVColor pickedHsvColor = HSVColor.fromColor(initialColor);
-    final hexController = TextEditingController(
-      text: initialColor
-          .toARGB32()
-          .toRadixString(16)
-          .substring(2)
-          .toUpperCase(),
-    );
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            void updateColor(HSVColor newHsvColor) {
-              if (newHsvColor == pickedHsvColor) return;
-
-              setState(() {
-                pickedHsvColor = newHsvColor;
-                final newHex = newHsvColor
-                    .toColor()
-                    .toARGB32()
-                    .toRadixString(16)
-                    .substring(2)
-                    .toUpperCase();
-                if (hexController.text.toUpperCase() != newHex) {
-                  hexController.text = newHex;
-                  hexController.selection = TextSelection.fromPosition(
-                    TextPosition(offset: hexController.text.length),
-                  );
-                }
-              });
-            }
-
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(28),
-              ),
-              backgroundColor: backgroundColor,
-              title: Row(
-                children: [
-                  Icon(icon, color: activeColor, size: 24),
-                  const SizedBox(width: 12),
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: highContrastDarkBlue,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: pickedHsvColor.toColor(),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: darkColor.withAlpha(77),
-                          width: 4,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    _ColorWheelWidget(
-                      currentColor: pickedHsvColor.toColor(),
-                      onColorChanged: (wheelColor) {
-                        final wheelHsv = HSVColor.fromColor(wheelColor);
-                        updateColor(
-                          pickedHsvColor
-                              .withHue(wheelHsv.hue)
-                              .withSaturation(wheelHsv.saturation),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.brightness_4_rounded,
-                          color: darkColor.withAlpha(179),
-                        ),
-                        Expanded(
-                          child: Slider(
-                            value: pickedHsvColor.value,
-                            min: 0.0,
-                            max: 1.0,
-                            activeColor: activeColor,
-                            inactiveColor: activeColor.withOpacity(0.3),
-                            onChanged: (value) {
-                              updateColor(pickedHsvColor.withValue(value));
-                            },
-                          ),
-                        ),
-                        Icon(
-                          Icons.brightness_7_rounded,
-                          color: darkColor.withAlpha(179),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: hexController,
-                      textAlign: TextAlign.center,
-                      maxLength: 6,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: highContrastDarkBlue,
-                        fontFamily: 'monospace',
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Hex Code',
-                        prefixText: '#',
-                        counterText: '',
-                        filled: true,
-                        fillColor: lightColor.withAlpha(100),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(color: activeColor, width: 2),
-                        ),
-                      ),
-                      onChanged: (value) {
-                        if (value.length == 6) {
-                          try {
-                            final newColor = Color(
-                              int.parse('FF$value', radix: 16),
-                            );
-                            updateColor(HSVColor.fromColor(newColor));
-                          } catch (e) {
-                            // Ignore invalid hex codes
-                          }
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(
-                    'Cancel',
-                    style: TextStyle(
-                      color: highContrastDarkBlue,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    onColorSelected(pickedHsvColor.toColor());
-                    Navigator.of(context).pop();
-                  },
-                  child: Text(
-                    'Select',
-                    style: TextStyle(
-                      color: activeColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
     );
   }
 
@@ -1841,7 +1474,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                 // Payment methods list - Stacked Card Design
                 ConstrainedBox(
                   constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height * 0.4,
+                    maxHeight: MediaQuery.of(context).size.height * 0.6,
                   ),
                   child: _isLoadingPaymentMethods
                       ? Center(
@@ -2648,7 +2281,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Edit Payment Method',
+                                        'Edit',
                                         style: TextStyle(
                                           color: highContrastDarkBlue,
                                           fontWeight: FontWeight.w600,
@@ -2657,7 +2290,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        'Update card details and icon',
+                                        'Update details and icon',
                                         style: TextStyle(
                                           color: darkColor.withAlpha(153),
                                           fontWeight: FontWeight.w400,
@@ -2689,9 +2322,42 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                           ),
                         ),
                         child: InkWell(
-                          onTap: () {
-                            Navigator.pop(context);
-                            _showDeletePaymentMethodDialog(method);
+                          onTap: () async {
+                            final navigator = Navigator.of(context);
+                            final scaffoldMessenger = ScaffoldMessenger.of(
+                              context,
+                            );
+                            try {
+                              final methodName = method['name'] as String;
+
+                              // Delete from database
+                              await PaymentMethodDatabase.deletePaymentMethodByName(
+                                methodName,
+                              );
+
+                              // Reload payment methods from database
+                              await _loadCustomPaymentMethods();
+
+                              if (!mounted) return;
+                              setState(() {
+                                // Reset to default if the deleted method was selected
+                                if (_selectedPaymentMethod == methodName) {
+                                  _selectedPaymentMethod = 'Not set';
+                                }
+                              });
+
+                              navigator.pop();
+                            } catch (e) {
+                              if (mounted) {
+                                scaffoldMessenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Error deleting payment method',
+                                    ),
+                                  ),
+                                );
+                              }
+                            }
                           },
                           borderRadius: BorderRadius.circular(16),
                           child: Padding(
@@ -2719,7 +2385,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Delete Payment Method',
+                                        'Delete',
                                         style: TextStyle(
                                           color: const Color(0xFFEF4444),
                                           fontWeight: FontWeight.w600,
@@ -2728,7 +2394,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        'Remove this payment method permanently',
+                                        'Remove this method permanently',
                                         style: TextStyle(
                                           color: const Color(
                                             0xFFEF4444,
@@ -3286,450 +2952,5 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
         );
       },
     );
-  }
-
-  void _showDeletePaymentMethodDialog(Map<String, dynamic> method) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(24),
-          child: Container(
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.9,
-            ),
-            decoration: BoxDecoration(
-              color: backgroundColor,
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(25),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header Section
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(28),
-                      topRight: Radius.circular(28),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444).withAlpha(41),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Icon(
-                          Icons.warning_rounded,
-                          color: const Color(0xFFEF4444),
-                          size: 28,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Delete Payment Method',
-                              style: TextStyle(
-                                color: highContrastDarkBlue,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 20,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'This action cannot be undone',
-                              style: TextStyle(
-                                color: const Color(0xFFEF4444).withAlpha(179),
-                                fontWeight: FontWeight.w500,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Content Section
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Warning Message
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444).withAlpha(15),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: const Color(0xFFEF4444).withAlpha(77),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline_rounded,
-                              color: const Color(0xFFEF4444),
-                              size: 20,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'Are you sure you want to delete this payment method? This action cannot be undone.',
-                                style: TextStyle(
-                                  color: const Color(0xFFEF4444),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Payment Method Preview
-                      Text(
-                        'Payment Method to Delete:',
-                        style: TextStyle(
-                          color: highContrastDarkBlue,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: lightColor.withAlpha(50),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: darkColor.withAlpha(77),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: darkColor.withAlpha(31),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(
-                                method['icon'] as IconData,
-                                color: darkColor,
-                                size: 24,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    method['name'] as String,
-                                    style: TextStyle(
-                                      color: highContrastDarkBlue,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Custom payment method',
-                                    style: TextStyle(
-                                      color: darkColor.withAlpha(153),
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Additional Warning
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEF2F2),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(0xFFEF4444).withAlpha(51),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.lightbulb_outline_rounded,
-                              color: const Color(0xFFEF4444),
-                              size: 18,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'If this payment method is currently selected, it will be reset to "Not set".',
-                                style: TextStyle(
-                                  color: const Color(0xFFEF4444),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Actions Section
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: lightColor.withAlpha(25),
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(28),
-                      bottomRight: Radius.circular(28),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 14,
-                            ),
-                            backgroundColor: lightColor.withAlpha(100),
-                            foregroundColor: darkColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(
-                            'Cancel',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            final navigator = Navigator.of(context);
-                            final scaffoldMessenger = ScaffoldMessenger.of(
-                              context,
-                            );
-                            try {
-                              final methodName = method['name'] as String;
-
-                              // Delete from database
-                              await PaymentMethodDatabase.deletePaymentMethodByName(
-                                methodName,
-                              );
-
-                              // Reload payment methods from database
-                              await _loadCustomPaymentMethods();
-
-                              if (!mounted) return;
-                              setState(() {
-                                // Reset to default if the deleted method was selected
-                                if (_selectedPaymentMethod == methodName) {
-                                  _selectedPaymentMethod = 'Not set';
-                                }
-                              });
-
-                              navigator.pop();
-                            } catch (e) {
-                              scaffoldMessenger.showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Error deleting payment method',
-                                  ),
-                                ),
-                              );
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 14,
-                            ),
-                            backgroundColor: const Color(0xFFEF4444),
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.delete_rounded, size: 18),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  'Delete',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 15,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _ColorWheelWidget extends StatelessWidget {
-  final ValueChanged<Color> onColorChanged;
-  final Color currentColor;
-
-  const _ColorWheelWidget({
-    required this.onColorChanged,
-    required this.currentColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: GestureDetector(
-        onPanStart: (details) => _handleColorSelection(details.localPosition),
-        onPanUpdate: (details) => _handleColorSelection(details.localPosition),
-        onTapDown: (details) => _handleColorSelection(details.localPosition),
-        child: CustomPaint(
-          size: const Size(280, 280),
-          painter: ColorWheelPainter(
-            currentColor: currentColor,
-            context: context,
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _handleColorSelection(Offset position) {
-    const size = 280.0;
-    final center = const Offset(size / 2, size / 2);
-    final offset = position - center;
-    final distance = offset.distance;
-
-    if (distance <= size / 2) {
-      final double angle =
-          (math.atan2(offset.dy, offset.dx) * 180 / math.pi + 360) % 360;
-      final double saturation = math.min(distance / (size / 2), 1.0);
-      const double value = 1.0;
-
-      final Color selectedColor = HSVColor.fromAHSV(
-        1.0,
-        angle,
-        saturation,
-        value,
-      ).toColor();
-
-      onColorChanged(selectedColor);
-    }
-  }
-}
-
-class ColorWheelPainter extends CustomPainter {
-  final Color currentColor;
-  final BuildContext context;
-
-  ColorWheelPainter({required this.currentColor, required this.context});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-
-    // Draw the color wheel with reduced resolution for better performance
-    for (int h = 0; h < 360; h += 3) {
-      // Reduced hue resolution from 1 to 3 degrees
-      final double hue = h.toDouble();
-      for (int s = 0; s < radius; s += 2) {
-        // Reduced saturation resolution from 1 to 2 pixels
-        final double saturation = s / radius;
-        final color = HSVColor.fromAHSV(1.0, hue, saturation, 1.0).toColor();
-        final paint = Paint()..color = color;
-        final angle = hue * (math.pi / 180);
-        final x = center.dx + s * math.cos(angle);
-        final y = center.dy + s * math.sin(angle);
-        canvas.drawCircle(
-          Offset(x, y),
-          1.5,
-          paint,
-        ); // Slightly larger circles to fill gaps
-      }
-    }
-
-    // Draw the selector
-    final hsvColor = HSVColor.fromColor(currentColor);
-    final angle = hsvColor.hue * math.pi / 180;
-    final distance = hsvColor.saturation * radius;
-
-    final selectorPosition = Offset(
-      center.dx + distance * math.cos(angle),
-      center.dy + distance * math.sin(angle),
-    );
-
-    final selectorPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(selectorPosition, 10, selectorPaint);
-
-    final selectorBorderPaint = Paint()
-      ..color = Theme.of(context).colorScheme.outline
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-    canvas.drawCircle(selectorPosition, 10, selectorBorderPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant ColorWheelPainter oldDelegate) {
-    return oldDelegate.currentColor != currentColor;
   }
 }

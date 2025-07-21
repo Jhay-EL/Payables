@@ -70,7 +70,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _thisWeekCount = 0;
   int _thisMonthCount = 0;
 
-  final List<Map<String, dynamic>> _categories = [
+  List<Map<String, dynamic>> _categories = [
     {
       'icon': Icons.play_circle_filled_rounded,
       'name': 'Entertainment',
@@ -166,15 +166,76 @@ class _DashboardScreenState extends State<DashboardScreen> {
         categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
       }
 
+      final defaultCategories = [
+        {
+          'icon': Icons.play_circle_filled_rounded,
+          'name': 'Entertainment',
+          'count': 0,
+          'color': const Color(0xFFEC4899),
+          'originalColor': const Color(0xFF006A6B),
+          'originalBackgroundColor': const Color(0xFFA6F2FF),
+        },
+        {
+          'icon': Icons.cloud_upload_rounded,
+          'name': 'Cloud & Software',
+          'count': 0,
+          'color': const Color(0xFF3B82F6),
+          'originalColor': const Color(0xFF6750A4),
+          'originalBackgroundColor': const Color(0xFFEADDFF),
+        },
+        {
+          'icon': Icons.bolt_rounded,
+          'name': 'Utilities & Household',
+          'count': 0,
+          'color': const Color(0xFFF59E0B),
+          'originalColor': const Color(0xFF795548),
+          'originalBackgroundColor': const Color(0xFFEFEBE9),
+        },
+        {
+          'icon': Icons.phone_android_rounded,
+          'name': 'Mobile & Connectivity',
+          'count': 0,
+          'color': const Color(0xFF84CC16),
+          'originalColor': const Color(0xFF006B5D),
+          'originalBackgroundColor': const Color(0xFFA6F2ED),
+        },
+        {
+          'icon': Icons.account_balance_wallet_rounded,
+          'name': 'Insurance & Finance',
+          'count': 0,
+          'color': const Color(0xFF10B981),
+          'originalColor': const Color(0xFF8E4EC6),
+          'originalBackgroundColor': const Color(0xFFE8DEF8),
+        },
+      ];
+
       // Create a new list of categories with updated counts
       final List<Map<String, dynamic>> updatedCategories = [];
-      for (final category in _categories) {
+      final defaultCategoryNames = defaultCategories
+          .map((c) => c['name'])
+          .toSet();
+
+      for (final category in defaultCategories) {
         final categoryName = category['name'].toString();
-        String subscriptionCategoryName = _mapCategoryName(categoryName);
         final newCategory = Map<String, dynamic>.from(category);
-        newCategory['count'] = categoryCounts[subscriptionCategoryName] ?? 0;
+        newCategory['count'] = categoryCounts[categoryName] ?? 0;
         updatedCategories.add(newCategory);
       }
+
+      // Add categories from subscriptions that are not in the default list
+      categoryCounts.forEach((categoryName, count) {
+        if (!defaultCategoryNames.contains(categoryName) &&
+            categoryName != 'Not set') {
+          updatedCategories.add({
+            'name': categoryName,
+            'icon': Icons.category_rounded, // Default icon for new categories
+            'count': count,
+            'color': const Color(0xFF6B7280), // Default color
+            'originalColor': const Color(0xFF6B7280),
+            'originalBackgroundColor': const Color(0xFFE0E0E0),
+          });
+        }
+      });
 
       if (mounted) {
         setState(() {
@@ -182,9 +243,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _totalSubscriptions = subscriptions.length;
           _thisWeekCount = thisWeekCount;
           _thisMonthCount = thisMonthCount;
-          // Clear old categories and add the updated ones
-          _categories.clear();
-          _categories.addAll(updatedCategories);
+          _categories = updatedCategories;
           _isLoading = false;
         });
       }
@@ -194,19 +253,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _isLoading = false;
         });
       }
-    }
-  }
-
-  String _mapCategoryName(String dashboardCategory) {
-    switch (dashboardCategory.toLowerCase()) {
-      case 'entertainment':
-        return 'Entertainment';
-      case 'cloud & software':
-        return 'Productivity';
-      case 'insurance & finance':
-        return 'Finance';
-      default:
-        return 'Not set';
     }
   }
 
@@ -989,8 +1035,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     List<Widget> chartBars = [];
     for (int i = 0; i < _categories.length; i++) {
       final categoryName = _categories[i]['name'].toString();
-      final subscriptionCategoryName = _mapCategoryName(categoryName);
-      final spending = categorySpending[subscriptionCategoryName] ?? 0.0;
+      final spending = categorySpending[categoryName] ?? 0.0;
 
       if (spending > 0) {
         chartBars.add(
@@ -1402,14 +1447,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withAlpha(41),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
+          Icon(icon, color: color, size: 20),
           const SizedBox(width: 16),
           Expanded(
             child: Text(
@@ -1429,7 +1467,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _handleOverviewCardTap(String title) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const SubscriptionScreen()),
+      MaterialPageRoute(
+        builder: (context) => SubscriptionScreen(categories: _categories),
+      ),
     );
   }
 
