@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:ui';
 import 'dart:math' as math;
 import 'dart:io';
 
@@ -359,7 +358,9 @@ class _ColorPickerScreenState extends State<ColorPickerScreen> {
                           min: 0.0,
                           max: 1.0,
                           activeColor: highContrastBlue,
-                          inactiveColor: highContrastBlue.withOpacity(0.3),
+                          inactiveColor: highContrastBlue.withValues(
+                            alpha: 0.3,
+                          ),
                           onChanged: (value) {
                             updateColor(pickedHsvColor.withValue(value));
                           },
@@ -528,12 +529,12 @@ class _ColorWheelWidget extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: Colors.white,
                 border: Border.all(
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha: 0.3),
                   width: 2,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
+                    color: Colors.black.withValues(alpha: 0.2),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),

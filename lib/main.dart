@@ -33,6 +33,21 @@ class PayablesApp extends StatelessWidget {
               brightness: Brightness.light,
             ),
             useMaterial3: true,
+            // Remove default borders
+            inputDecorationTheme: InputDecorationTheme(
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              errorBorder: InputBorder.none,
+              focusedErrorBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+            ),
+            cardTheme: const CardThemeData(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+              ),
+            ),
           ),
           darkTheme: ThemeData(
             brightness: Brightness.dark,
@@ -41,6 +56,21 @@ class PayablesApp extends StatelessWidget {
               brightness: Brightness.dark,
             ),
             useMaterial3: true,
+            // Remove default borders
+            inputDecorationTheme: InputDecorationTheme(
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              errorBorder: InputBorder.none,
+              focusedErrorBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+            ),
+            cardTheme: const CardThemeData(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+              ),
+            ),
           ),
           themeMode: themeProvider.themeMode,
           home: const DashboardScreen(),

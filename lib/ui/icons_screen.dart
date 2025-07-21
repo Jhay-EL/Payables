@@ -194,7 +194,7 @@ class _IconsScreenState extends State<IconsScreen>
         controller: controller,
         focusNode: focusNode,
         hintText: hintText,
-        hintStyle: MaterialStateProperty.all(
+        hintStyle: WidgetStateProperty.all(
           TextStyle(color: colorScheme.onSurfaceVariant),
         ),
         leading: Icon(
@@ -212,11 +212,11 @@ class _IconsScreenState extends State<IconsScreen>
                 ),
               ]
             : null,
-        backgroundColor: MaterialStateProperty.all(
-          colorScheme.surfaceVariant.withOpacity(0.3),
+        backgroundColor: WidgetStateProperty.all(
+          colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         ),
-        elevation: MaterialStateProperty.all(0),
-        shape: MaterialStateProperty.all(
+        elevation: WidgetStateProperty.all(0),
+        shape: WidgetStateProperty.all(
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         ),
       ),
@@ -477,7 +477,7 @@ class _IconsScreenState extends State<IconsScreen>
           decoration: BoxDecoration(
             color: isSelected
                 ? colorScheme.primary
-                : colorScheme.surfaceVariant.withOpacity(0.3),
+                : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(16),
             border: isSelected
                 ? Border.all(color: colorScheme.primary, width: 2)
@@ -527,10 +527,10 @@ class _IconsScreenState extends State<IconsScreen>
           borderRadius: BorderRadius.circular(16),
           child: Container(
             decoration: BoxDecoration(
-              color: colorScheme.surfaceVariant.withOpacity(0.3),
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: colorScheme.outline.withOpacity(0.3),
+                color: colorScheme.outline.withValues(alpha: 0.3),
                 width: 1,
               ),
             ),
@@ -551,10 +551,10 @@ class _IconsScreenState extends State<IconsScreen>
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceVariant.withOpacity(0.3),
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: colorScheme.outline.withOpacity(0.3),
+                color: colorScheme.outline.withValues(alpha: 0.3),
                 width: 1,
               ),
             ),
