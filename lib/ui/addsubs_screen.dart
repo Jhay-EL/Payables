@@ -335,22 +335,12 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
         );
 
         final id = await SubscriptionDatabase.insertSubscription(subscription);
-        print(
-          'DEBUG: Subscription saved with ID: $id, Title: ${subscription.title}',
-        );
 
         // Verify the subscription was saved by querying it
         final savedSubscription =
             await SubscriptionDatabase.getSubscriptionById(id);
         if (savedSubscription != null) {
-          print(
-            'DEBUG: Subscription verified in database - Title: ${savedSubscription.title}',
-          );
-        } else {
-          print(
-            'DEBUG: ERROR - Subscription not found in database after save!',
-          );
-        }
+        } else {}
       }
 
       // Check if a new category was added
@@ -367,6 +357,11 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
       }
 
       if (!mounted) return;
+
+      // Ensure database is fully committed
+      await SubscriptionDatabase.ensureDatabaseSync();
+
+      if (!mounted) return;
       Navigator.of(context).pop();
       _showSuccessSnackBar(
         widget.subscriptionToEdit != null
@@ -374,7 +369,8 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
             : 'Payable saved successfully!',
       );
 
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Wait a bit longer to ensure database is ready
+      await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
       // Return true if subscription was saved, and also indicate if categories were modified
       Navigator.of(context).pop(categoryWasAdded ? 'categories_updated' : true);

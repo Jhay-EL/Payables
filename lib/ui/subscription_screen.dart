@@ -1454,8 +1454,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       ),
     );
 
-    if (result == true || result == 'categories_updated') {
-      _loadSubscriptions(); // Refresh the list if changes were saved
+    if (result == true ||
+        result == 'categories_updated' ||
+        result == 'deleted') {
+      _loadSubscriptions(); // Refresh the list if changes were saved or subscription was deleted
 
       // If categories were updated, we might need to refresh the categories list
       // This will be handled by the parent screen (dashboard) when it receives the result

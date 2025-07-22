@@ -50,7 +50,6 @@ class SubscriptionDatabase {
         readOnly: false,
       );
     } catch (e) {
-      print('DEBUG: Database initialization error: $e');
       rethrow;
     }
   }
@@ -122,7 +121,6 @@ class SubscriptionDatabase {
       );
 
       int id = await db.insert(_tableName, subscriptionWithTimestamp.toMap());
-      print('DEBUG: Database insert completed with ID: $id');
       return id;
     } catch (e) {
       rethrow;
@@ -138,7 +136,6 @@ class SubscriptionDatabase {
         orderBy: '$_columnBillingDate ASC',
       );
 
-      print('DEBUG: Database query returned ${maps.length} subscriptions');
       return List.generate(maps.length, (i) {
         return Subscription.fromMap(maps[i]);
       });
@@ -425,7 +422,6 @@ class SubscriptionDatabase {
       final db = await database;
       await db.execute('PRAGMA wal_checkpoint(FULL)');
     } catch (e) {
-      print('DEBUG: Database sync error (non-critical): $e');
       // This is non-critical, so we don't rethrow
     }
   }

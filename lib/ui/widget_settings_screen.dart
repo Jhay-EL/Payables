@@ -189,8 +189,8 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                                     duration: const Duration(
                                       milliseconds: 2000,
                                     ),
-                                    color: highContrastDarkBlue.withOpacity(
-                                      0.3,
+                                    color: highContrastDarkBlue.withValues(
+                                      alpha: 0.3,
                                     ),
                                     size: 2.0,
                                   ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter/services.dart';
 import 'package:payables/models/subscription.dart';
+import 'package:payables/data/subscription_database.dart';
 import 'addsubs_screen.dart';
 
 class SubscriptionDetailsScreen extends StatefulWidget {
@@ -990,7 +991,7 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
     // Show confirmation dialog before deleting
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: Text('Delete Subscription'),
           content: Text(
@@ -998,18 +999,57 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: Text('Cancel'),
             ),
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('${widget.subscription.title} deleted'),
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
+              onPressed: () async {
+                Navigator.of(
+                  dialogContext,
+                ).pop(); // Close the confirmation dialog
+
+                try {
+                  // Check if subscription has a valid ID
+                  if (widget.subscription.id == null) {
+                    throw Exception('Subscription ID is null');
+                  }
+
+                  // Delete the subscription from the database
+                  await SubscriptionDatabase.deleteSubscription(
+                    widget.subscription.id!,
+                  );
+
+                  // Ensure database is synchronized
+                  await SubscriptionDatabase.ensureDatabaseSync();
+
+                  if (!mounted) return;
+
+                  // Show success message
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '${widget.subscription.title} deleted successfully',
+                      ),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+
+                  // Return result to indicate deletion for parent screens to refresh
+                  Navigator.of(context).pop('deleted');
+                } catch (e) {
+                  if (!mounted) return;
+
+                  // Show error message
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Failed to delete ${widget.subscription.title}. Please try again.',
+                      ),
+                      duration: const Duration(seconds: 2),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               },
               child: Text('Delete', style: TextStyle(color: Colors.red)),
             ),
