@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
@@ -15,7 +16,8 @@ import 'color_picker_screen.dart';
 
 class AddSubsScreen extends StatefulWidget {
   final List<Map<String, dynamic>>? categories;
-  const AddSubsScreen({super.key, this.categories});
+  final Subscription? subscriptionToEdit;
+  const AddSubsScreen({super.key, this.categories, this.subscriptionToEdit});
 
   @override
   State<AddSubsScreen> createState() => _AddSubsScreenState();
@@ -120,6 +122,11 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
     _descriptionController.addListener(() => setState(() {}));
     _websiteController.addListener(() => setState(() {}));
     _loadCustomPaymentMethods();
+
+    // If editing an existing subscription, populate the fields
+    if (widget.subscriptionToEdit != null) {
+      _populateFieldsForEdit();
+    }
   }
 
   void _initializeCategories() {
@@ -136,14 +143,65 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
       dashboardCategories = [];
     }
 
-    _categories = [
-      {
-        'name': 'Not set',
-        'icon': Icons.category_rounded,
-        'color': const Color(0xFF6B7280),
-      },
-      ...dashboardCategories,
-    ];
+    // Create a map to track unique category names and keep the first occurrence
+    Map<String, Map<String, dynamic>> uniqueCategories = {};
+
+    // Add "Not set" as the first category
+    uniqueCategories['Not set'] = {
+      'name': 'Not set',
+      'icon': Icons.category_rounded,
+      'color': const Color(0xFF6B7280),
+    };
+
+    // Add dashboard categories, keeping only the first occurrence of each name
+    for (final category in dashboardCategories) {
+      final name = category['name'] as String;
+      if (!uniqueCategories.containsKey(name)) {
+        uniqueCategories[name] = category;
+      }
+    }
+
+    // If editing a subscription, ensure its category is included
+    if (widget.subscriptionToEdit != null) {
+      final subscriptionCategory = widget.subscriptionToEdit!.category;
+      if (!uniqueCategories.containsKey(subscriptionCategory)) {
+        uniqueCategories[subscriptionCategory] = {
+          'name': subscriptionCategory,
+          'icon': Icons.category_rounded,
+          'color': const Color(0xFF6B7280),
+        };
+      }
+    }
+
+    _categories = uniqueCategories.values.toList();
+  }
+
+  void _populateFieldsForEdit() {
+    final subscription = widget.subscriptionToEdit!;
+
+    _titleController.text = subscription.title;
+    _amountController.text = subscription.amount.toString();
+    _descriptionController.text = subscription.shortDescription ?? '';
+    _websiteController.text = subscription.websiteLink ?? '';
+    _notesController.text = subscription.notes ?? '';
+
+    _selectedBillingCycle = subscription.billingCycle;
+    _selectedPaymentMethod = subscription.paymentMethod;
+    _selectedCategory = subscription.category;
+    _selectedType = subscription.type;
+    _billingDate = subscription.billingDate;
+    _endDate = subscription.endDate;
+    _selectedColor = Color(subscription.colorValue);
+
+    // Handle icon
+    if (subscription.iconFilePath != null) {
+      _selectedIcon = File(subscription.iconFilePath!);
+    } else if (subscription.iconCodePoint != null) {
+      _selectedIcon = IconData(
+        subscription.iconCodePoint!,
+        fontFamily: 'MaterialIcons',
+      );
+    }
   }
 
   // Load custom payment methods from database
@@ -204,53 +262,114 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
     try {
       _showLoadingDialog();
 
-      final subscription = Subscription(
-        title: _titleController.text.trim(),
-        currency: Provider.of<CurrencyProvider>(
-          context,
-          listen: false,
-        ).selectedCurrency,
-        amount: amount,
-        billingDate:
-            _billingDate ?? DateTime.now().add(const Duration(days: 1)),
-        endDate: _endDate,
-        billingCycle: _selectedBillingCycle,
-        type: _selectedType,
-        paymentMethod: _selectedPaymentMethod,
-        websiteLink: _websiteController.text.trim().isEmpty
-            ? null
-            : _websiteController.text.trim(),
-        shortDescription: _descriptionController.text.trim().isEmpty
-            ? null
-            : _descriptionController.text.trim(),
-        category: _selectedCategory,
-        iconCodePoint: _selectedIcon is IconData
-            ? (_selectedIcon as IconData).codePoint
-            : null,
-        iconFilePath: _selectedIcon is File
-            ? (_selectedIcon as File).path
-            : null,
-        colorValue: _selectedColor.toARGB32(),
-        notes: _notesController.text.trim().isEmpty
-            ? null
-            : _notesController.text.trim(),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
+      if (widget.subscriptionToEdit != null) {
+        // Update existing subscription
+        final updatedSubscription = widget.subscriptionToEdit!.copyWith(
+          title: _titleController.text.trim(),
+          currency: Provider.of<CurrencyProvider>(
+            context,
+            listen: false,
+          ).selectedCurrency,
+          amount: amount,
+          billingDate:
+              _billingDate ?? DateTime.now().add(const Duration(days: 1)),
+          endDate: _endDate,
+          billingCycle: _selectedBillingCycle,
+          type: _selectedType,
+          paymentMethod: _selectedPaymentMethod,
+          websiteLink: _websiteController.text.trim().isEmpty
+              ? null
+              : _websiteController.text.trim(),
+          shortDescription: _descriptionController.text.trim().isEmpty
+              ? null
+              : _descriptionController.text.trim(),
+          category: _selectedCategory,
+          iconCodePoint: _selectedIcon is IconData
+              ? (_selectedIcon as IconData).codePoint
+              : null,
+          iconFilePath: _selectedIcon is File
+              ? (_selectedIcon as File).path
+              : null,
+          colorValue: _selectedColor.toARGB32(),
+          notes: _notesController.text.trim().isEmpty
+              ? null
+              : _notesController.text.trim(),
+          updatedAt: DateTime.now(),
+        );
 
-      await SubscriptionDatabase.insertSubscription(subscription);
+        await SubscriptionDatabase.updateSubscription(updatedSubscription);
+      } else {
+        // Create new subscription
+        final subscription = Subscription(
+          title: _titleController.text.trim(),
+          currency: Provider.of<CurrencyProvider>(
+            context,
+            listen: false,
+          ).selectedCurrency,
+          amount: amount,
+          billingDate:
+              _billingDate ?? DateTime.now().add(const Duration(days: 1)),
+          endDate: _endDate,
+          billingCycle: _selectedBillingCycle,
+          type: _selectedType,
+          paymentMethod: _selectedPaymentMethod,
+          websiteLink: _websiteController.text.trim().isEmpty
+              ? null
+              : _websiteController.text.trim(),
+          shortDescription: _descriptionController.text.trim().isEmpty
+              ? null
+              : _descriptionController.text.trim(),
+          category: _selectedCategory,
+          iconCodePoint: _selectedIcon is IconData
+              ? (_selectedIcon as IconData).codePoint
+              : null,
+          iconFilePath: _selectedIcon is File
+              ? (_selectedIcon as File).path
+              : null,
+          colorValue: _selectedColor.toARGB32(),
+          notes: _notesController.text.trim().isEmpty
+              ? null
+              : _notesController.text.trim(),
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+
+        await SubscriptionDatabase.insertSubscription(subscription);
+      }
+
+      // Check if a new category was added
+      bool categoryWasAdded = false;
+      if (widget.subscriptionToEdit == null) {
+        // For new subscriptions, check if the selected category is not in the original categories list
+        final originalCategoryNames =
+            widget.categories?.map((c) => c['name'] as String).toSet() ??
+            <String>{};
+        if (!originalCategoryNames.contains(_selectedCategory) &&
+            _selectedCategory != 'Not set') {
+          categoryWasAdded = true;
+        }
+      }
 
       if (!mounted) return;
       Navigator.of(context).pop();
-      _showSuccessSnackBar('Payable saved successfully!');
+      _showSuccessSnackBar(
+        widget.subscriptionToEdit != null
+            ? 'Payable updated successfully!'
+            : 'Payable saved successfully!',
+      );
 
       await Future.delayed(const Duration(milliseconds: 500));
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      // Return true if subscription was saved, and also indicate if categories were modified
+      Navigator.of(context).pop(categoryWasAdded ? 'categories_updated' : true);
     } catch (e) {
       if (!mounted) return;
       Navigator.of(context).pop();
-      _showErrorSnackBar('Failed to save payable. Please try again.');
+      _showErrorSnackBar(
+        widget.subscriptionToEdit != null
+            ? 'Failed to update payable. Please try again.'
+            : 'Failed to save payable. Please try again.',
+      );
     }
   }
 
@@ -409,6 +528,14 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
         backgroundColor: backgroundColor,
         surfaceTintColor: Colors.transparent,
         centerTitle: true,
+        title: Text(
+          widget.subscriptionToEdit != null ? 'Edit Payable' : 'Add Payable',
+          style: TextStyle(
+            color: highContrastDarkBlue,
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
@@ -424,8 +551,8 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
-                'Save',
+              child: Text(
+                widget.subscriptionToEdit != null ? 'Update' : 'Save',
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
               ),
             ),
@@ -1197,8 +1324,10 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  AnimatedDefaultTextStyle(
-                    duration: const Duration(milliseconds: 167),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: date != null
                           ? highContrastBlue
@@ -1206,11 +1335,9 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                       fontWeight: FontWeight.w400,
                       fontSize: date != null ? 12 : 16,
                     ),
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                  ).animate().fadeIn(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOutCubic,
                   ),
                   if (date != null) ...[
                     const SizedBox(height: 2),
@@ -1986,33 +2113,47 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                                                 selectedIcon = icon;
                                               });
                                             },
-                                            child: AnimatedContainer(
-                                              duration: const Duration(
-                                                milliseconds: 200,
-                                              ),
-                                              padding: const EdgeInsets.all(16),
-                                              decoration: BoxDecoration(
-                                                color: isSelected
-                                                    ? highContrastBlue
-                                                          .withAlpha(31)
-                                                    : backgroundColor,
-                                                borderRadius:
-                                                    BorderRadius.circular(16),
-                                                border: Border.all(
-                                                  color: isSelected
-                                                      ? highContrastBlue
-                                                      : darkColor.withAlpha(77),
-                                                  width: isSelected ? 2 : 1,
+                                            child:
+                                                Container(
+                                                  padding: const EdgeInsets.all(
+                                                    16,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: isSelected
+                                                        ? highContrastBlue
+                                                              .withAlpha(31)
+                                                        : backgroundColor,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          16,
+                                                        ),
+                                                    border: Border.all(
+                                                      color: isSelected
+                                                          ? highContrastBlue
+                                                          : darkColor.withAlpha(
+                                                              77,
+                                                            ),
+                                                      width: isSelected ? 2 : 1,
+                                                    ),
+                                                  ),
+                                                  child: Icon(
+                                                    icon,
+                                                    color: isSelected
+                                                        ? highContrastBlue
+                                                        : darkColor,
+                                                    size: 28,
+                                                  ),
+                                                ).animate().scale(
+                                                  duration: const Duration(
+                                                    milliseconds: 200,
+                                                  ),
+                                                  curve: Curves.easeOutCubic,
+                                                  begin: const Offset(
+                                                    0.95,
+                                                    0.95,
+                                                  ),
+                                                  end: const Offset(1.0, 1.0),
                                                 ),
-                                              ),
-                                              child: Icon(
-                                                icon,
-                                                color: isSelected
-                                                    ? highContrastBlue
-                                                    : darkColor,
-                                                size: 28,
-                                              ),
-                                            ),
                                           );
                                         }).toList(),
                                   ),
@@ -2769,33 +2910,47 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                                                 selectedIcon = icon;
                                               });
                                             },
-                                            child: AnimatedContainer(
-                                              duration: const Duration(
-                                                milliseconds: 200,
-                                              ),
-                                              padding: const EdgeInsets.all(16),
-                                              decoration: BoxDecoration(
-                                                color: isSelected
-                                                    ? highContrastBlue
-                                                          .withAlpha(31)
-                                                    : backgroundColor,
-                                                borderRadius:
-                                                    BorderRadius.circular(16),
-                                                border: Border.all(
-                                                  color: isSelected
-                                                      ? highContrastBlue
-                                                      : darkColor.withAlpha(77),
-                                                  width: isSelected ? 2 : 1,
+                                            child:
+                                                Container(
+                                                  padding: const EdgeInsets.all(
+                                                    16,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: isSelected
+                                                        ? highContrastBlue
+                                                              .withAlpha(31)
+                                                        : backgroundColor,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          16,
+                                                        ),
+                                                    border: Border.all(
+                                                      color: isSelected
+                                                          ? highContrastBlue
+                                                          : darkColor.withAlpha(
+                                                              77,
+                                                            ),
+                                                      width: isSelected ? 2 : 1,
+                                                    ),
+                                                  ),
+                                                  child: Icon(
+                                                    icon,
+                                                    color: isSelected
+                                                        ? highContrastBlue
+                                                        : darkColor,
+                                                    size: 28,
+                                                  ),
+                                                ).animate().scale(
+                                                  duration: const Duration(
+                                                    milliseconds: 200,
+                                                  ),
+                                                  curve: Curves.easeOutCubic,
+                                                  begin: const Offset(
+                                                    0.95,
+                                                    0.95,
+                                                  ),
+                                                  end: const Offset(1.0, 1.0),
                                                 ),
-                                              ),
-                                              child: Icon(
-                                                icon,
-                                                color: isSelected
-                                                    ? highContrastBlue
-                                                    : darkColor,
-                                                size: 28,
-                                              ),
-                                            ),
                                           );
                                         }).toList(),
                                   ),

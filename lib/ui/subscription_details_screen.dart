@@ -1,13 +1,20 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter/services.dart';
 import 'package:payables/models/subscription.dart';
+import 'addsubs_screen.dart';
 
 class SubscriptionDetailsScreen extends StatefulWidget {
   final Subscription subscription;
+  final List<Map<String, dynamic>>? categories;
 
-  const SubscriptionDetailsScreen({super.key, required this.subscription});
+  const SubscriptionDetailsScreen({
+    super.key,
+    required this.subscription,
+    this.categories,
+  });
 
   @override
   State<SubscriptionDetailsScreen> createState() =>
@@ -238,44 +245,66 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: PopupMenuButton<String>(
-              icon: Icon(
-                Icons.more_vert_rounded,
-                color: highContrastDarkBlue,
-                size: 24,
+              icon: Container(
+                width: 48, // 48dp minimum touch target
+                height: 48,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  color: Colors.transparent,
+                ),
+                child: Icon(
+                  Icons.more_vert_rounded,
+                  color: highContrastDarkBlue,
+                  size: 24, // 24dp icon size as per Material 3
+                ),
               ),
               splashRadius: 24,
               offset: const Offset(0, 50),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+              // Material 3 Menu Container Specifications
+              constraints: const BoxConstraints(
+                minWidth: 112, // 112dp min width
+                maxWidth: 280, // 280dp max width
               ),
-              elevation: 8,
-              color: backgroundColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  12,
+                ), // 12dp corner radius for modern look
+              ),
+              elevation: 3,
+              color: const Color(0xFFFFFFFF),
               surfaceTintColor: lightColor,
-              shadowColor: Colors.black.withAlpha(40),
+              shadowColor: const Color(0x1F000000),
+              // Material 3 expressive transitions
+              popUpAnimationStyle: AnimationStyle(
+                duration: const Duration(milliseconds: 300),
+                reverseDuration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOutCubicEmphasized,
+                reverseCurve: Curves.easeInCubic,
+              ),
               itemBuilder: (BuildContext context) => [
                 _buildMenuItem(
                   value: 'edit',
                   icon: Icons.edit_rounded,
                   label: 'Edit',
-                  iconColor: highContrastBlue,
+                  iconColor: const Color(0xFF477ba5),
                 ),
                 _buildMenuItem(
                   value: 'pause',
-                  icon: Icons.pause_rounded,
+                  icon: Icons.pause_circle_rounded,
                   label: 'Pause',
-                  iconColor: const Color(0xFF10B981), // Emerald green
+                  iconColor: const Color(0xFF477ba5),
                 ),
                 _buildMenuItem(
                   value: 'duplicate',
                   icon: Icons.copy_rounded,
                   label: 'Duplicate',
-                  iconColor: const Color(0xFF3B82F6), // Blue
+                  iconColor: const Color(0xFF477ba5),
                 ),
                 _buildMenuItem(
                   value: 'delete',
                   icon: Icons.delete_rounded,
                   label: 'Delete',
-                  iconColor: const Color(0xFFEF4444), // Red
+                  iconColor: const Color(0xFF477ba5),
                 ),
               ],
               onSelected: (value) {
@@ -347,7 +376,18 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
     return Row(
       children: [
         // Icon
-        _buildAdaptiveIcon(),
+        _buildAdaptiveIcon()
+            .animate()
+            .fadeIn(
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeOutCubic,
+            )
+            .scale(
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.elasticOut,
+              begin: const Offset(0.8, 0.8),
+              end: const Offset(1.0, 1.0),
+            ),
         const SizedBox(width: 20),
 
         // Title and Description
@@ -356,21 +396,43 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                widget.subscription.title,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w400,
-                  color: textColor,
-                ),
-              ),
+                    widget.subscription.title,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w400,
+                      color: textColor,
+                    ),
+                  )
+                  .animate()
+                  .fadeIn(
+                    duration: const Duration(milliseconds: 800),
+                    curve: Curves.easeOutCubic,
+                  )
+                  .slideX(
+                    duration: const Duration(milliseconds: 600),
+                    curve: Curves.easeOutCubic,
+                    begin: -0.3,
+                    end: 0.0,
+                  ),
               if (widget.subscription.shortDescription != null) ...[
                 const SizedBox(height: 8),
                 Text(
-                  widget.subscription.shortDescription!,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: secondaryTextColor,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
+                      widget.subscription.shortDescription!,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: secondaryTextColor,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    )
+                    .animate()
+                    .fadeIn(
+                      duration: const Duration(milliseconds: 1000),
+                      curve: Curves.easeOutCubic,
+                    )
+                    .slideX(
+                      duration: const Duration(milliseconds: 800),
+                      curve: Curves.easeOutCubic,
+                      begin: -0.3,
+                      end: 0.0,
+                    ),
               ],
             ],
           ),
@@ -443,16 +505,16 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
               children: [
                 Text(
                   details[i]['label']!,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: secondaryTextColor,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
                 Text(
                   details[i]['value']!,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: textColor,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -494,16 +556,16 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
               children: [
                 Text(
                   billingInfo[i]['label']!,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: secondaryTextColor,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
                 Text(
                   billingInfo[i]['value']!,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: textColor,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -580,16 +642,16 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
         children: [
           Text(
             'Category',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: secondaryTextColor,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w400,
             ),
           ),
           Text(
             widget.subscription.category,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: textColor,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -644,14 +706,14 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
               'Total payments made',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: secondaryTextColor,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w400,
               ),
             ),
             Text(
               '${_getTotalPayments()}',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: textColor,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -664,14 +726,14 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
               'Subscribed for',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: secondaryTextColor,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w400,
               ),
             ),
             Text(
               _getSubscriptionDuration(),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: textColor,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -826,42 +888,55 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
   }) {
     return PopupMenuItem<String>(
       value: value,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: SizedBox(
-        height: 40,
-        child: Row(
-          children: [
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, size: 18, color: iconColor),
-            ),
-            const SizedBox(width: 8),
-            Text(
+      // Material 3 List Item Specifications
+      height: 48, // 48dp list item height
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16, // 16dp left/right padding for better spacing
+        vertical: 8, // 8dp vertical padding
+      ),
+      child: Row(
+        children: [
+          // Leading icon without background
+          Icon(
+            icon,
+            color: iconColor,
+            size: 24, // 24dp icon size as per Material 3
+          ),
+          const SizedBox(width: 16), // 16dp padding between elements
+          Expanded(
+            child: Text(
               label,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w400,
                 color: highContrastDarkBlue,
-                fontWeight: FontWeight.w500,
               ),
+              // Material 3 text alignment specifications
+              textAlign: TextAlign.start,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   // Menu action handlers
-  void _handleEdit() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Edit ${widget.subscription.title}'),
-        duration: const Duration(seconds: 2),
+  void _handleEdit() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddSubsScreen(
+          subscriptionToEdit: widget.subscription,
+          categories: widget.categories,
+        ),
       ),
     );
+
+    if (!mounted) return;
+
+    if (result == true || result == 'categories_updated') {
+      // Refresh the subscription details if changes were made
+      Navigator.of(context).pop(result);
+    }
   }
 
   void _handlePause() {

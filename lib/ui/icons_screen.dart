@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -472,25 +473,32 @@ class _IconsScreenState extends State<IconsScreen>
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? colorScheme.primary
-                : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(16),
-            border: isSelected
-                ? Border.all(color: colorScheme.primary, width: 2)
-                : null,
-          ),
-          child: Icon(
-            icon,
-            size: 28,
-            color: isSelected
-                ? colorScheme.onPrimary
-                : colorScheme.onSurfaceVariant,
-          ),
-        ),
+        child:
+            Container(
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? colorScheme.primary
+                    : colorScheme.surfaceContainerHighest.withValues(
+                        alpha: 0.3,
+                      ),
+                borderRadius: BorderRadius.circular(16),
+                border: isSelected
+                    ? Border.all(color: colorScheme.primary, width: 2)
+                    : null,
+              ),
+              child: Icon(
+                icon,
+                size: 28,
+                color: isSelected
+                    ? colorScheme.onPrimary
+                    : colorScheme.onSurfaceVariant,
+              ),
+            ).animate().scale(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              begin: const Offset(0.95, 0.95),
+              end: const Offset(1.0, 1.0),
+            ),
       ),
     );
   }
@@ -502,16 +510,24 @@ class _IconsScreenState extends State<IconsScreen>
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: isSelected
-                ? Border.all(color: colorScheme.primary, width: 2)
-                : null,
-            image: DecorationImage(image: FileImage(file), fit: BoxFit.contain),
-          ),
-        ),
+        child:
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: isSelected
+                    ? Border.all(color: colorScheme.primary, width: 2)
+                    : null,
+                image: DecorationImage(
+                  image: FileImage(file),
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ).animate().scale(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              begin: const Offset(0.95, 0.95),
+              end: const Offset(1.0, 1.0),
+            ),
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:math' as math;
 import 'package:payables/utils/theme_provider.dart';
 import 'package:provider/provider.dart';
@@ -119,10 +120,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Container(
                       decoration: BoxDecoration(color: backgroundColor),
                     ),
-                    // Animated Settings Title
-                    AnimatedPositioned(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeInOutCubicEmphasized,
+                    // Animated Settings Title with flutter_animate
+                    Positioned(
                       left: _getAnimatedTitleLeft(),
                       bottom: _getAnimatedTitleBottom(),
                       child: SafeArea(
@@ -130,12 +129,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           duration: const Duration(milliseconds: 300),
                           curve: Curves.easeInOutCubicEmphasized,
                           opacity: _getAnimatedTitleOpacity(),
-                          child: AnimatedDefaultTextStyle(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOutCubicEmphasized,
-                            style: _getAnimatedTitleStyle(context),
-                            child: const Text('Settings'),
-                          ),
+                          child:
+                              Text(
+                                    'Settings',
+                                    style: _getAnimatedTitleStyle(context),
+                                  )
+                                  .animate()
+                                  .fadeIn(
+                                    duration: const Duration(milliseconds: 800),
+                                    curve: Curves.easeOutCubic,
+                                  )
+                                  .scale(
+                                    duration: const Duration(milliseconds: 600),
+                                    curve: Curves.elasticOut,
+                                    begin: const Offset(0.8, 0.8),
+                                    end: const Offset(1.0, 1.0),
+                                  )
+                                  .then(delay: const Duration(seconds: 2))
+                                  .shimmer(
+                                    duration: const Duration(
+                                      milliseconds: 2000,
+                                    ),
+                                    color: highContrastDarkBlue.withOpacity(
+                                      0.3,
+                                    ),
+                                    size: 2.0,
+                                  ),
                         ),
                       ),
                     ),

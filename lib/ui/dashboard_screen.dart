@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'settings_screen.dart';
 import 'subscription_screen.dart';
 import 'addsubs_screen.dart';
@@ -346,10 +347,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Container(
                       decoration: BoxDecoration(color: backgroundColor),
                     ),
-                    // Animated Payables Title
-                    AnimatedPositioned(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeInOutCubicEmphasized,
+                    // Animated Payables Title with enhanced flutter_animate
+                    Positioned(
                       left: _getAnimatedTitleLeft(),
                       bottom: _getAnimatedTitleBottom(),
                       child: SafeArea(
@@ -357,12 +356,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           duration: const Duration(milliseconds: 300),
                           curve: Curves.easeInOutCubicEmphasized,
                           opacity: _getAnimatedTitleOpacity(),
-                          child: AnimatedDefaultTextStyle(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOutCubicEmphasized,
-                            style: _getAnimatedTitleStyle(context),
-                            child: const Text('Payables'),
-                          ),
+                          child:
+                              Text(
+                                    'Payables',
+                                    style: _getAnimatedTitleStyle(context),
+                                  )
+                                  .animate()
+                                  .fadeIn(
+                                    duration: const Duration(milliseconds: 800),
+                                    curve: Curves.easeOutCubic,
+                                  )
+                                  .scale(
+                                    duration: const Duration(milliseconds: 600),
+                                    curve: Curves.elasticOut,
+                                    begin: const Offset(0.8, 0.8),
+                                    end: const Offset(1.0, 1.0),
+                                  )
+                                  .then(delay: const Duration(seconds: 2))
+                                  .shimmer(
+                                    duration: const Duration(
+                                      milliseconds: 2000,
+                                    ),
+                                    color: highContrastDarkBlue.withOpacity(
+                                      0.3,
+                                    ),
+                                    size: 2.0,
+                                  ),
                         ),
                       ),
                     ),
@@ -378,12 +397,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
               delegate: SliverChildListDelegate([
                 // M3 Overview Section
                 Text(
-                  'Overview',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w400,
-                    color: highContrastDarkBlue,
-                  ),
-                ),
+                      'Overview',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            fontWeight: FontWeight.w400,
+                            color: highContrastDarkBlue,
+                          ),
+                    )
+                    .animate()
+                    .fadeIn(
+                      duration: const Duration(milliseconds: 600),
+                      curve: Curves.easeOutCubic,
+                    )
+                    .slideX(
+                      duration: const Duration(milliseconds: 500),
+                      curve: Curves.easeOutCubic,
+                      begin: -0.2,
+                      end: 0.0,
+                    ),
                 const SizedBox(height: 20),
                 _buildM3OverviewSection(),
                 const SizedBox(height: 32),
@@ -505,34 +536,67 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Column(
       children: [
         _buildM3OverviewCard(
-          icon: Icons.dashboard_rounded,
-          title: 'All',
-          subtitle: 'View all payables',
-          count: _totalSubscriptions,
-          color: darkColor,
-          isFirst: true,
-          isLast: false,
-        ),
+              icon: Icons.dashboard_rounded,
+              title: 'All',
+              subtitle: 'View all payables',
+              count: _totalSubscriptions,
+              color: darkColor,
+              isFirst: true,
+              isLast: false,
+            )
+            .animate()
+            .fadeIn(
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeOutCubic,
+            )
+            .slideY(
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeOutCubic,
+              begin: 0.3,
+              end: 0.0,
+            ),
         const SizedBox(height: 2),
         _buildM3OverviewCard(
-          icon: Icons.date_range_rounded,
-          title: 'This Week',
-          subtitle: 'Due in 7 days',
-          count: _thisWeekCount,
-          color: darkColor,
-          isFirst: false,
-          isLast: false,
-        ),
+              icon: Icons.date_range_rounded,
+              title: 'This Week',
+              subtitle: 'Due in 7 days',
+              count: _thisWeekCount,
+              color: darkColor,
+              isFirst: false,
+              isLast: false,
+            )
+            .animate()
+            .fadeIn(
+              duration: const Duration(milliseconds: 800),
+              curve: Curves.easeOutCubic,
+            )
+            .slideY(
+              duration: const Duration(milliseconds: 700),
+              curve: Curves.easeOutCubic,
+              begin: 0.3,
+              end: 0.0,
+            ),
         const SizedBox(height: 2),
         _buildM3OverviewCard(
-          icon: Icons.calendar_month_rounded,
-          title: 'This Month',
-          subtitle: 'Due in 30 days',
-          count: _thisMonthCount,
-          color: darkColor,
-          isFirst: false,
-          isLast: true,
-        ),
+              icon: Icons.calendar_month_rounded,
+              title: 'This Month',
+              subtitle: 'Due in 30 days',
+              count: _thisMonthCount,
+              color: darkColor,
+              isFirst: false,
+              isLast: true,
+            )
+            .animate()
+            .fadeIn(
+              duration: const Duration(milliseconds: 1000),
+              curve: Curves.easeOutCubic,
+            )
+            .slideY(
+              duration: const Duration(milliseconds: 900),
+              curve: Curves.easeOutCubic,
+              begin: 0.3,
+              end: 0.0,
+            ),
       ],
     );
   }
@@ -1362,18 +1426,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildM3PopupMenu() {
     return PopupMenuButton<String>(
-      icon: Icon(
-        Icons.more_vert_rounded,
-        color: highContrastDarkBlue,
-        size: 24,
+      icon: Container(
+        width: 48, // 48dp minimum touch target
+        height: 48,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          color: Colors.transparent,
+        ),
+        child: Icon(
+          Icons.more_vert_rounded,
+          color: highContrastDarkBlue,
+          size: 24, // 24dp icon size as per Material 3
+        ),
       ),
       splashRadius: 24,
       offset: const Offset(0, 50),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(
+          12,
+        ), // 12dp corner radius for modern look
+      ),
       elevation: 8,
-      color: backgroundColor,
-      surfaceTintColor: lightColor,
-      shadowColor: Colors.black.withAlpha(40),
+      color: const Color(0xFFFFFFFF), // White background as requested
+      surfaceTintColor:
+          Colors.transparent, // Remove surface tint for white background
+      shadowColor: const Color(
+        0x1F000000,
+      ), // Material 3 menu shadow color (12% opacity black)
+      constraints: const BoxConstraints(
+        minWidth: 112, // Material 3 min width
+        maxWidth: 280, // Material 3 max width
+      ),
       // Custom Material 3 expressive transitions
       popUpAnimationStyle: AnimationStyle(
         duration: const Duration(milliseconds: 300),
@@ -1403,59 +1486,65 @@ class _DashboardScreenState extends State<DashboardScreen> {
         });
       },
       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-        _buildPopupMenuItem(
+        _buildM3PopupMenuItem(
           value: 'add',
           text: 'Add',
           icon: Icons.add_circle_rounded,
           color: darkColor,
-          backgroundColor: lightColor,
         ),
-        _buildPopupMenuItem(
+        _buildM3PopupMenuItem(
           value: 'edit',
-          text: _isEditMode ? 'Done Editing' : 'Edit Mode',
+          text: _isEditMode ? 'Done Editing' : 'Edit',
           icon: _isEditMode ? Icons.check_circle_rounded : Icons.edit_rounded,
           color: darkColor,
-          backgroundColor: lightColor,
         ),
-        _buildPopupMenuItem(
+        _buildM3PopupMenuItem(
           value: 'hide_panel',
           text: 'Hide Panel',
           icon: Icons.visibility_off_rounded,
           color: darkColor,
-          backgroundColor: lightColor,
         ),
-        _buildPopupMenuItem(
+        _buildM3PopupMenuItem(
           value: 'settings',
           text: 'Settings',
           icon: Icons.settings_rounded,
           color: darkColor,
-          backgroundColor: lightColor,
         ),
       ],
     );
   }
 
-  PopupMenuEntry<String> _buildPopupMenuItem({
+  PopupMenuEntry<String> _buildM3PopupMenuItem({
     required String value,
     required String text,
     required IconData icon,
     required Color color,
-    required Color backgroundColor,
   }) {
     return PopupMenuItem<String>(
       value: value,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      // Material 3 List Item Specifications
+      height: 48, // 48dp list item height
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16, // 16dp left/right padding for better spacing
+        vertical: 8, // 8dp vertical padding
+      ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 16),
+          // Leading icon without background
+          Icon(
+            icon,
+            color: color,
+            size: 24, // 24dp icon size as per Material 3
+          ),
+          const SizedBox(width: 16), // 16dp padding between elements
           Expanded(
             child: Text(
               text,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w500,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w400,
                 color: highContrastDarkBlue,
               ),
+              textAlign: TextAlign.start,
             ),
           ),
         ],
@@ -1464,13 +1553,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // Handler methods
-  void _handleOverviewCardTap(String title) {
-    Navigator.push(
+  void _handleOverviewCardTap(String title) async {
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => SubscriptionScreen(categories: _categories),
       ),
     );
+
+    // If categories were updated, refresh the dashboard data
+    if (result == 'categories_updated') {
+      _loadSubscriptionData();
+    }
   }
 
   void _showAddOptionsBottomSheet() {

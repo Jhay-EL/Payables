@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:math' as math;
 import 'dart:io';
 
@@ -470,54 +471,71 @@ class _ColorWheelWidget extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           Container(
-            width: 240,
-            height: 240,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const SweepGradient(
-                colors: [
-                  Color(0xFFFF0000),
-                  Color(0xFFFFFF00),
-                  Color(0xFF00FF00),
-                  Color(0xFF00FFFF),
-                  Color(0xFF0000FF),
-                  Color(0xFFFF00FF),
-                  Color(0xFFFF0000),
-                ],
-              ),
-            ),
-            child: GestureDetector(
-              onPanUpdate: (details) {
-                final RenderBox renderBox =
-                    context.findRenderObject() as RenderBox;
-                final localPosition = renderBox.globalToLocal(
-                  details.globalPosition,
-                );
-                final center = renderBox.size.center(Offset.zero);
-                final offset = localPosition - center;
-                final angle = offset.direction;
-                final distance = offset.distance;
-                final radius = renderBox.size.width / 2;
-
-                if (distance <= radius) {
-                  final hue = (angle * 180 / 3.14159 + 360) % 360;
-                  final saturation = (distance / radius).clamp(0.0, 1.0);
-                  final hsv = HSVColor.fromColor(currentColor);
-                  final newColor = hsv
-                      .withHue(hue)
-                      .withSaturation(saturation)
-                      .toColor();
-                  onColorChanged(newColor);
-                }
-              },
-              child: Container(
+                width: 240,
+                height: 240,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 4),
+                  gradient: const SweepGradient(
+                    colors: [
+                      Color(0xFFFF0000),
+                      Color(0xFFFFFF00),
+                      Color(0xFF00FF00),
+                      Color(0xFF00FFFF),
+                      Color(0xFF0000FF),
+                      Color(0xFFFF00FF),
+                      Color(0xFFFF0000),
+                    ],
+                  ),
                 ),
+                child: GestureDetector(
+                  onPanUpdate: (details) {
+                    final RenderBox renderBox =
+                        context.findRenderObject() as RenderBox;
+                    final localPosition = renderBox.globalToLocal(
+                      details.globalPosition,
+                    );
+                    final center = renderBox.size.center(Offset.zero);
+                    final offset = localPosition - center;
+                    final angle = offset.direction;
+                    final distance = offset.distance;
+                    final radius = renderBox.size.width / 2;
+
+                    if (distance <= radius) {
+                      final hue = (angle * 180 / 3.14159 + 360) % 360;
+                      final saturation = (distance / radius).clamp(0.0, 1.0);
+                      final hsv = HSVColor.fromColor(currentColor);
+                      final newColor = hsv
+                          .withHue(hue)
+                          .withSaturation(saturation)
+                          .toColor();
+                      onColorChanged(newColor);
+                    }
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 4),
+                    ),
+                  ),
+                ),
+              )
+              .animate()
+              .fadeIn(
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.easeOutCubic,
+              )
+              .scale(
+                duration: const Duration(milliseconds: 800),
+                curve: Curves.elasticOut,
+                begin: const Offset(0.5, 0.5),
+                end: const Offset(1.0, 1.0),
+              )
+              .then(delay: const Duration(seconds: 1))
+              .shimmer(
+                duration: const Duration(milliseconds: 3000),
+                color: Colors.white.withOpacity(0.2),
+                size: 3.0,
               ),
-            ),
-          ),
           // Round selector indicator
           Positioned(
             left: selectorX - 10, // Half of selector size (20/2)

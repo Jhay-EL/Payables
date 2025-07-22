@@ -28,6 +28,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   double _totalMonthlyAmount = 0.0;
   String? _activeBillingCycleFilter;
   String? _activeCategoryFilter;
+  DateTime _lastUpdated = DateTime.now();
 
   // Sorting state
   SortBy _sortBy = SortBy.createdDate;
@@ -148,6 +149,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         _subscriptions = subscriptions;
         _filteredSubscriptions = List.from(_subscriptions);
         _isLoading = false;
+        _lastUpdated = DateTime.now();
       });
       _calculateTotalMonthlyAmount();
     } catch (e) {
@@ -275,40 +277,50 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       backgroundColor: backgroundColor,
       body: Stack(
         children: [
-          CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              // M3 Expressive Large Flexible App Bar
-              SliverAppBar(
-                floating: false,
-                pinned: true,
-                snap: false,
-                elevation: 0,
-                surfaceTintColor: lightColor,
-                backgroundColor: backgroundColor,
-                leading: BackButton(color: highContrastDarkBlue),
-                actions: [
-                  Padding(
-                    padding: const EdgeInsets.only(right: 16.0),
-                    child: _buildM3PopupMenu(),
-                  ),
-                ],
-              ),
-              // M3 Expressive Dashboard Content
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 32.0),
-                sliver: SliverList(
-                  delegate: SliverChildListDelegate([
-                    _buildTotalAmountCard(),
-                    const SizedBox(height: 24),
-                    _buildSubscriptionsContent(),
-                    SizedBox(
-                      height: 32 + MediaQuery.of(context).padding.bottom,
+          RefreshIndicator(
+            onRefresh: () async {
+              await _loadSubscriptions();
+            },
+            color: highContrastBlue,
+            backgroundColor: backgroundColor,
+            strokeWidth: 2.0,
+            displacement: 16.0,
+            child: CustomScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                // M3 Expressive Large Flexible App Bar
+                SliverAppBar(
+                  floating: false,
+                  pinned: true,
+                  snap: false,
+                  elevation: 0,
+                  surfaceTintColor: lightColor,
+                  backgroundColor: backgroundColor,
+                  leading: BackButton(color: highContrastDarkBlue),
+                  actions: [
+                    Padding(
+                      padding: const EdgeInsets.only(right: 16.0),
+                      child: _buildM3PopupMenu(),
                     ),
-                  ]),
+                  ],
                 ),
-              ),
-            ],
+                // M3 Expressive Dashboard Content
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 32.0),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      _buildTotalAmountCard(),
+                      const SizedBox(height: 24),
+                      _buildSubscriptionsContent(),
+                      SizedBox(
+                        height: 32 + MediaQuery.of(context).padding.bottom,
+                      ),
+                    ]),
+                  ),
+                ),
+              ],
+            ),
           ),
           // Empty State
           if (!_isLoading && _filteredSubscriptions.isEmpty && !_isSearchOpen)
@@ -398,30 +410,24 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Text(
-                    'This month',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: darkColor,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(Icons.play_arrow_rounded, color: darkColor, size: 20),
-                ],
+              Text(
+                'This month',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: darkColor,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 '${_getCurrencySymbol(selectedDisplayCurrency)}${_totalMonthlyAmount.toStringAsFixed(2)}',
-                style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                style: Theme.of(context).textTheme.displayMedium?.copyWith(
                   color: highContrastDarkBlue,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                'Updated just now',
+                _formatLastUpdated(),
                 style: Theme.of(
                   context,
                 ).textTheme.bodyMedium?.copyWith(color: darkColor),
@@ -437,6 +443,27 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   String _getCurrencySymbol(String currencyCode) {
     final currency = CurrencyDatabase.getCurrencyByCode(currencyCode);
     return currency?.symbol ?? currencyCode;
+  }
+
+  String _formatLastUpdated() {
+    final now = DateTime.now();
+    final difference = now.difference(_lastUpdated);
+
+    if (difference.inMinutes < 1) {
+      return 'Updated just now';
+    } else if (difference.inMinutes == 1) {
+      return 'Updated 1 minute ago';
+    } else if (difference.inMinutes < 60) {
+      return 'Updated ${difference.inMinutes} minutes ago';
+    } else if (difference.inHours == 1) {
+      return 'Updated 1 hour ago';
+    } else if (difference.inHours < 24) {
+      return 'Updated ${difference.inHours} hours ago';
+    } else if (difference.inDays == 1) {
+      return 'Updated 1 day ago';
+    } else {
+      return 'Updated ${difference.inDays} days ago';
+    }
   }
 
   Widget _buildCurrencyDropdown() {
@@ -476,7 +503,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             Material(
               color: Colors.transparent,
               child: PopupMenuButton<String>(
-                icon: Icon(Icons.keyboard_arrow_down_rounded, color: darkColor),
+                icon: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: darkColor,
+                  size: 24,
+                ),
                 onSelected: (String newValue) {
                   currencyProvider.setCurrency(newValue);
                   _calculateTotalMonthlyAmount();
@@ -487,21 +518,33 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   ) {
                     return PopupMenuItem<String>(
                       value: currency.code,
+                      // Material 3 List Item Specifications
+                      height: 48, // 48dp list item height
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12, // 12dp left/right padding
+                      ),
                       child: Text(
                         '${currency.code} (${currency.symbol})',
-                        style: TextStyle(
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w400,
                           color: highContrastDarkBlue,
-                          fontWeight: FontWeight.w500,
                         ),
+                        // Material 3 text alignment specifications
+                        textAlign: TextAlign.start, // Start-aligned horizontal
                       ),
                     );
                   }).toList();
                 },
+                // Material 3 Menu Container Specifications
+                constraints: const BoxConstraints(
+                  minWidth: 112, // 112dp min width
+                  maxWidth: 280, // 280dp max width
+                ),
                 color: backgroundColor,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(4), // 4dp corner radius
                 ),
-                splashRadius: 20,
+                splashRadius: 24,
               ),
             ),
           ],
@@ -608,18 +651,37 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   Widget _buildM3PopupMenu() {
     return PopupMenuButton<String>(
-      icon: Icon(
-        Icons.more_vert_rounded,
-        color: highContrastDarkBlue,
-        size: 24,
+      icon: Container(
+        width: 48, // 48dp minimum touch target
+        height: 48,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          color: Colors.transparent,
+        ),
+        child: Icon(
+          Icons.more_vert_rounded,
+          color: highContrastDarkBlue,
+          size: 24, // 24dp icon size as per Material 3
+        ),
       ),
       splashRadius: 24,
       offset: const Offset(0, 50),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(
+          12,
+        ), // 12dp corner radius for modern look
+      ),
       elevation: 8,
-      color: backgroundColor,
-      surfaceTintColor: lightColor,
-      shadowColor: Colors.black.withAlpha(40),
+      color: const Color(0xFFFFFFFF), // White background as requested
+      surfaceTintColor:
+          Colors.transparent, // Remove surface tint for white background
+      shadowColor: const Color(
+        0x1F000000,
+      ), // Material 3 menu shadow color (12% opacity black)
+      constraints: const BoxConstraints(
+        minWidth: 112, // Material 3 min width
+        maxWidth: 280, // Material 3 max width
+      ),
       // Custom Material 3 expressive transitions
       popUpAnimationStyle: AnimationStyle(
         duration: const Duration(milliseconds: 300),
@@ -657,27 +719,27 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       itemBuilder: (BuildContext context) => [
         _buildM3PopupMenuItem(
           value: 'search',
-          text: 'Search Payables',
+          text: 'Search',
           icon: Icons.search_rounded,
-          color: highContrastBlue,
+          color: darkColor,
         ),
         _buildM3PopupMenuItem(
           value: 'add',
-          text: 'Add Payable',
+          text: 'Add',
           icon: Icons.add_circle_rounded,
-          color: const Color(0xFF10B981),
+          color: darkColor,
         ),
         _buildM3PopupMenuItem(
           value: 'filter',
           text: 'Filter',
           icon: Icons.filter_list_rounded,
-          color: const Color(0xFF3B82F6),
+          color: darkColor,
         ),
         _buildM3PopupMenuItem(
           value: 'sort',
           text: 'Sort',
           icon: Icons.sort_rounded,
-          color: const Color(0xFF8B5CF6),
+          color: darkColor,
         ),
       ],
     );
@@ -691,25 +753,30 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }) {
     return PopupMenuItem<String>(
       value: value,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      // Material 3 List Item Specifications
+      height: 48, // 48dp list item height
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16, // 16dp left/right padding for better spacing
+        vertical: 8, // 8dp vertical padding
+      ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 20),
+          // Leading icon without background
+          Icon(
+            icon,
+            color: color,
+            size: 24, // 24dp icon size as per Material 3
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 16), // 16dp padding between elements
           Expanded(
             child: Text(
               text,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w500,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w400,
                 color: highContrastDarkBlue,
               ),
+              // Material 3 text alignment specifications
+              textAlign: TextAlign.start,
             ),
           ),
         ],
@@ -726,7 +793,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         child: Padding(
           padding: const EdgeInsets.all(32.0),
           child: Center(
-            child: CircularProgressIndicator(color: highContrastBlue),
+            child: CircularProgressIndicator(
+              color: highContrastBlue,
+              strokeWidth: 2.0,
+            ),
           ),
         ),
       );
@@ -1342,13 +1412,18 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            SubscriptionDetailsScreen(subscription: subscription),
+        builder: (context) => SubscriptionDetailsScreen(
+          subscription: subscription,
+          categories: widget.categories,
+        ),
       ),
     );
 
-    if (result == true) {
+    if (result == true || result == 'categories_updated') {
       _loadSubscriptions(); // Refresh the list if changes were saved
+
+      // If categories were updated, we might need to refresh the categories list
+      // This will be handled by the parent screen (dashboard) when it receives the result
     }
   }
 

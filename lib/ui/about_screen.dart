@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AboutScreen extends StatefulWidget {
@@ -135,29 +136,46 @@ class _AboutScreenState extends State<AboutScreen> {
         children: [
           // M3 Expressive App Icon
           Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [highContrastBlue, userSelectedColor],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: highContrastBlue.withAlpha(60),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [highContrastBlue, userSelectedColor],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: highContrastBlue.withAlpha(60),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: const Icon(
-              Icons.account_balance_wallet_rounded,
-              color: Colors.white,
-              size: 48,
-            ),
-          ),
+                child: const Icon(
+                  Icons.account_balance_wallet_rounded,
+                  color: Colors.white,
+                  size: 48,
+                ),
+              )
+              .animate()
+              .fadeIn(
+                duration: const Duration(milliseconds: 800),
+                curve: Curves.easeOutCubic,
+              )
+              .scale(
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.elasticOut,
+                begin: const Offset(0.8, 0.8),
+                end: const Offset(1.0, 1.0),
+              )
+              .then(delay: const Duration(seconds: 1))
+              .shimmer(
+                duration: const Duration(milliseconds: 2000),
+                color: Colors.white.withOpacity(0.3),
+                size: 2.0,
+              ),
           const SizedBox(height: 24),
           Text(
             'Payables',
