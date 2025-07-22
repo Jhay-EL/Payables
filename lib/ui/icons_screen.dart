@@ -115,7 +115,7 @@ class _IconsScreenState extends State<IconsScreen>
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
+      backgroundColor: const Color(0xFFF2F7FF),
       appBar: AppBar(
         title: Text(
           'Choose Icon',
@@ -124,7 +124,7 @@ class _IconsScreenState extends State<IconsScreen>
             color: colorScheme.onSurface,
           ),
         ),
-        backgroundColor: colorScheme.surface,
+        backgroundColor: const Color(0xFFF2F7FF),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
@@ -421,12 +421,7 @@ class _IconsScreenState extends State<IconsScreen>
     }
 
     if (_customIcons.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.add_photo_alternate_outlined,
-        title: 'No custom icons',
-        subtitle: 'Tap the button below to add your first icon',
-        action: _buildUploadButton(),
-      );
+      return _buildUploadButton();
     }
 
     return GridView.builder(
@@ -560,49 +555,55 @@ class _IconsScreenState extends State<IconsScreen>
       );
     }
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: colorScheme.outline.withValues(alpha: 0.3),
-                width: 1,
+    return Padding(
+      padding: const EdgeInsets.only(top: 80),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.3,
+                ),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: colorScheme.outline.withValues(alpha: 0.3),
+                  width: 1,
+                ),
+              ),
+              child: Icon(
+                Icons.cloud_upload_outlined,
+                size: 48,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
-            child: Icon(
-              Icons.cloud_upload_outlined,
-              size: 48,
-              color: colorScheme.onSurfaceVariant,
+            const SizedBox(height: 16),
+            Text(
+              'Upload from Gallery',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Upload from Gallery',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: colorScheme.onSurface,
+            const SizedBox(height: 8),
+            Text(
+              'Tap here to select a custom icon from your device',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Tap here to select a custom icon from your device',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: _pickAndSaveIcon,
+              icon: const Icon(Icons.add_photo_alternate_rounded),
+              label: const Text('Choose Icon'),
             ),
-          ),
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: _pickAndSaveIcon,
-            icon: const Icon(Icons.add_photo_alternate_rounded),
-            label: const Text('Choose Icon'),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

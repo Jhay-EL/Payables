@@ -28,8 +28,8 @@ class _AboutScreenState extends State<AboutScreen> {
   Color get darkColor {
     final brightness = Theme.of(context).brightness;
     return brightness == Brightness.dark
-        ? const Color(0xFFB3C5D7)
-        : const Color(0xFF477BA5);
+        ? const Color(0xFF43474e)
+        : const Color(0xFF43474e);
   }
 
   Color get userSelectedColor {
@@ -50,7 +50,7 @@ class _AboutScreenState extends State<AboutScreen> {
     final brightness = Theme.of(context).brightness;
     return brightness == Brightness.dark
         ? const Color(0xFFE3F2FD)
-        : const Color(0xFF001A27);
+        : const Color(0xFF191c20);
   }
 
   @override
@@ -173,7 +173,7 @@ class _AboutScreenState extends State<AboutScreen> {
               .then(delay: const Duration(seconds: 1))
               .shimmer(
                 duration: const Duration(milliseconds: 2000),
-                color: Colors.white.withOpacity(0.3),
+                color: Colors.white.withValues(alpha: 0.3),
                 size: 2.0,
               ),
           const SizedBox(height: 24),

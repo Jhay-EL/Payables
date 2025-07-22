@@ -59,7 +59,7 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
     final brightness = Theme.of(context).brightness;
     return brightness == Brightness.dark
         ? const Color(0xFFE3F2FD)
-        : const Color(0xFF001A27);
+        : const Color(0xFF191c20);
   }
 
   Color get highContrastBlue {
@@ -254,7 +254,7 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
                 ),
                 child: Icon(
                   Icons.more_vert_rounded,
-                  color: highContrastDarkBlue,
+                  color: const Color(0xFF43474e),
                   size: 24, // 24dp icon size as per Material 3
                 ),
               ),
@@ -271,9 +271,13 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
                 ), // 12dp corner radius for modern look
               ),
               elevation: 3,
-              color: const Color(0xFFFFFFFF),
-              surfaceTintColor: lightColor,
-              shadowColor: const Color(0x1F000000),
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFF1E1E1E)
+                  : const Color(0xFFFFFFFF),
+              surfaceTintColor: Colors.transparent,
+              shadowColor: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0x40000000)
+                  : const Color(0x1F000000),
               // Material 3 expressive transitions
               popUpAnimationStyle: AnimationStyle(
                 duration: const Duration(milliseconds: 300),
@@ -286,25 +290,31 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
                   value: 'edit',
                   icon: Icons.edit_rounded,
                   label: 'Edit',
-                  iconColor: const Color(0xFF477ba5),
-                ),
-                _buildMenuItem(
-                  value: 'pause',
-                  icon: Icons.pause_circle_rounded,
-                  label: 'Pause',
-                  iconColor: const Color(0xFF477ba5),
+                  iconColor: const Color(0xFF43474e),
                 ),
                 _buildMenuItem(
                   value: 'duplicate',
                   icon: Icons.copy_rounded,
                   label: 'Duplicate',
-                  iconColor: const Color(0xFF477ba5),
+                  iconColor: const Color(0xFF43474e),
+                ),
+                _buildMenuItem(
+                  value: 'pause',
+                  icon: Icons.pause_circle_rounded,
+                  label: 'Pause',
+                  iconColor: const Color(0xFF43474e),
+                ),
+                _buildMenuItem(
+                  value: 'finish',
+                  icon: Icons.check_circle_rounded,
+                  label: 'Finish',
+                  iconColor: const Color(0xFF43474e),
                 ),
                 _buildMenuItem(
                   value: 'delete',
                   icon: Icons.delete_rounded,
                   label: 'Delete',
-                  iconColor: const Color(0xFF477ba5),
+                  iconColor: const Color(0xFF43474e),
                 ),
               ],
               onSelected: (value) {
@@ -317,6 +327,9 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
                     break;
                   case 'duplicate':
                     _handleDuplicate();
+                    break;
+                  case 'finish':
+                    _handleFinish();
                     break;
                   case 'delete':
                     _handleDelete();
@@ -339,27 +352,27 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
 
               // Subscription Details Section
               _buildSectionTitle('Subscription Details'),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               _buildSubscriptionDetails(),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
               // Billing Information Section
               _buildSectionTitle('Billing Information'),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               _buildBillingInformation(),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
               // Category Section
               _buildSectionTitle('Category'),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               _buildCategoryCard(),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
               // Notes Section
               _buildSectionTitle('Notes'),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               _buildNotesCard(),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
               // Summary Section
               const SizedBox(height: 32),
@@ -472,11 +485,14 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
   }
 
   Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-        fontWeight: FontWeight.w400,
-        color: textColor,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+          fontWeight: FontWeight.w400,
+          color: textColor,
+        ),
       ),
     );
   }
@@ -532,7 +548,6 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
         'value':
             '${widget.subscription.currency} ${_getTotalAmount().toStringAsFixed(2)}',
       },
-      {'label': 'Due in', 'value': _getBillingInfo().replaceAll('Due ', '')},
       {
         'label': 'Start date',
         'value': _formatDate(widget.subscription.createdAt),
@@ -886,6 +901,9 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
     required String label,
     required Color iconColor,
   }) {
+    final brightness = Theme.of(context).brightness;
+    final isDark = brightness == Brightness.dark;
+
     return PopupMenuItem<String>(
       value: value,
       // Material 3 List Item Specifications
@@ -899,7 +917,7 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
           // Leading icon without background
           Icon(
             icon,
-            color: iconColor,
+            color: isDark ? Colors.white.withAlpha(230) : iconColor,
             size: 24, // 24dp icon size as per Material 3
           ),
           const SizedBox(width: 16), // 16dp padding between elements
@@ -908,7 +926,9 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
               label,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 fontWeight: FontWeight.w400,
-                color: highContrastDarkBlue,
+                color: isDark
+                    ? Colors.white.withAlpha(230)
+                    : highContrastDarkBlue,
               ),
               // Material 3 text alignment specifications
               textAlign: TextAlign.start,
@@ -952,6 +972,15 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Duplicate ${widget.subscription.title}'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _handleFinish() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Finish ${widget.subscription.title}'),
         duration: const Duration(seconds: 2),
       ),
     );

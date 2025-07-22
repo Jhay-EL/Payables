@@ -15,6 +15,7 @@ class Subscription {
   final String? iconFilePath; // Store path for custom image icons
   final int colorValue; // Store Color.value
   final String? notes;
+  final String status; // 'active', 'paused', 'finished'
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -35,6 +36,7 @@ class Subscription {
     this.iconFilePath,
     required this.colorValue,
     this.notes,
+    this.status = 'active',
     required this.createdAt,
     required this.updatedAt,
   });
@@ -58,6 +60,7 @@ class Subscription {
       'icon_file_path': iconFilePath,
       'color_value': colorValue,
       'notes': notes,
+      'status': status,
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
     };
@@ -84,6 +87,7 @@ class Subscription {
       iconFilePath: map['icon_file_path'],
       colorValue: map['color_value']?.toInt() ?? 0xFF000000, // default black
       notes: map['notes'],
+      status: map['status'] ?? 'active',
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at']),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at']),
     );
@@ -107,6 +111,7 @@ class Subscription {
     String? iconFilePath,
     int? colorValue,
     String? notes,
+    String? status,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -127,6 +132,7 @@ class Subscription {
       iconFilePath: iconFilePath ?? this.iconFilePath,
       colorValue: colorValue ?? this.colorValue,
       notes: notes ?? this.notes,
+      status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

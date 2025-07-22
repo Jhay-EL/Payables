@@ -40,8 +40,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Color get darkColor {
     final brightness = Theme.of(context).brightness;
     return brightness == Brightness.dark
-        ? const Color(0xFFB3C5D7)
-        : const Color(0xFF477BA5);
+        ? const Color(0xFF43474e)
+        : const Color(0xFF43474e);
   }
 
   Color get userSelectedColor {
@@ -62,11 +62,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final brightness = Theme.of(context).brightness;
     return brightness == Brightness.dark
         ? const Color(0xFFE3F2FD)
-        : const Color(0xFF001A27);
+        : const Color(0xFF191c20);
   }
 
   // Real subscription data
   List<Subscription> _subscriptions = [];
+  List<Subscription> _pausedSubscriptions = [];
+  List<Subscription> _finishedSubscriptions = [];
   int _totalSubscriptions = 0;
   int _thisWeekCount = 0;
   int _thisMonthCount = 0;
@@ -132,6 +134,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  Future<void> _refreshDashboardData() async {
+    // Force a complete refresh by clearing the database cache and reloading
+    print('DEBUG: Refreshing dashboard data...');
+
+    try {
+      // Force refresh the database connection to ensure we get the latest data
+      await SubscriptionDatabase.forceRefreshConnection();
+
+      // Ensure database is synchronized
+      await SubscriptionDatabase.ensureDatabaseSync();
+
+      // Add a small delay to ensure the database is properly refreshed
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      await _loadSubscriptionData();
+      print('DEBUG: Dashboard data refresh completed');
+    } catch (e) {
+      print('DEBUG: Error refreshing dashboard data: $e');
+      // Fallback: try to load data without forcing refresh
+      await _loadSubscriptionData();
+    }
+  }
+
   Future<void> _loadSubscriptionData() async {
     if (!mounted) return;
     setState(() {
@@ -141,6 +166,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       // Load subscriptions from database
       final subscriptions = await SubscriptionDatabase.getAllSubscriptions();
+      final pausedSubscriptions =
+          await SubscriptionDatabase.getPausedSubscriptions();
+      final finishedSubscriptions =
+          await SubscriptionDatabase.getFinishedSubscriptions();
+
+      print('DEBUG: Loaded ${subscriptions.length} total subscriptions');
+      print('DEBUG: Loaded ${pausedSubscriptions.length} paused subscriptions');
+      print(
+        'DEBUG: Loaded ${finishedSubscriptions.length} finished subscriptions',
+      );
 
       // Calculate counts
       final now = DateTime.now();
@@ -241,6 +276,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted) {
         setState(() {
           _subscriptions = subscriptions;
+          _pausedSubscriptions = pausedSubscriptions;
+          _finishedSubscriptions = finishedSubscriptions;
           _totalSubscriptions = subscriptions.length;
           _thisWeekCount = thisWeekCount;
           _thisMonthCount = thisMonthCount;
@@ -495,6 +532,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   const SizedBox(height: 20),
                   _buildM3CategorySection(),
+                  const SizedBox(height: 32),
+                ],
+
+                // M3 Paused/Finished Payables Section
+                if (_pausedSubscriptions.isNotEmpty ||
+                    _finishedSubscriptions.isNotEmpty) ...[
+                  Text(
+                    'Paused/Finished Payables',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w400,
+                      color: highContrastDarkBlue,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildM3PausedFinishedSection(),
                   const SizedBox(height: 32),
                 ],
 
@@ -1424,7 +1476,161 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return categorySpending.values.where((spending) => spending > 0).length;
   }
 
+  Widget _buildM3PausedFinishedSection() {
+    if (_isLoading) {
+      return Card(
+        elevation: 0,
+        color: lightColor.withAlpha(150),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: const Padding(
+          padding: EdgeInsets.all(32.0),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // Paused Subscriptions
+        if (_pausedSubscriptions.isNotEmpty) ...[
+          _buildPausedFinishedCard(
+            icon: Icons.pause_circle_filled_rounded,
+            title: 'Paused',
+            subtitle: 'Temporarily suspended payables',
+            count: _pausedSubscriptions.length,
+            color: const Color(0xFFF59E0B), // Orange for paused
+            subscriptions: _pausedSubscriptions,
+            isFirst: true,
+            isLast: _finishedSubscriptions.isEmpty,
+          ),
+          if (_finishedSubscriptions.isNotEmpty) const SizedBox(height: 2),
+        ],
+        // Finished Subscriptions
+        if (_finishedSubscriptions.isNotEmpty) ...[
+          _buildPausedFinishedCard(
+            icon: Icons.check_circle_rounded,
+            title: 'Finished',
+            subtitle: 'Completed or expired payables',
+            count: _finishedSubscriptions.length,
+            color: const Color(0xFF10B981), // Green for finished
+            subscriptions: _finishedSubscriptions,
+            isFirst: _pausedSubscriptions.isEmpty,
+            isLast: true,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildPausedFinishedCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required int count,
+    required Color color,
+    required List<Subscription> subscriptions,
+    required bool isFirst,
+    required bool isLast,
+  }) {
+    // Determine border radius based on position
+    BorderRadius borderRadius;
+    if (isFirst && isLast) {
+      // Single card: 24px all corners
+      borderRadius = BorderRadius.circular(24);
+    } else if (isFirst) {
+      // Top card: 24px top corners, 5px bottom corners
+      borderRadius = const BorderRadius.only(
+        topLeft: Radius.circular(24),
+        topRight: Radius.circular(24),
+        bottomLeft: Radius.circular(5),
+        bottomRight: Radius.circular(5),
+      );
+    } else if (isLast) {
+      // Bottom card: 5px top corners, 24px bottom corners
+      borderRadius = const BorderRadius.only(
+        topLeft: Radius.circular(5),
+        topRight: Radius.circular(5),
+        bottomLeft: Radius.circular(24),
+        bottomRight: Radius.circular(24),
+      );
+    } else {
+      // Middle cards: 5px all corners
+      borderRadius = BorderRadius.circular(5);
+    }
+
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      color: lightColor.withAlpha(150),
+      shape: RoundedRectangleBorder(borderRadius: borderRadius),
+      child: InkWell(
+        onTap: () => _handlePausedFinishedTap(title, subscriptions),
+        borderRadius: borderRadius,
+        splashColor: color.withAlpha(31),
+        highlightColor: color.withAlpha(20),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withAlpha(41),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: highContrastDarkBlue,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: darkColor,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: color.withAlpha(31),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  count.toString(),
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildM3PopupMenu() {
+    final brightness = Theme.of(context).brightness;
+    final isDark = brightness == Brightness.dark;
+
     return PopupMenuButton<String>(
       icon: Container(
         width: 48, // 48dp minimum touch target
@@ -1435,7 +1641,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         child: Icon(
           Icons.more_vert_rounded,
-          color: highContrastDarkBlue,
+          color: const Color(0xFF43474e),
           size: 24, // 24dp icon size as per Material 3
         ),
       ),
@@ -1447,12 +1653,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ), // 12dp corner radius for modern look
       ),
       elevation: 8,
-      color: const Color(0xFFFFFFFF), // White background as requested
-      surfaceTintColor:
-          Colors.transparent, // Remove surface tint for white background
-      shadowColor: const Color(
-        0x1F000000,
-      ), // Material 3 menu shadow color (12% opacity black)
+      color: isDark
+          ? const Color(0xFF1E1E1E)
+          : const Color(0xFFFFFFFF), // Dynamic background
+      surfaceTintColor: Colors.transparent, // Remove surface tint
+      shadowColor: isDark
+          ? const Color(0x40000000) // Darker shadow for dark mode
+          : const Color(
+              0x1F000000,
+            ), // Material 3 menu shadow color (12% opacity black)
       constraints: const BoxConstraints(
         minWidth: 112, // Material 3 min width
         maxWidth: 280, // Material 3 max width
@@ -1490,25 +1699,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
           value: 'add',
           text: 'Add',
           icon: Icons.add_circle_rounded,
-          color: darkColor,
+          color: const Color(0xFF43474e),
         ),
         _buildM3PopupMenuItem(
           value: 'edit',
           text: _isEditMode ? 'Done Editing' : 'Edit',
           icon: _isEditMode ? Icons.check_circle_rounded : Icons.edit_rounded,
-          color: darkColor,
+          color: const Color(0xFF43474e),
         ),
         _buildM3PopupMenuItem(
           value: 'hide_panel',
           text: 'Hide Panel',
           icon: Icons.visibility_off_rounded,
-          color: darkColor,
+          color: const Color(0xFF43474e),
         ),
         _buildM3PopupMenuItem(
           value: 'settings',
           text: 'Settings',
           icon: Icons.settings_rounded,
-          color: darkColor,
+          color: const Color(0xFF43474e),
         ),
       ],
     );
@@ -1520,6 +1729,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required IconData icon,
     required Color color,
   }) {
+    final brightness = Theme.of(context).brightness;
+    final isDark = brightness == Brightness.dark;
+
     return PopupMenuItem<String>(
       value: value,
       // Material 3 List Item Specifications
@@ -1533,7 +1745,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           // Leading icon without background
           Icon(
             icon,
-            color: color,
+            color: isDark ? Colors.white.withAlpha(230) : color,
             size: 24, // 24dp icon size as per Material 3
           ),
           const SizedBox(width: 16), // 16dp padding between elements
@@ -1542,7 +1754,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               text,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 fontWeight: FontWeight.w400,
-                color: highContrastDarkBlue,
+                color: isDark
+                    ? Colors.white.withAlpha(230)
+                    : highContrastDarkBlue,
               ),
               textAlign: TextAlign.start,
             ),
@@ -1557,7 +1771,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SubscriptionScreen(categories: _categories),
+        builder: (context) =>
+            SubscriptionScreen(categories: _categories, title: title),
+      ),
+    );
+
+    // If categories were updated, refresh the dashboard data
+    if (result == 'categories_updated') {
+      _loadSubscriptionData();
+    }
+  }
+
+  void _handlePausedFinishedTap(
+    String title,
+    List<Subscription> subscriptions,
+  ) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            SubscriptionScreen(categories: _categories, title: title),
       ),
     );
 
@@ -1658,7 +1891,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         builder: (context) =>
                             AddSubsScreen(categories: _categories),
                       ),
-                    );
+                    ).then((result) async {
+                      // Reload subscription data if a new one was added
+                      if (result == true || result == 'categories_updated') {
+                        // Force a complete refresh of the dashboard data
+                        if (mounted) {
+                          // Add a longer delay to ensure database is fully updated
+                          await Future.delayed(
+                            const Duration(milliseconds: 200),
+                          );
+                          await _refreshDashboardData();
+
+                          // Force a rebuild of the widget
+                          if (mounted) {
+                            setState(() {});
+                          }
+                        }
+                      }
+                    });
                   },
                   isFirst: true,
                   isLast: false,

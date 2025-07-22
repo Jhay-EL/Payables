@@ -50,15 +50,15 @@ class _ColorPickerScreenState extends State<ColorPickerScreen> {
   Color get darkColor {
     final brightness = Theme.of(context).brightness;
     return brightness == Brightness.dark
-        ? const Color(0xFFB3C5D7)
-        : const Color(0xFF477BA5);
+        ? const Color(0xFF43474e)
+        : const Color(0xFF43474e);
   }
 
   Color get highContrastDarkBlue {
     final brightness = Theme.of(context).brightness;
     return brightness == Brightness.dark
         ? const Color(0xFFE3F2FD)
-        : const Color(0xFF001A27);
+        : const Color(0xFF191c20);
   }
 
   Color get highContrastBlue {
@@ -533,7 +533,7 @@ class _ColorWheelWidget extends StatelessWidget {
               .then(delay: const Duration(seconds: 1))
               .shimmer(
                 duration: const Duration(milliseconds: 3000),
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 size: 3.0,
               ),
           // Round selector indicator

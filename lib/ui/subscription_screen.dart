@@ -11,7 +11,8 @@ import '../data/currency_database.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   final List<Map<String, dynamic>>? categories;
-  const SubscriptionScreen({super.key, this.categories});
+  final String? title;
+  const SubscriptionScreen({super.key, this.categories, this.title});
 
   @override
   State<SubscriptionScreen> createState() => _SubscriptionScreenState();
@@ -52,8 +53,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Color get darkColor {
     final brightness = Theme.of(context).brightness;
     return brightness == Brightness.dark
-        ? const Color(0xFFB3C5D7)
-        : const Color(0xFF477BA5);
+        ? const Color(0xFF43474e)
+        : const Color(0xFF43474e);
   }
 
   Color get userSelectedColor {
@@ -74,7 +75,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     final brightness = Theme.of(context).brightness;
     return brightness == Brightness.dark
         ? const Color(0xFFE3F2FD)
-        : const Color(0xFF001A27);
+        : const Color(0xFF191c20);
   }
 
   @override
@@ -143,7 +144,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         _isLoading = true;
       });
 
-      final subscriptions = await SubscriptionDatabase.getAllSubscriptions();
+      List<Subscription> subscriptions;
+
+      // Handle special titles for paused and finished subscriptions
+      if (widget.title == 'Paused') {
+        subscriptions = await SubscriptionDatabase.getPausedSubscriptions();
+      } else if (widget.title == 'Finished') {
+        subscriptions = await SubscriptionDatabase.getFinishedSubscriptions();
+      } else {
+        subscriptions = await SubscriptionDatabase.getAllSubscriptions();
+      }
 
       setState(() {
         _subscriptions = subscriptions;
@@ -298,6 +308,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   surfaceTintColor: lightColor,
                   backgroundColor: backgroundColor,
                   leading: BackButton(color: highContrastDarkBlue),
+                  title: widget.title != null
+                      ? Text(
+                          widget.title!,
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: highContrastDarkBlue,
+                              ),
+                        )
+                      : null,
                   actions: [
                     Padding(
                       padding: const EdgeInsets.only(right: 16.0),
@@ -365,9 +385,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                       builder: (context) =>
                           AddSubsScreen(categories: widget.categories),
                     ),
-                  ).then((result) {
-                    if (result == true) {
-                      _loadSubscriptions();
+                  ).then((result) async {
+                    if (result == true || result == 'categories_updated') {
+                      if (mounted) {
+                        await _loadSubscriptions();
+                      }
                     }
                   });
                 },
@@ -650,6 +672,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Widget _buildM3PopupMenu() {
+    final brightness = Theme.of(context).brightness;
+    final isDark = brightness == Brightness.dark;
+
     return PopupMenuButton<String>(
       icon: Container(
         width: 48, // 48dp minimum touch target
@@ -660,7 +685,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         ),
         child: Icon(
           Icons.more_vert_rounded,
-          color: highContrastDarkBlue,
+          color: const Color(0xFF43474e),
           size: 24, // 24dp icon size as per Material 3
         ),
       ),
@@ -672,12 +697,15 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         ), // 12dp corner radius for modern look
       ),
       elevation: 8,
-      color: const Color(0xFFFFFFFF), // White background as requested
-      surfaceTintColor:
-          Colors.transparent, // Remove surface tint for white background
-      shadowColor: const Color(
-        0x1F000000,
-      ), // Material 3 menu shadow color (12% opacity black)
+      color: isDark
+          ? const Color(0xFF1E1E1E)
+          : const Color(0xFFFFFFFF), // Dynamic background
+      surfaceTintColor: Colors.transparent, // Remove surface tint
+      shadowColor: isDark
+          ? const Color(0x40000000) // Darker shadow for dark mode
+          : const Color(
+              0x1F000000,
+            ), // Material 3 menu shadow color (12% opacity black)
       constraints: const BoxConstraints(
         minWidth: 112, // Material 3 min width
         maxWidth: 280, // Material 3 max width
@@ -701,10 +729,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 builder: (context) =>
                     AddSubsScreen(categories: widget.categories),
               ),
-            ).then((result) {
+            ).then((result) async {
               // Reload subscriptions if a new one was added
-              if (result == true) {
-                _loadSubscriptions();
+              if (result == true || result == 'categories_updated') {
+                if (mounted) {
+                  await _loadSubscriptions();
+                }
               }
             });
             break;
@@ -721,25 +751,25 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           value: 'search',
           text: 'Search',
           icon: Icons.search_rounded,
-          color: darkColor,
+          color: const Color(0xFF43474e),
         ),
         _buildM3PopupMenuItem(
           value: 'add',
           text: 'Add',
           icon: Icons.add_circle_rounded,
-          color: darkColor,
+          color: const Color(0xFF43474e),
         ),
         _buildM3PopupMenuItem(
           value: 'filter',
           text: 'Filter',
           icon: Icons.filter_list_rounded,
-          color: darkColor,
+          color: const Color(0xFF43474e),
         ),
         _buildM3PopupMenuItem(
           value: 'sort',
           text: 'Sort',
           icon: Icons.sort_rounded,
-          color: darkColor,
+          color: const Color(0xFF43474e),
         ),
       ],
     );
@@ -751,6 +781,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     required IconData icon,
     required Color color,
   }) {
+    final brightness = Theme.of(context).brightness;
+    final isDark = brightness == Brightness.dark;
+
     return PopupMenuItem<String>(
       value: value,
       // Material 3 List Item Specifications
@@ -764,7 +797,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           // Leading icon without background
           Icon(
             icon,
-            color: color,
+            color: isDark ? Colors.white.withAlpha(230) : color,
             size: 24, // 24dp icon size as per Material 3
           ),
           const SizedBox(width: 16), // 16dp padding between elements
@@ -773,7 +806,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               text,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 fontWeight: FontWeight.w400,
-                color: highContrastDarkBlue,
+                color: isDark
+                    ? Colors.white.withAlpha(230)
+                    : highContrastDarkBlue,
               ),
               // Material 3 text alignment specifications
               textAlign: TextAlign.start,

@@ -38,8 +38,8 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
   Color get darkColor {
     final brightness = Theme.of(context).brightness;
     return brightness == Brightness.dark
-        ? const Color(0xFFB3C5D7)
-        : const Color(0xFF477BA5);
+        ? const Color(0xFF43474e)
+        : const Color(0xFF43474e);
   }
 
   Color get userSelectedColor {
@@ -60,7 +60,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
     final brightness = Theme.of(context).brightness;
     return brightness == Brightness.dark
         ? const Color(0xFFE3F2FD)
-        : const Color(0xFF001A27);
+        : const Color(0xFF191c20);
   }
 
   @override

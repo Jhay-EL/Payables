@@ -5,7 +5,7 @@ import '../models/subscription.dart';
 class SubscriptionDatabase {
   static Database? _database;
   static const String _databaseName = 'subscriptions.db';
-  static const int _databaseVersion = 3;
+  static const int _databaseVersion = 4;
 
   // Table and column names
   static const String _tableName = 'subscriptions';
@@ -25,6 +25,7 @@ class SubscriptionDatabase {
   static const String _columnIconFilePath = 'icon_file_path';
   static const String _columnColorValue = 'color_value';
   static const String _columnNotes = 'notes';
+  static const String _columnStatus = 'status';
   static const String _columnCreatedAt = 'created_at';
   static const String _columnUpdatedAt = 'updated_at';
 
@@ -46,8 +47,10 @@ class SubscriptionDatabase {
         version: _databaseVersion,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
+        readOnly: false,
       );
     } catch (e) {
+      print('DEBUG: Database initialization error: $e');
       rethrow;
     }
   }
@@ -73,6 +76,7 @@ class SubscriptionDatabase {
           $_columnIconFilePath TEXT,
           $_columnColorValue INTEGER NOT NULL DEFAULT 4278190080,
           $_columnNotes TEXT,
+          $_columnStatus TEXT NOT NULL DEFAULT 'active',
           $_columnCreatedAt INTEGER NOT NULL,
           $_columnUpdatedAt INTEGER NOT NULL
         )
@@ -98,6 +102,11 @@ class SubscriptionDatabase {
         "ALTER TABLE $_tableName ADD COLUMN $_columnType TEXT NOT NULL DEFAULT 'Recurring'",
       );
     }
+    if (oldVersion < 4) {
+      await db.execute(
+        "ALTER TABLE $_tableName ADD COLUMN $_columnStatus TEXT NOT NULL DEFAULT 'active'",
+      );
+    }
   }
 
   // Insert a new subscription
@@ -113,6 +122,7 @@ class SubscriptionDatabase {
       );
 
       int id = await db.insert(_tableName, subscriptionWithTimestamp.toMap());
+      print('DEBUG: Database insert completed with ID: $id');
       return id;
     } catch (e) {
       rethrow;
@@ -128,6 +138,7 @@ class SubscriptionDatabase {
         orderBy: '$_columnBillingDate ASC',
       );
 
+      print('DEBUG: Database query returned ${maps.length} subscriptions');
       return List.generate(maps.length, (i) {
         return Subscription.fromMap(maps[i]);
       });
@@ -224,6 +235,27 @@ class SubscriptionDatabase {
     }
   }
 
+  // Update subscription status
+  static Future<int> updateSubscriptionStatus(int id, String status) async {
+    try {
+      final db = await database;
+
+      int count = await db.update(
+        _tableName,
+        {
+          _columnStatus: status,
+          _columnUpdatedAt: DateTime.now().millisecondsSinceEpoch,
+        },
+        where: '$_columnId = ?',
+        whereArgs: [id],
+      );
+
+      return count;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // Delete subscription
   static Future<int> deleteSubscription(int id) async {
     try {
@@ -306,6 +338,69 @@ class SubscriptionDatabase {
     }
   }
 
+  // Get paused subscriptions
+  static Future<List<Subscription>> getPausedSubscriptions() async {
+    try {
+      final db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        _tableName,
+        where: '$_columnStatus = ?',
+        whereArgs: ['paused'],
+        orderBy: '$_columnBillingDate ASC',
+      );
+
+      return List.generate(maps.length, (i) {
+        return Subscription.fromMap(maps[i]);
+      });
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // Get finished subscriptions (either status is 'finished' or endDate is in the past)
+  static Future<List<Subscription>> getFinishedSubscriptions() async {
+    try {
+      final db = await database;
+      final now = DateTime.now();
+
+      final List<Map<String, dynamic>> maps = await db.query(
+        _tableName,
+        where:
+            '$_columnStatus = ? OR ($_columnEndDate IS NOT NULL AND $_columnEndDate < ?)',
+        whereArgs: ['finished', now.millisecondsSinceEpoch],
+        orderBy: '$_columnBillingDate ASC',
+      );
+
+      return List.generate(maps.length, (i) {
+        return Subscription.fromMap(maps[i]);
+      });
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // Get active subscriptions (not paused or finished)
+  static Future<List<Subscription>> getActiveSubscriptions() async {
+    try {
+      final db = await database;
+      final now = DateTime.now();
+
+      final List<Map<String, dynamic>> maps = await db.query(
+        _tableName,
+        where:
+            '$_columnStatus = ? AND ($_columnEndDate IS NULL OR $_columnEndDate >= ?)',
+        whereArgs: ['active', now.millisecondsSinceEpoch],
+        orderBy: '$_columnBillingDate ASC',
+      );
+
+      return List.generate(maps.length, (i) {
+        return Subscription.fromMap(maps[i]);
+      });
+    } catch (e) {
+      return [];
+    }
+  }
+
   // Clear all subscriptions (for testing or reset)
   static Future<void> clearAllSubscriptions() async {
     try {
@@ -313,6 +408,25 @@ class SubscriptionDatabase {
       await db.delete(_tableName);
     } catch (e) {
       rethrow;
+    }
+  }
+
+  // Force refresh database connection
+  static Future<void> forceRefreshConnection() async {
+    if (_database != null) {
+      await _database!.close();
+      _database = null;
+    }
+  }
+
+  // Ensure database is synchronized
+  static Future<void> ensureDatabaseSync() async {
+    try {
+      final db = await database;
+      await db.execute('PRAGMA wal_checkpoint(FULL)');
+    } catch (e) {
+      print('DEBUG: Database sync error (non-critical): $e');
+      // This is non-critical, so we don't rethrow
     }
   }
 

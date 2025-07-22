@@ -82,8 +82,8 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
   Color get darkColor {
     final brightness = Theme.of(context).brightness;
     return brightness == Brightness.dark
-        ? const Color(0xFFB3C5D7)
-        : const Color(0xFF477BA5);
+        ? const Color(0xFF43474e)
+        : const Color(0xFF43474e);
   }
 
   Color get userSelectedColor {
@@ -104,7 +104,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
     final brightness = Theme.of(context).brightness;
     return brightness == Brightness.dark
         ? const Color(0xFFE3F2FD)
-        : const Color(0xFF001A27);
+        : const Color(0xFF191c20);
   }
 
   Color get _previewTextColor {
@@ -334,7 +334,23 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
           updatedAt: DateTime.now(),
         );
 
-        await SubscriptionDatabase.insertSubscription(subscription);
+        final id = await SubscriptionDatabase.insertSubscription(subscription);
+        print(
+          'DEBUG: Subscription saved with ID: $id, Title: ${subscription.title}',
+        );
+
+        // Verify the subscription was saved by querying it
+        final savedSubscription =
+            await SubscriptionDatabase.getSubscriptionById(id);
+        if (savedSubscription != null) {
+          print(
+            'DEBUG: Subscription verified in database - Title: ${savedSubscription.title}',
+          );
+        } else {
+          print(
+            'DEBUG: ERROR - Subscription not found in database after save!',
+          );
+        }
       }
 
       // Check if a new category was added
