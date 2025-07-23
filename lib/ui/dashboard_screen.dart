@@ -18,6 +18,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _isCategoryHidden = false;
   bool _isInsightsHidden = false;
+  bool _isPausedFinishedHidden = false;
   bool _isEditMode = false;
   bool _isLoading = true;
   double _scrollOffset = 0.0;
@@ -515,8 +516,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
 
                   // M3 Paused/Finished Payables Section
-                  if (_pausedSubscriptions.isNotEmpty ||
-                      _finishedSubscriptions.isNotEmpty) ...[
+                  if (!_isPausedFinishedHidden &&
+                      (_pausedSubscriptions.isNotEmpty ||
+                          _finishedSubscriptions.isNotEmpty)) ...[
                     Text(
                       'Paused/Finished Payables',
                       style: Theme.of(context).textTheme.headlineSmall
@@ -1423,7 +1425,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   double _getTotalSpending() {
     double total = 0;
     for (final subscription in _subscriptions) {
-      total += _getMonthlyAmount(subscription);
+      // Only include active subscriptions in the total calculation
+      if (subscription.status == 'active') {
+        total += _getMonthlyAmount(subscription);
+      }
     }
     return total;
   }
@@ -1431,10 +1436,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   double _getMaxCategorySpending() {
     Map<String, double> categorySpending = {};
     for (final subscription in _subscriptions) {
-      final category = subscription.category;
-      final monthlyAmount = _getMonthlyAmount(subscription);
-      categorySpending[category] =
-          (categorySpending[category] ?? 0) + monthlyAmount;
+      // Only include active subscriptions in category spending calculations
+      if (subscription.status == 'active') {
+        final category = subscription.category;
+        final monthlyAmount = _getMonthlyAmount(subscription);
+        categorySpending[category] =
+            (categorySpending[category] ?? 0) + monthlyAmount;
+      }
     }
 
     double maxSpending = 0;
@@ -1449,10 +1457,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _getActiveCategoriesCount() {
     Map<String, double> categorySpending = {};
     for (final subscription in _subscriptions) {
-      final category = subscription.category;
-      final monthlyAmount = _getMonthlyAmount(subscription);
-      categorySpending[category] =
-          (categorySpending[category] ?? 0) + monthlyAmount;
+      // Only include active subscriptions in category calculations
+      if (subscription.status == 'active') {
+        final category = subscription.category;
+        final monthlyAmount = _getMonthlyAmount(subscription);
+        categorySpending[category] =
+            (categorySpending[category] ?? 0) + monthlyAmount;
+      }
     }
 
     return categorySpending.values.where((spending) => spending > 0).length;
@@ -1758,8 +1769,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
 
-    // If categories were updated or subscription was deleted, refresh the dashboard data
-    if (result == 'categories_updated' || result == 'deleted') {
+    // If categories were updated, subscription was deleted, or status was updated, refresh the dashboard data
+    if (result == 'categories_updated' ||
+        result == 'deleted' ||
+        result == 'status_updated') {
       _loadSubscriptionData();
     }
   }
@@ -1776,8 +1789,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
 
-    // If categories were updated or subscription was deleted, refresh the dashboard data
-    if (result == 'categories_updated' || result == 'deleted') {
+    // If categories were updated, subscription was deleted, or status was updated, refresh the dashboard data
+    if (result == 'categories_updated' ||
+        result == 'deleted' ||
+        result == 'status_updated') {
       _loadSubscriptionData();
     }
   }
@@ -4139,6 +4154,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // Local state for the bottom sheet - declared outside of builder to preserve state
     bool localCategoryHidden = _isCategoryHidden;
     bool localInsightsHidden = _isInsightsHidden;
+    bool localPausedFinishedHidden = _isPausedFinishedHidden;
 
     showModalBottomSheet(
       context: context,
@@ -4231,6 +4247,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _buildHidePanelStackedCards(
                     localCategoryHidden: localCategoryHidden,
                     localInsightsHidden: localInsightsHidden,
+                    localPausedFinishedHidden: localPausedFinishedHidden,
                     onCategoryChanged: (value) {
                       setModalState(() {
                         localCategoryHidden = value;
@@ -4239,6 +4256,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     onInsightsChanged: (value) {
                       setModalState(() {
                         localInsightsHidden = value;
+                      });
+                    },
+                    onPausedFinishedChanged: (value) {
+                      setModalState(() {
+                        localPausedFinishedHidden = value;
                       });
                     },
                   ),
@@ -4271,6 +4293,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             setState(() {
                               _isCategoryHidden = localCategoryHidden;
                               _isInsightsHidden = localInsightsHidden;
+                              _isPausedFinishedHidden =
+                                  localPausedFinishedHidden;
                             });
 
                             Navigator.pop(context);
@@ -4334,8 +4358,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildHidePanelStackedCards({
     required bool localCategoryHidden,
     required bool localInsightsHidden,
+    required bool localPausedFinishedHidden,
     required ValueChanged<bool> onCategoryChanged,
     required ValueChanged<bool> onInsightsChanged,
+    required ValueChanged<bool> onPausedFinishedChanged,
   }) {
     final panelOptions = [
       {
@@ -4353,6 +4379,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         'isHidden': localInsightsHidden,
         'color': highContrastBlue,
         'onChanged': onInsightsChanged,
+      },
+      {
+        'title': 'Paused/Finished',
+        'subtitle': 'Hide paused and finished payables section',
+        'icon': Icons.pause_circle_rounded,
+        'isHidden': localPausedFinishedHidden,
+        'color': const Color(0xFFF59E0B), // Orange color for paused/finished
+        'onChanged': onPausedFinishedChanged,
       },
     ];
 

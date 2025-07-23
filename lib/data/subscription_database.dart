@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/subscription.dart';
+import '../services/notification_service.dart';
 
 class SubscriptionDatabase {
   static Database? _database;
@@ -121,6 +122,15 @@ class SubscriptionDatabase {
       );
 
       int id = await db.insert(_tableName, subscriptionWithTimestamp.toMap());
+
+      // Schedule notification for the new subscription
+      if (subscription.status == 'active') {
+        final subscriptionWithId = subscriptionWithTimestamp.copyWith(id: id);
+        await NotificationService().scheduleSubscriptionNotification(
+          subscriptionWithId,
+        );
+      }
+
       return id;
     } catch (e) {
       rethrow;
@@ -226,6 +236,11 @@ class SubscriptionDatabase {
         whereArgs: [subscription.id],
       );
 
+      // Update notification for the subscription
+      await NotificationService().updateSubscriptionNotifications(
+        updatedSubscription,
+      );
+
       return count;
     } catch (e) {
       rethrow;
@@ -262,6 +277,9 @@ class SubscriptionDatabase {
         where: '$_columnId = ?',
         whereArgs: [id],
       );
+
+      // Cancel notifications for the deleted subscription
+      await NotificationService().cancelSubscriptionNotifications(id);
 
       return count;
     } catch (e) {

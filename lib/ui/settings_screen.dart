@@ -442,8 +442,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildNotificationsBottomSheet(BuildContext context) {
-    bool notificationsEnabled =
-        true; // This should be managed by state management
+    bool notificationsEnabled = true;
     bool paymentReminders = true;
     bool weeklySummary = false;
     bool budgetAlerts = true;

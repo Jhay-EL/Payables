@@ -127,7 +127,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       listen: false,
     ).selectedCurrency;
     for (final subscription in _subscriptions) {
-      if (subscription.currency == selectedDisplayCurrency) {
+      // Only include active subscriptions in the total calculation
+      if (subscription.currency == selectedDisplayCurrency &&
+          subscription.status == 'active') {
         total += _getMonthlyAmount(subscription);
       }
     }
@@ -152,7 +154,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       } else if (widget.title == 'Finished') {
         subscriptions = await SubscriptionDatabase.getFinishedSubscriptions();
       } else {
-        subscriptions = await SubscriptionDatabase.getAllSubscriptions();
+        // Default: only show active subscriptions (not paused or finished)
+        subscriptions = await SubscriptionDatabase.getActiveSubscriptions();
       }
 
       setState(() {
@@ -351,6 +354,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Widget _buildEmptyState() {
+    final bool isPausedScreen = widget.title == 'Paused';
+    final bool isFinishedScreen = widget.title == 'Finished';
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32.0),
@@ -358,7 +364,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              _subscriptions.isEmpty ? 'No Payables Yet' : 'No Results Found',
+              _subscriptions.isEmpty
+                  ? (isPausedScreen
+                        ? 'No Paused Payables'
+                        : isFinishedScreen
+                        ? 'No Finished Payables'
+                        : 'No Payables Yet')
+                  : 'No Results Found',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w500,
                 color: highContrastDarkBlue,
@@ -367,7 +379,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             const SizedBox(height: 12),
             Text(
               _subscriptions.isEmpty
-                  ? 'Add your first payable to get started tracking your recurring payments.'
+                  ? (isPausedScreen
+                        ? 'You don\'t have any paused payables at the moment.'
+                        : isFinishedScreen
+                        ? 'You don\'t have any finished payables at the moment.'
+                        : 'Add your first payable to get started tracking your recurring payments.')
                   : 'Try adjusting your search terms or clearing the search.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -375,7 +391,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 height: 1.5,
               ),
             ),
-            if (_subscriptions.isEmpty) ...[
+            if (_subscriptions.isEmpty &&
+                !isPausedScreen &&
+                !isFinishedScreen) ...[
               const SizedBox(height: 24),
               FilledButton.icon(
                 onPressed: () {
@@ -1456,8 +1474,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
     if (result == true ||
         result == 'categories_updated' ||
-        result == 'deleted') {
-      _loadSubscriptions(); // Refresh the list if changes were saved or subscription was deleted
+        result == 'deleted' ||
+        result == 'status_updated') {
+      _loadSubscriptions(); // Refresh the list if changes were saved, subscription was deleted, or status was updated
 
       // If categories were updated, we might need to refresh the categories list
       // This will be handled by the parent screen (dashboard) when it receives the result

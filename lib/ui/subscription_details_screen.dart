@@ -299,18 +299,27 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
                   label: 'Duplicate',
                   iconColor: const Color(0xFF43474e),
                 ),
-                _buildMenuItem(
-                  value: 'pause',
-                  icon: Icons.pause_circle_rounded,
-                  label: 'Pause',
-                  iconColor: const Color(0xFF43474e),
-                ),
-                _buildMenuItem(
-                  value: 'finish',
-                  icon: Icons.check_circle_rounded,
-                  label: 'Finish',
-                  iconColor: const Color(0xFF43474e),
-                ),
+                if (widget.subscription.status == 'active')
+                  _buildMenuItem(
+                    value: 'pause',
+                    icon: Icons.pause_circle_rounded,
+                    label: 'Pause',
+                    iconColor: const Color(0xFF43474e),
+                  ),
+                if (widget.subscription.status == 'paused')
+                  _buildMenuItem(
+                    value: 'resume',
+                    icon: Icons.play_circle_rounded,
+                    label: 'Resume',
+                    iconColor: const Color(0xFF43474e),
+                  ),
+                if (widget.subscription.status != 'finished')
+                  _buildMenuItem(
+                    value: 'finish',
+                    icon: Icons.check_circle_rounded,
+                    label: 'Finish',
+                    iconColor: const Color(0xFF43474e),
+                  ),
                 _buildMenuItem(
                   value: 'delete',
                   icon: Icons.delete_rounded,
@@ -325,6 +334,9 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
                     break;
                   case 'pause':
                     _handlePause();
+                    break;
+                  case 'resume':
+                    _handleResume();
                     break;
                   case 'duplicate':
                     _handleDuplicate();
@@ -456,7 +468,11 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.green,
+            color: widget.subscription.status == 'paused'
+                ? Colors.orange
+                : widget.subscription.status == 'finished'
+                ? Colors.grey
+                : Colors.green,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
@@ -472,7 +488,11 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
               ),
               const SizedBox(width: 6),
               Text(
-                'Active',
+                widget.subscription.status == 'paused'
+                    ? 'Paused'
+                    : widget.subscription.status == 'finished'
+                    ? 'Finished'
+                    : 'Active',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
@@ -960,13 +980,92 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
     }
   }
 
-  void _handlePause() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Pause ${widget.subscription.title}'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  void _handlePause() async {
+    try {
+      // Check if subscription has a valid ID
+      if (widget.subscription.id == null) {
+        throw Exception('Subscription ID is null');
+      }
+
+      // Update subscription status to paused
+      await SubscriptionDatabase.updateSubscriptionStatus(
+        widget.subscription.id!,
+        'paused',
+      );
+
+      // Ensure database is synchronized
+      await SubscriptionDatabase.ensureDatabaseSync();
+
+      if (!mounted) return;
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${widget.subscription.title} paused successfully'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      // Return result to indicate status change for parent screens to refresh
+      Navigator.of(context).pop('status_updated');
+    } catch (e) {
+      if (!mounted) return;
+
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to pause ${widget.subscription.title}. Please try again.',
+          ),
+          duration: const Duration(seconds: 2),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _handleResume() async {
+    try {
+      // Check if subscription has a valid ID
+      if (widget.subscription.id == null) {
+        throw Exception('Subscription ID is null');
+      }
+
+      // Update subscription status to active
+      await SubscriptionDatabase.updateSubscriptionStatus(
+        widget.subscription.id!,
+        'active',
+      );
+
+      // Ensure database is synchronized
+      await SubscriptionDatabase.ensureDatabaseSync();
+
+      if (!mounted) return;
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${widget.subscription.title} resumed successfully'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      // Return result to indicate status change for parent screens to refresh
+      Navigator.of(context).pop('status_updated');
+    } catch (e) {
+      if (!mounted) return;
+
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to resume ${widget.subscription.title}. Please try again.',
+          ),
+          duration: const Duration(seconds: 2),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _handleDuplicate() {

@@ -3,8 +3,19 @@ import 'package:payables/data/currency_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:payables/ui/dashboard_screen.dart';
 import 'package:payables/utils/theme_provider.dart';
+import 'package:payables/services/notification_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize notification service (with error handling)
+  try {
+    await NotificationService().initialize();
+  } catch (e) {
+    print('Failed to initialize notification service: $e');
+    // Continue app execution even if notifications fail
+  }
+
   runApp(
     MultiProvider(
       providers: [
