@@ -1006,7 +1006,6 @@ class _IconsScreenState extends State<IconsScreen>
 
   Widget _buildNavigationItem(int index, String label, IconData icon) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return InkWell(
       onTap: () {
