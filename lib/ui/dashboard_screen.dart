@@ -1810,6 +1810,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (result == 'categories_updated' ||
         result == 'deleted' ||
         result == 'status_updated' ||
+        result == 'duplicated' ||
         result == true) {
       await _refreshDashboardData();
     }
@@ -1831,6 +1832,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (result == 'categories_updated' ||
         result == 'deleted' ||
         result == 'status_updated' ||
+        result == 'duplicated' ||
         result == true) {
       await _refreshDashboardData();
     }
@@ -2055,6 +2057,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (result == 'categories_updated' ||
         result == 'deleted' ||
         result == 'status_updated' ||
+        result == 'duplicated' ||
         result == true) {
       await _refreshDashboardData();
     }
@@ -4189,11 +4192,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   void _showHidePanelBottomSheet() {
-    // Local state for the bottom sheet - declared outside of builder to preserve state
-    bool localCategoryHidden = _isCategoryHidden;
-    bool localInsightsHidden = _isInsightsHidden;
-    bool localPausedFinishedHidden = _isPausedFinishedHidden;
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -4257,7 +4255,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Choose which panels to hide from dashboard',
+                              'Toggle panels to show or hide them',
                               style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(
                                     color: darkColor.withAlpha(179),
@@ -4283,105 +4281,27 @@ class _DashboardScreenState extends State<DashboardScreen>
 
                   // Stacked Cards for Panel Options
                   _buildHidePanelStackedCards(
-                    localCategoryHidden: localCategoryHidden,
-                    localInsightsHidden: localInsightsHidden,
-                    localPausedFinishedHidden: localPausedFinishedHidden,
+                    localCategoryHidden: _isCategoryHidden,
+                    localInsightsHidden: _isInsightsHidden,
+                    localPausedFinishedHidden: _isPausedFinishedHidden,
                     onCategoryChanged: (value) {
-                      setModalState(() {
-                        localCategoryHidden = value;
+                      setState(() {
+                        _isCategoryHidden = value;
                       });
+                      setModalState(() {});
                     },
                     onInsightsChanged: (value) {
-                      setModalState(() {
-                        localInsightsHidden = value;
+                      setState(() {
+                        _isInsightsHidden = value;
                       });
+                      setModalState(() {});
                     },
                     onPausedFinishedChanged: (value) {
-                      setModalState(() {
-                        localPausedFinishedHidden = value;
+                      setState(() {
+                        _isPausedFinishedHidden = value;
                       });
+                      setModalState(() {});
                     },
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Action buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            side: BorderSide(color: darkColor),
-                          ),
-                          child: Text(
-                            'Cancel',
-                            style: TextStyle(color: darkColor),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: () {
-                            // Apply the local state to the main dashboard state
-                            setState(() {
-                              _isCategoryHidden = localCategoryHidden;
-                              _isInsightsHidden = localInsightsHidden;
-                              _isPausedFinishedHidden =
-                                  localPausedFinishedHidden;
-                            });
-
-                            Navigator.pop(context);
-
-                            // Show confirmation message
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.check_circle_rounded,
-                                      color: Colors.white,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Text(
-                                      'Panel visibility settings applied',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                backgroundColor: const Color(0xFF10B981),
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                margin: const EdgeInsets.all(16),
-                              ),
-                            );
-                          },
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            backgroundColor: highContrastBlue,
-                          ),
-                          child: Text(
-                            'Apply Changes',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
                   SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
                 ],

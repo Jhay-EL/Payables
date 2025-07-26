@@ -1023,6 +1023,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                   ? cycle
                                   : null;
                             });
+                            // Apply filtering immediately
+                            this.setState(() {
+                              _filterSubscriptions(_searchController.text);
+                            });
                           },
                           backgroundColor: lightColor.withAlpha(100),
                           selectedColor: highContrastBlue,
@@ -1080,6 +1084,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                       ? category
                                       : null;
                                 });
+                                // Apply filtering immediately
+                                this.setState(() {
+                                  _filterSubscriptions(_searchController.text);
+                                });
                               },
                               backgroundColor: lightColor.withAlpha(100),
                               selectedColor: highContrastBlue,
@@ -1109,59 +1117,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                             ),
                           )
                           .toList(),
-                ),
-                const SizedBox(height: 32),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          setState(() {
-                            _activeBillingCycleFilter = null;
-                            _activeCategoryFilter = null;
-                          });
-                        },
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          side: BorderSide(color: darkColor),
-                          foregroundColor: darkColor,
-                          textStyle: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        child: const Text('Reset'),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: () {
-                          this.setState(() {
-                            _filterSubscriptions(_searchController.text);
-                          });
-                          Navigator.pop(context);
-                        },
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          backgroundColor: highContrastBlue,
-                          foregroundColor: Colors.white,
-                          elevation: 2,
-                          textStyle: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        child: const Text('Apply Filters'),
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -1235,6 +1190,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                               setState(() {
                                 _sortBy = sortBy;
                               });
+                              // Apply sorting immediately
+                              this.setState(() {
+                                _filterSubscriptions(_searchController.text);
+                              });
                             }
                           },
                           showCheckmark: true,
@@ -1285,6 +1244,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                               setState(() {
                                 _sortDirection = direction;
                               });
+                              // Apply sorting immediately
+                              this.setState(() {
+                                _filterSubscriptions(_searchController.text);
+                              });
                             }
                           },
                           avatar: Icon(
@@ -1317,60 +1280,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         ),
                       )
                       .toList(),
-                ),
-
-                const SizedBox(height: 32),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          setState(() {
-                            _sortBy = SortBy.createdDate;
-                            _sortDirection = SortDirection.descending;
-                          });
-                        },
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          side: BorderSide(color: darkColor),
-                          foregroundColor: darkColor,
-                          textStyle: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        child: const Text('Reset'),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: () {
-                          this.setState(() {
-                            _filterSubscriptions(_searchController.text);
-                          });
-                          Navigator.pop(context);
-                        },
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          backgroundColor: highContrastBlue,
-                          foregroundColor: Colors.white,
-                          elevation: 2,
-                          textStyle: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        child: const Text('Apply'),
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -1575,8 +1484,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     if (result == true ||
         result == 'categories_updated' ||
         result == 'deleted' ||
-        result == 'status_updated') {
-      _loadSubscriptions(); // Refresh the list if changes were saved, subscription was deleted, or status was updated
+        result == 'status_updated' ||
+        result == 'duplicated') {
+      _loadSubscriptions(); // Refresh the list if changes were saved, subscription was deleted, status was updated, or duplicated
 
       // If categories were updated, we might need to refresh the categories list
       // This will be handled by the parent screen (dashboard) when it receives the result

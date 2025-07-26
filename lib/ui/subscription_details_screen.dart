@@ -1,8 +1,6 @@
 import 'dart:io';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter/services.dart';
 import 'package:payables/models/subscription.dart';
 import 'package:payables/data/subscription_database.dart';
 import 'addsubs_screen.dart';
@@ -603,6 +601,10 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
             ? _formatDate(widget.subscription.endDate!)
             : 'n/a',
       },
+      {
+        'label': 'Alert',
+        'value': _formatAlertDays(widget.subscription.alertDays),
+      },
     ];
 
     return Column(
@@ -689,13 +691,6 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 5,
-            offset: const Offset(0, 1),
-          ),
-        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -722,18 +717,10 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
   Widget _buildNotesCard() {
     return Container(
       width: double.infinity,
-      height: 144, // 3x bigger (48 * 3)
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 5,
-            offset: const Offset(0, 1),
-          ),
-        ],
       ),
       child:
           widget.subscription.notes != null &&
@@ -802,122 +789,48 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
     );
   }
 
-  // Detect if image is bright or dark for automatic color inversion
-  Future<bool> _isImageBright(String imagePath) async {
-    try {
-      final File file = File(imagePath);
-      if (!await file.exists()) return false;
-
-      final Uint8List bytes = await file.readAsBytes();
-      final ui.Codec codec = await ui.instantiateImageCodec(bytes);
-      final ui.FrameInfo frameInfo = await codec.getNextFrame();
-      final ui.Image image = frameInfo.image;
-
-      // Sample pixels to determine brightness
-      final ByteData? byteData = await image.toByteData(
-        format: ui.ImageByteFormat.png,
-      );
-      if (byteData == null) return false;
-
-      final Uint8List pixels = byteData.buffer.asUint8List();
-      int totalBrightness = 0;
-      int sampleCount = 0;
-
-      // Sample every 10th pixel to avoid performance issues
-      for (int i = 0; i < pixels.length; i += 40) {
-        if (i + 3 < pixels.length) {
-          final int r = pixels[i];
-          final int g = pixels[i + 1];
-          final int b = pixels[i + 2];
-          final int brightness = ((r + g + b) / 3).round();
-          totalBrightness += brightness;
-          sampleCount++;
-        }
-      }
-
-      if (sampleCount == 0) return false;
-      final double averageBrightness = totalBrightness / sampleCount;
-
-      // Consider bright if average brightness > 128
-      return averageBrightness > 128;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  // Adaptive icon widget that automatically inverts colors based on brightness
+  // Icon widget with shadow for better visibility
   Widget _buildAdaptiveIcon() {
     if (widget.subscription.iconFilePath != null) {
-      return FutureBuilder<bool>(
-        future: _isImageBright(widget.subscription.iconFilePath!),
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            final bool isBright = snapshot.data!;
-            final bool isDarkMode =
-                Theme.of(context).brightness == Brightness.dark;
-
-            // Invert colors if needed
-            if ((isBright && !isDarkMode) || (!isBright && isDarkMode)) {
-              // Invert colors for better contrast
-              return ColorFiltered(
-                colorFilter: const ColorFilter.matrix([
-                  -1,
-                  0,
-                  0,
-                  0,
-                  255,
-                  0,
-                  -1,
-                  0,
-                  0,
-                  255,
-                  0,
-                  0,
-                  -1,
-                  0,
-                  255,
-                  0,
-                  0,
-                  0,
-                  1,
-                  0,
-                ]),
-                child: Image.file(
-                  File(widget.subscription.iconFilePath!),
-                  width: 48,
-                  height: 48,
-                  fit: BoxFit.contain,
-                ),
-              );
-            } else {
-              // No color filter needed
-              return Image.file(
-                File(widget.subscription.iconFilePath!),
-                width: 48,
-                height: 48,
-                fit: BoxFit.contain,
-              );
-            }
-          }
-
-          // Fallback while loading
-          return Image.file(
-            File(widget.subscription.iconFilePath!),
-            width: 48,
-            height: 48,
-            fit: BoxFit.contain,
-          );
-        },
+      return Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+              spreadRadius: 0,
+            ),
+          ],
+        ),
+        child: Image.file(
+          File(widget.subscription.iconFilePath!),
+          width: 48,
+          height: 48,
+          fit: BoxFit.contain,
+        ),
       );
     } else {
-      // For material icons, use the subscription color
-      return Icon(
-        IconData(
-          widget.subscription.iconCodePoint ?? 0xe047,
-          fontFamily: 'MaterialIcons',
+      // For material icons, use the subscription color with shadow
+      return Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+              spreadRadius: 0,
+            ),
+          ],
         ),
-        size: 48,
-        color: _selectedColor,
+        child: Icon(
+          IconData(
+            widget.subscription.iconCodePoint ?? 0xe047,
+            fontFamily: 'MaterialIcons',
+          ),
+          size: 48,
+          color: _selectedColor,
+        ),
       );
     }
   }
@@ -938,6 +851,16 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
       'December',
     ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  String _formatAlertDays(int alertDays) {
+    if (alertDays == 0) {
+      return 'On due date';
+    } else if (alertDays == 1) {
+      return '$alertDays day before';
+    } else {
+      return '$alertDays days before';
+    }
   }
 
   PopupMenuItem<String> _buildMenuItem({
@@ -1092,13 +1015,91 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
     }
   }
 
-  void _handleDuplicate() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Duplicate ${widget.subscription.title}'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  void _handleDuplicate() async {
+    try {
+      // Create a new subscription object without the ID to ensure it's not included in the database insert
+      final newSubscription = Subscription(
+        title: widget.subscription.title,
+        currency: widget.subscription.currency,
+        amount: widget.subscription.amount,
+        billingDate:
+            widget.subscription.billingDate, // Keep the original billing date
+        endDate: widget.subscription.endDate,
+        billingCycle: widget.subscription.billingCycle,
+        type: widget.subscription.type,
+        paymentMethod: widget.subscription.paymentMethod,
+        websiteLink: widget.subscription.websiteLink,
+        shortDescription: widget.subscription.shortDescription,
+        category: widget.subscription.category,
+        iconCodePoint: widget.subscription.iconCodePoint,
+        iconFilePath: widget.subscription.iconFilePath,
+        colorValue: widget.subscription.colorValue,
+        notes: widget.subscription.notes,
+        status: 'active', // Ensure it's active
+        alertDays: widget.subscription.alertDays,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      // Save the duplicate to the database
+      await SubscriptionDatabase.insertSubscription(newSubscription);
+
+      // Ensure database is synchronized
+      await SubscriptionDatabase.ensureDatabaseSync();
+
+      if (!mounted) return;
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+              Text(
+                '${widget.subscription.title} duplicated successfully',
+                style: const TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF10B981),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+
+      // Return result to indicate a new subscription was created for parent screens to refresh
+      Navigator.of(context).pop('duplicated');
+    } catch (e) {
+      if (!mounted) return;
+
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+              Text(
+                'Failed to duplicate ${widget.subscription.title}. Please try again.',
+                style: const TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   void _handleFinish() async {
