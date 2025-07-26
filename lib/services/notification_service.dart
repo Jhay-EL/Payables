@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:logger/logger.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import '../models/subscription.dart';
@@ -8,6 +9,8 @@ class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
+
+  static final Logger _logger = Logger();
 
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
@@ -50,7 +53,7 @@ class NotificationService {
       await _createNotificationChannel();
     } catch (e) {
       // Handle platform-specific errors gracefully
-      print('Notification service initialization failed: $e');
+      _logger.e('Notification service initialization failed: $e');
       // Continue app execution even if notifications fail to initialize
     }
   }
@@ -73,14 +76,14 @@ class NotificationService {
           >()
           ?.createNotificationChannel(channel);
     } catch (e) {
-      print('Failed to create notification channel: $e');
+      _logger.e('Failed to create notification channel: $e');
     }
   }
 
   Future<void> _onNotificationTapped(NotificationResponse response) async {
     // Handle notification tap
     // You can navigate to specific screens or perform actions here
-    print('Notification tapped: ${response.payload}');
+    _logger.d('Notification tapped: ${response.payload}');
   }
 
   Future<bool> requestPermissions() async {
@@ -94,9 +97,36 @@ class NotificationService {
       final bool? grantedNotificationPermission = await androidImplementation
           ?.requestNotificationsPermission();
 
+      // Request exact alarm permission on Android 12+
+      if (androidImplementation != null) {
+        try {
+          await androidImplementation.requestExactAlarmsPermission();
+        } catch (e) {
+          _logger.w('Failed to request exact alarm permission: $e');
+          // This is not critical, so we continue
+        }
+      }
+
       return grantedNotificationPermission ?? false;
     } catch (e) {
-      print('Failed to request notification permissions: $e');
+      _logger.e('Failed to request notification permissions: $e');
+      return false;
+    }
+  }
+
+  Future<bool> areNotificationsEnabled() async {
+    try {
+      final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+          _notifications
+              .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin
+              >();
+
+      final bool? granted = await androidImplementation
+          ?.areNotificationsEnabled();
+      return granted ?? false;
+    } catch (e) {
+      _logger.e('Failed to check notification permissions: $e');
       return false;
     }
   }
@@ -109,21 +139,27 @@ class NotificationService {
     // Calculate next billing date
     final DateTime nextBillingDate = _calculateNextBillingDate(subscription);
 
-    // Schedule notification 1 day before billing
-    final DateTime notificationDate = nextBillingDate.subtract(
-      const Duration(days: 1),
-    );
-
-    // Only schedule if the notification date is in the future
-    if (notificationDate.isAfter(DateTime.now())) {
-      await _scheduleNotification(
-        id: subscription.id ?? 0,
-        title: 'Subscription Renewal Tomorrow',
-        body:
-            '${subscription.title} will be renewed tomorrow for ${subscription.currency} ${subscription.amount.toStringAsFixed(2)}',
-        scheduledDate: notificationDate,
-        payload: subscription.id.toString(),
+    // Schedule notification based on user's alert preference
+    if (subscription.alertDays > 0) {
+      final DateTime notificationDate = nextBillingDate.subtract(
+        Duration(days: subscription.alertDays),
       );
+
+      // Only schedule if the notification date is in the future
+      if (notificationDate.isAfter(DateTime.now())) {
+        String alertText = subscription.alertDays == 1
+            ? 'tomorrow'
+            : 'in ${subscription.alertDays} days';
+
+        await _scheduleNotification(
+          id: subscription.id ?? 0,
+          title: 'Subscription Renewal $alertText',
+          body:
+              '${subscription.title} will be renewed $alertText for ${subscription.currency} ${subscription.amount.toStringAsFixed(2)}',
+          scheduledDate: notificationDate,
+          payload: subscription.id.toString(),
+        );
+      }
     }
 
     // Schedule notification on billing date
@@ -173,37 +209,77 @@ class NotificationService {
     required DateTime scheduledDate,
     String? payload,
   }) async {
-    final tz.TZDateTime scheduledTZDate = tz.TZDateTime.from(
-      scheduledDate,
-      tz.local,
-    );
+    try {
+      final tz.TZDateTime scheduledTZDate = tz.TZDateTime.from(
+        scheduledDate,
+        tz.local,
+      );
 
-    await _notifications.zonedSchedule(
-      id,
-      title,
-      body,
-      scheduledTZDate,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          _channelId,
-          _channelName,
-          channelDescription: _channelDescription,
-          importance: Importance.high,
-          priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
-          color: Color(0xFF2196F3), // Blue color
-          enableVibration: true,
-          playSound: true,
+      await _notifications.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduledTZDate,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channelId,
+            _channelName,
+            channelDescription: _channelDescription,
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+            color: Color(0xFF2196F3),
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
         ),
-        iOS: DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-        ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      payload: payload,
-    );
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        payload: payload,
+      );
+    } catch (e) {
+      // Handle exact alarms permission error
+      if (e.toString().contains('exact_alarms_not_permitted')) {
+        _logger.w(
+          'Exact alarms not permitted, falling back to approximate scheduling',
+        );
+        try {
+          // Fall back to approximate scheduling
+          await _notifications.zonedSchedule(
+            id,
+            title,
+            body,
+            tz.TZDateTime.from(scheduledDate, tz.local),
+            const NotificationDetails(
+              android: AndroidNotificationDetails(
+                _channelId,
+                _channelName,
+                channelDescription: _channelDescription,
+                importance: Importance.high,
+                priority: Priority.high,
+                icon: '@mipmap/ic_launcher',
+                color: Color(0xFF2196F3),
+              ),
+              iOS: DarwinNotificationDetails(
+                presentAlert: true,
+                presentBadge: true,
+                presentSound: true,
+              ),
+            ),
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            payload: payload,
+          );
+        } catch (fallbackError) {
+          _logger.w(
+            'Failed to schedule notification even with fallback: $fallbackError',
+          );
+        }
+      } else {
+        _logger.w('Failed to schedule notification: $e');
+      }
+    }
   }
 
   Future<void> cancelSubscriptionNotifications(int subscriptionId) async {
@@ -249,7 +325,7 @@ class NotificationService {
         payload: payload,
       );
     } catch (e) {
-      print('Failed to show immediate notification: $e');
+      _logger.e('Failed to show immediate notification: $e');
     }
   }
 
@@ -274,6 +350,98 @@ class NotificationService {
     // Schedule new notifications if subscription is active
     if (subscription.status == 'active') {
       await scheduleSubscriptionNotification(subscription);
+    }
+  }
+
+  // Method to schedule weekly summary notifications
+  Future<void> scheduleWeeklySummaryNotification() async {
+    // Schedule for every Sunday at 9 AM
+    final now = DateTime.now();
+    final nextSunday = now.add(Duration(days: (7 - now.weekday) % 7));
+    final scheduledTime = DateTime(
+      nextSunday.year,
+      nextSunday.month,
+      nextSunday.day,
+      9, // 9 AM
+      0,
+    );
+
+    if (scheduledTime.isAfter(now)) {
+      await _scheduleNotification(
+        id: 9999, // Special ID for weekly summary
+        title: 'Weekly Subscription Summary',
+        body: 'Check your spending summary for this week',
+        scheduledDate: scheduledTime,
+        payload: 'weekly_summary',
+      );
+    }
+  }
+
+  // Method to schedule budget alert notifications
+  Future<void> scheduleBudgetAlertNotification(
+    double currentSpending,
+    double budgetLimit,
+  ) async {
+    final percentage = (currentSpending / budgetLimit) * 100;
+
+    if (percentage >= 80) {
+      await _scheduleNotification(
+        id: 9998, // Special ID for budget alerts
+        title: 'Budget Alert',
+        body:
+            'You\'ve used ${percentage.toStringAsFixed(1)}% of your monthly budget',
+        scheduledDate: DateTime.now().add(const Duration(minutes: 1)),
+        payload: 'budget_alert',
+      );
+    }
+  }
+
+  // Method to get notification statistics
+  Future<Map<String, dynamic>> getNotificationStats() async {
+    final pendingNotifications = await getPendingNotifications();
+    final activeCount = pendingNotifications
+        .where((n) => n.id < 1000 || n.id == 9999 || n.id == 9998)
+        .length;
+
+    return {
+      'total': pendingNotifications.length,
+      'active': activeCount,
+      'subscription_reminders': pendingNotifications
+          .where((n) => n.id < 1000)
+          .length,
+      'weekly_summaries': pendingNotifications
+          .where((n) => n.id == 9999)
+          .length,
+      'budget_alerts': pendingNotifications.where((n) => n.id == 9998).length,
+    };
+  }
+
+  // Method to clear specific notification types
+  Future<void> clearNotificationType(String type) async {
+    final pendingNotifications = await getPendingNotifications();
+
+    switch (type) {
+      case 'weekly_summary':
+        for (final notification in pendingNotifications) {
+          if (notification.id == 9999) {
+            await _notifications.cancel(notification.id);
+          }
+        }
+        break;
+      case 'budget_alerts':
+        for (final notification in pendingNotifications) {
+          if (notification.id == 9998) {
+            await _notifications.cancel(notification.id);
+          }
+        }
+        break;
+      case 'subscription_reminders':
+        for (final notification in pendingNotifications) {
+          if (notification.id < 1000) {
+            await _notifications.cancel(notification.id);
+          }
+        }
+        break;
     }
   }
 }

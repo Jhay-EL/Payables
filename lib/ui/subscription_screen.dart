@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:payables/data/currency_provider.dart';
 import 'package:payables/ui/subscription_details_screen.dart';
 import 'package:provider/provider.dart';
@@ -22,7 +23,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = true;
-  bool _isSearchOpen = false;
+
   List<Subscription> _subscriptions = [];
   List<Subscription> _filteredSubscriptions = [];
   double _scrollOffset = 0.0;
@@ -30,6 +31,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   String? _activeBillingCycleFilter;
   String? _activeCategoryFilter;
   DateTime _lastUpdated = DateTime.now();
+  String searchQuery = '';
+  bool _isSearchVisible = false;
 
   // Sorting state
   SortBy _sortBy = SortBy.createdDate;
@@ -90,6 +93,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     super.initState();
     _scrollController.addListener(_onScroll);
     _searchController.addListener(() {
+      setState(() {
+        searchQuery = _searchController.text;
+      });
       _filterSubscriptions(_searchController.text);
     });
   }
@@ -148,14 +154,48 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
       List<Subscription> subscriptions;
 
-      // Handle special titles for paused and finished subscriptions
+      // Handle special titles for different subscription types
       if (widget.title == 'Paused') {
         subscriptions = await SubscriptionDatabase.getPausedSubscriptions();
       } else if (widget.title == 'Finished') {
         subscriptions = await SubscriptionDatabase.getFinishedSubscriptions();
+      } else if (widget.title == 'This Week') {
+        // Show only subscriptions due within the next 7 days
+        subscriptions = await SubscriptionDatabase.getUpcomingSubscriptions(
+          daysAhead: 7,
+        );
+      } else if (widget.title == 'This Month') {
+        // Show only subscriptions due within the current month
+        final allActiveSubscriptions =
+            await SubscriptionDatabase.getActiveSubscriptions();
+        final now = DateTime.now();
+        final currentMonthEnd = DateTime(
+          now.year,
+          now.month + 1,
+          0,
+          23,
+          59,
+          59,
+        );
+
+        subscriptions = allActiveSubscriptions.where((subscription) {
+          // Only include subscriptions due within the current month (not overdue)
+          return subscription.billingDate.isAfter(now) &&
+              subscription.billingDate.isBefore(currentMonthEnd);
+        }).toList();
       } else {
-        // Default: only show active subscriptions (not paused or finished)
-        subscriptions = await SubscriptionDatabase.getActiveSubscriptions();
+        // Check if the title is a category name
+        final allActiveSubscriptions =
+            await SubscriptionDatabase.getActiveSubscriptions();
+        if (widget.title != null && widget.title != 'All') {
+          // Filter by category if title is not a special case
+          subscriptions = allActiveSubscriptions.where((subscription) {
+            return subscription.category == widget.title;
+          }).toList();
+        } else {
+          // Default: only show active subscriptions (not paused or finished)
+          subscriptions = allActiveSubscriptions;
+        }
       }
 
       setState(() {
@@ -236,25 +276,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     });
   }
 
-  void _showSearchBottomSheet() {
-    setState(() {
-      _isSearchOpen = true;
-    });
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext context) {
-        return _buildM3SearchInterface();
-      },
-    ).whenComplete(() {
-      _searchController.clear();
-      setState(() {
-        _isSearchOpen = false;
-      });
-    });
-  }
-
   void _showFilterBottomSheet() {
     showModalBottomSheet<void>(
       context: context,
@@ -311,7 +332,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   surfaceTintColor: lightColor,
                   backgroundColor: backgroundColor,
                   leading: BackButton(color: highContrastDarkBlue),
-                  title: widget.title != null
+                  title: !_isSearchVisible && widget.title != null
                       ? Text(
                           widget.title!,
                           style: Theme.of(context).textTheme.titleLarge
@@ -322,10 +343,151 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         )
                       : null,
                   actions: [
-                    Padding(
-                      padding: const EdgeInsets.only(right: 16.0),
-                      child: _buildM3PopupMenu(),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      transitionBuilder:
+                          (Widget child, Animation<double> animation) {
+                            return FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            );
+                          },
+                      child: _isSearchVisible
+                          ? SizedBox(
+                              key: const ValueKey('search'),
+                              width: 280,
+                              child: Padding(
+                                padding: const EdgeInsets.only(
+                                  left: 56.0,
+                                  right: 16.0,
+                                ),
+                                child: Container(
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: lightColor.withAlpha(100),
+                                    borderRadius: BorderRadius.circular(28),
+                                    border: Border.all(
+                                      color: darkColor.withAlpha(51),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          left: 16.0,
+                                        ),
+                                        child: Icon(
+                                          Icons.search_rounded,
+                                          color: darkColor.withAlpha(153),
+                                          size: 20,
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: TextField(
+                                          controller: _searchController,
+                                          autofocus: true,
+                                          decoration: InputDecoration(
+                                            hintText: 'Search subscriptions...',
+                                            hintStyle: TextStyle(
+                                              color: darkColor.withAlpha(153),
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w400,
+                                            ),
+                                            border: InputBorder.none,
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                  vertical: 12,
+                                                ),
+                                          ),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyLarge
+                                              ?.copyWith(
+                                                color: highContrastDarkBlue,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w400,
+                                              ),
+                                          onChanged: (value) {
+                                            setState(() {
+                                              searchQuery = value;
+                                            });
+                                            _filterSubscriptions(value);
+                                          },
+                                          onSubmitted: (value) {
+                                            setState(() {
+                                              _isSearchVisible = false;
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                      if (searchQuery.isNotEmpty)
+                                        IconButton(
+                                              onPressed: () {
+                                                _searchController.clear();
+                                                setState(() {
+                                                  searchQuery = '';
+                                                });
+                                                _filterSubscriptions('');
+                                              },
+                                              icon: Icon(
+                                                Icons.clear_rounded,
+                                                color: darkColor.withAlpha(153),
+                                                size: 20,
+                                              ),
+                                              padding: const EdgeInsets.all(8),
+                                              constraints: const BoxConstraints(
+                                                minWidth: 40,
+                                                minHeight: 40,
+                                              ),
+                                            )
+                                            .animate()
+                                            .fadeIn(
+                                              duration: const Duration(
+                                                milliseconds: 200,
+                                              ),
+                                              curve: Curves.easeOut,
+                                            )
+                                            .scale(
+                                              begin: const Offset(0.5, 0.5),
+                                              duration: const Duration(
+                                                milliseconds: 250,
+                                              ),
+                                              curve: Curves.elasticOut,
+                                            ),
+                                      IconButton(
+                                        onPressed: () {
+                                          _searchController.clear();
+                                          setState(() {
+                                            searchQuery = '';
+                                            _isSearchVisible = false;
+                                          });
+                                          _filterSubscriptions('');
+                                        },
+                                        icon: Icon(
+                                          Icons.close_rounded,
+                                          color: darkColor.withAlpha(153),
+                                          size: 20,
+                                        ),
+                                        padding: const EdgeInsets.all(8),
+                                        constraints: const BoxConstraints(
+                                          minWidth: 40,
+                                          minHeight: 40,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
                     ),
+                    if (!_isSearchVisible)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 16.0),
+                        child: _buildM3PopupMenu(),
+                      ),
                   ],
                 ),
                 // M3 Expressive Dashboard Content
@@ -333,8 +495,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 32.0),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      _buildTotalAmountCard(),
-                      const SizedBox(height: 24),
+                      if (widget.title != 'Paused' &&
+                          widget.title != 'Finished') ...[
+                        _buildTotalAmountCard(),
+                        const SizedBox(height: 24),
+                      ],
                       _buildSubscriptionsContent(),
                       SizedBox(
                         height: 32 + MediaQuery.of(context).padding.bottom,
@@ -346,7 +511,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             ),
           ),
           // Empty State
-          if (!_isLoading && _filteredSubscriptions.isEmpty && !_isSearchOpen)
+          if (!_isLoading &&
+              _filteredSubscriptions.isEmpty &&
+              !_isSearchVisible)
             _buildEmptyState(),
         ],
       ),
@@ -356,6 +523,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Widget _buildEmptyState() {
     final bool isPausedScreen = widget.title == 'Paused';
     final bool isFinishedScreen = widget.title == 'Finished';
+    final bool hasSearchQuery = searchQuery.isNotEmpty;
 
     return Center(
       child: Padding(
@@ -363,14 +531,30 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              _subscriptions.isEmpty
-                  ? (isPausedScreen
-                        ? 'No Paused Payables'
+            Icon(
+              hasSearchQuery
+                  ? Icons.search_off_rounded
+                  : (isPausedScreen
+                        ? Icons.pause_circle_outline_rounded
                         : isFinishedScreen
-                        ? 'No Finished Payables'
-                        : 'No Payables Yet')
-                  : 'No Results Found',
+                        ? Icons.check_circle_outline_rounded
+                        : Icons.subscriptions_rounded),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurfaceVariant.withAlpha(102),
+              size: 48,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              hasSearchQuery
+                  ? 'No Results Found'
+                  : (_subscriptions.isEmpty
+                        ? (isPausedScreen
+                              ? 'No Paused Payables'
+                              : isFinishedScreen
+                              ? 'No Finished Payables'
+                              : 'No Payables Yet')
+                        : 'No Results Found'),
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w500,
                 color: highContrastDarkBlue,
@@ -378,13 +562,15 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              _subscriptions.isEmpty
-                  ? (isPausedScreen
-                        ? 'You don\'t have any paused payables at the moment.'
-                        : isFinishedScreen
-                        ? 'You don\'t have any finished payables at the moment.'
-                        : 'Add your first payable to get started tracking your recurring payments.')
-                  : 'Try adjusting your search terms or clearing the search.',
+              hasSearchQuery
+                  ? 'Try adjusting your search terms or clearing the search.'
+                  : (_subscriptions.isEmpty
+                        ? (isPausedScreen
+                              ? 'You don\'t have any paused payables at the moment.'
+                              : isFinishedScreen
+                              ? 'You don\'t have any finished payables at the moment.'
+                              : 'Add your first payable to get started tracking your recurring payments.')
+                        : 'Try adjusting your search terms or clearing the search.'),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: darkColor.withAlpha(153),
@@ -393,7 +579,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             ),
             if (_subscriptions.isEmpty &&
                 !isPausedScreen &&
-                !isFinishedScreen) ...[
+                !isFinishedScreen &&
+                !hasSearchQuery) ...[
               const SizedBox(height: 24),
               FilledButton.icon(
                 onPressed: () {
@@ -593,102 +780,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
   }
 
-  Widget _buildM3SearchInterface() {
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(28),
-            topRight: Radius.circular(28),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(26),
-              blurRadius: 20,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Search field with M3 styling
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: lightColor.withAlpha(100),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: darkColor.withAlpha(51),
-                            width: 1,
-                          ),
-                        ),
-                        child: TextField(
-                          controller: _searchController,
-                          autofocus: true,
-                          style: TextStyle(
-                            color: highContrastDarkBlue,
-                            fontSize: 16,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: 'Search subscriptions...',
-                            hintStyle: TextStyle(
-                              color: darkColor.withAlpha(153),
-                            ),
-                            prefixIcon: Icon(
-                              Icons.search_rounded,
-                              color: darkColor,
-                              size: 20,
-                            ),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 16,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: Text(
-                        'Cancel',
-                        style: TextStyle(
-                          color: highContrastBlue,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildM3PopupMenu() {
     final brightness = Theme.of(context).brightness;
     final isDark = brightness == Brightness.dark;
@@ -738,7 +829,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       onSelected: (String value) {
         switch (value) {
           case 'search':
-            _showSearchBottomSheet();
+            setState(() {
+              _isSearchVisible = true;
+            });
+            // Focus the search field after a short delay
+            Future.delayed(const Duration(milliseconds: 100), () {
+              if (mounted) {
+                // Remove focus from any current field
+                FocusManager.instance.primaryFocus?.unfocus();
+              }
+            });
             break;
           case 'add':
             Navigator.push(
@@ -1301,7 +1401,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     required bool isLast,
   }) {
     final color = Color(subscription.colorValue);
-    final dueDate = _formatDueDate(subscription.billingDate);
+    final dueDate = _formatDueDate(subscription);
     final price =
         '${subscription.currency} ${subscription.amount.toStringAsFixed(2)}';
 
@@ -1483,13 +1583,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     }
   }
 
-  String _formatDueDate(DateTime billingDate) {
+  String _formatDueDate(Subscription subscription) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final billingDay = DateTime(
-      billingDate.year,
-      billingDate.month,
-      billingDate.day,
+      subscription.billingDate.year,
+      subscription.billingDate.month,
+      subscription.billingDate.day,
     );
 
     final difference = billingDay.difference(today).inDays;
@@ -1507,16 +1607,55 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       final months = (difference / 30).floor();
       return months == 1 ? 'Due in 1 month' : 'Due in $months months';
     } else {
-      // Past due
-      final daysPast = difference.abs();
-      if (daysPast == 1) {
-        return 'Due yesterday';
-      } else if (daysPast <= 7) {
-        return '$daysPast days overdue';
+      // Past due - calculate next billing date instead of showing "overdue"
+      final nextBillingDate = _calculateNextBillingDate(subscription);
+      final nextBillingDay = DateTime(
+        nextBillingDate.year,
+        nextBillingDate.month,
+        nextBillingDate.day,
+      );
+      final daysUntilNext = nextBillingDay.difference(today).inDays;
+
+      if (daysUntilNext == 0) {
+        return 'Due today';
+      } else if (daysUntilNext == 1) {
+        return 'Due tomorrow';
+      } else if (daysUntilNext <= 7) {
+        return 'Due in $daysUntilNext days';
+      } else if (daysUntilNext <= 30) {
+        final weeks = (daysUntilNext / 7).floor();
+        return weeks == 1 ? 'Due in 1 week' : 'Due in $weeks weeks';
       } else {
-        return 'Overdue';
+        final months = (daysUntilNext / 30).floor();
+        return months == 1 ? 'Due in 1 month' : 'Due in $months months';
       }
     }
+  }
+
+  DateTime _calculateNextBillingDate(Subscription subscription) {
+    DateTime nextDate = subscription.billingDate;
+
+    while (nextDate.isBefore(DateTime.now())) {
+      switch (subscription.billingCycle.toLowerCase()) {
+        case 'daily':
+          nextDate = nextDate.add(const Duration(days: 1));
+          break;
+        case 'weekly':
+          nextDate = nextDate.add(const Duration(days: 7));
+          break;
+        case 'monthly':
+          nextDate = DateTime(nextDate.year, nextDate.month + 1, nextDate.day);
+          break;
+        case 'yearly':
+          nextDate = DateTime(nextDate.year + 1, nextDate.month, nextDate.day);
+          break;
+        default:
+          // Default to monthly if billing cycle is not recognized
+          nextDate = DateTime(nextDate.year, nextDate.month + 1, nextDate.day);
+      }
+    }
+
+    return nextDate;
   }
 }
 

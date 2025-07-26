@@ -1,12 +1,15 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:logger/logger.dart';
 import '../models/subscription.dart';
 import '../services/notification_service.dart';
+import 'dart:io'; // Added for File
 
 class SubscriptionDatabase {
   static Database? _database;
   static const String _databaseName = 'subscriptions.db';
-  static const int _databaseVersion = 4;
+  static const int _databaseVersion = 5;
+  static final Logger _logger = Logger();
 
   // Table and column names
   static const String _tableName = 'subscriptions';
@@ -27,6 +30,7 @@ class SubscriptionDatabase {
   static const String _columnColorValue = 'color_value';
   static const String _columnNotes = 'notes';
   static const String _columnStatus = 'status';
+  static const String _columnAlertDays = 'alert_days';
   static const String _columnCreatedAt = 'created_at';
   static const String _columnUpdatedAt = 'updated_at';
 
@@ -77,6 +81,7 @@ class SubscriptionDatabase {
           $_columnColorValue INTEGER NOT NULL DEFAULT 4278190080,
           $_columnNotes TEXT,
           $_columnStatus TEXT NOT NULL DEFAULT 'active',
+          $_columnAlertDays INTEGER DEFAULT 1,
           $_columnCreatedAt INTEGER NOT NULL,
           $_columnUpdatedAt INTEGER NOT NULL
         )
@@ -92,20 +97,40 @@ class SubscriptionDatabase {
     int oldVersion,
     int newVersion,
   ) async {
-    if (oldVersion < 2) {
-      await db.execute(
-        'ALTER TABLE $_tableName ADD COLUMN $_columnIconFilePath TEXT',
-      );
-    }
-    if (oldVersion < 3) {
-      await db.execute(
-        "ALTER TABLE $_tableName ADD COLUMN $_columnType TEXT NOT NULL DEFAULT 'Recurring'",
-      );
-    }
-    if (oldVersion < 4) {
-      await db.execute(
-        "ALTER TABLE $_tableName ADD COLUMN $_columnStatus TEXT NOT NULL DEFAULT 'active'",
-      );
+    try {
+      if (oldVersion < 2) {
+        await db.execute(
+          'ALTER TABLE $_tableName ADD COLUMN $_columnIconFilePath TEXT',
+        );
+      }
+      if (oldVersion < 3) {
+        await db.execute(
+          "ALTER TABLE $_tableName ADD COLUMN $_columnType TEXT NOT NULL DEFAULT 'Recurring'",
+        );
+      }
+      if (oldVersion < 4) {
+        await db.execute(
+          "ALTER TABLE $_tableName ADD COLUMN $_columnStatus TEXT NOT NULL DEFAULT 'active'",
+        );
+      }
+      if (oldVersion < 5) {
+        // Check if alert_days column already exists
+        try {
+          await db.execute(
+            "ALTER TABLE $_tableName ADD COLUMN $_columnAlertDays INTEGER",
+          );
+          // Update existing rows to have default value
+          await db.execute(
+            "UPDATE $_tableName SET $_columnAlertDays = 1 WHERE $_columnAlertDays IS NULL",
+          );
+        } catch (e) {
+          // Column might already exist, ignore the error
+          _logger.w('Alert days column might already exist: $e');
+        }
+      }
+    } catch (e) {
+      _logger.e('Database upgrade error: $e');
+      rethrow;
     }
   }
 
@@ -113,26 +138,33 @@ class SubscriptionDatabase {
   static Future<int> insertSubscription(Subscription subscription) async {
     try {
       final db = await database;
-      final now = DateTime.now();
 
-      // Create subscription with timestamps
-      final subscriptionWithTimestamp = subscription.copyWith(
-        createdAt: now,
-        updatedAt: now,
-      );
+      // Use the subscription as-is since timestamps are already set
+      final subscriptionWithTimestamp = subscription;
 
-      int id = await db.insert(_tableName, subscriptionWithTimestamp.toMap());
+      final subscriptionMap = subscriptionWithTimestamp.toMap();
+      _logger.d('Inserting subscription with data: $subscriptionMap');
 
-      // Schedule notification for the new subscription
+      int id = await db.insert(_tableName, subscriptionMap);
+
+      // Schedule notification for the new subscription (handle errors gracefully)
       if (subscription.status == 'active') {
-        final subscriptionWithId = subscriptionWithTimestamp.copyWith(id: id);
-        await NotificationService().scheduleSubscriptionNotification(
-          subscriptionWithId,
-        );
+        try {
+          final subscriptionWithId = subscriptionWithTimestamp.copyWith(id: id);
+          await NotificationService().scheduleSubscriptionNotification(
+            subscriptionWithId,
+          );
+        } catch (notificationError) {
+          _logger.w(
+            'Failed to schedule notification for subscription $id: $notificationError',
+          );
+          // Don't rethrow - the subscription was saved successfully
+        }
       }
 
       return id;
     } catch (e) {
+      _logger.e('Error inserting subscription: $e');
       rethrow;
     }
   }
@@ -229,20 +261,31 @@ class SubscriptionDatabase {
         updatedAt: DateTime.now(),
       );
 
+      final subscriptionMap = updatedSubscription.toMap();
+      _logger.d('Updating subscription with data: $subscriptionMap');
+
       int count = await db.update(
         _tableName,
-        updatedSubscription.toMap(),
+        subscriptionMap,
         where: '$_columnId = ?',
         whereArgs: [subscription.id],
       );
 
-      // Update notification for the subscription
-      await NotificationService().updateSubscriptionNotifications(
-        updatedSubscription,
-      );
+      // Update notification for the subscription (handle errors gracefully)
+      try {
+        await NotificationService().updateSubscriptionNotifications(
+          updatedSubscription,
+        );
+      } catch (notificationError) {
+        _logger.w(
+          'Failed to update notifications for subscription ${subscription.id}: $notificationError',
+        );
+        // Don't rethrow - the subscription was updated successfully
+      }
 
       return count;
     } catch (e) {
+      _logger.e('Error updating subscription: $e');
       rethrow;
     }
   }
@@ -434,6 +477,33 @@ class SubscriptionDatabase {
     }
   }
 
+  // Force recreate database (for testing)
+  static Future<void> forceRecreateDatabase() async {
+    try {
+      if (_database != null) {
+        await _database!.close();
+        _database = null;
+      }
+
+      String databasesPath = await getDatabasesPath();
+      String path = join(databasesPath, _databaseName);
+
+      // Delete existing database file
+      final file = File(path);
+      if (await file.exists()) {
+        await file.delete();
+        _logger.i('Deleted existing database file');
+      }
+
+      // Recreate database
+      _database = await _initDatabase();
+      _logger.i('Recreated database successfully');
+    } catch (e) {
+      _logger.e('Error recreating database: $e');
+      rethrow;
+    }
+  }
+
   // Ensure database is synchronized
   static Future<void> ensureDatabaseSync() async {
     try {
@@ -449,6 +519,42 @@ class SubscriptionDatabase {
     if (_database != null) {
       await _database!.close();
       _database = null;
+    }
+  }
+
+  // Test database connection
+  static Future<bool> testDatabaseConnection() async {
+    try {
+      final db = await database;
+      final result = await db.rawQuery('SELECT 1 as test');
+      _logger.d('Database connection test successful: $result');
+      return true;
+    } catch (e) {
+      _logger.e('Database connection test failed: $e');
+      return false;
+    }
+  }
+
+  // Get database info
+  static Future<Map<String, dynamic>> getDatabaseInfo() async {
+    try {
+      final db = await database;
+      final tables = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
+      );
+
+      final subscriptionColumns = await db.rawQuery(
+        "PRAGMA table_info($_tableName)",
+      );
+
+      return {
+        'tables': tables,
+        'subscription_columns': subscriptionColumns,
+        'database_version': await db.getVersion(),
+      };
+    } catch (e) {
+      _logger.e('Error getting database info: $e');
+      return {'error': e.toString()};
     }
   }
 }

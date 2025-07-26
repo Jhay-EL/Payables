@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../services/notification_service.dart';
-import '../data/subscription_database.dart';
+import '../data/notification_preferences.dart';
+import '../utils/snackbar_service.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -15,8 +16,42 @@ class _NotificationSettingsScreenState
     extends State<NotificationSettingsScreen> {
   final NotificationService _notificationService = NotificationService();
   bool _notificationsEnabled = false;
-  List<PendingNotificationRequest> _pendingNotifications = [];
   bool _isLoading = true;
+
+  // Notification type preferences
+  bool _paymentReminders = true;
+  bool _weeklySummary = false;
+  bool _budgetAlerts = true;
+  bool _renewalNotifications = true;
+
+  // Dynamic color system that adapts to dark/light mode
+  Color get backgroundColor {
+    final brightness = Theme.of(context).brightness;
+    return brightness == Brightness.dark
+        ? const Color(0xFF121212)
+        : const Color(0xFFF2F7FF);
+  }
+
+  Color get lightColor {
+    final brightness = Theme.of(context).brightness;
+    return brightness == Brightness.dark
+        ? const Color(0xFF1E1E1E)
+        : const Color(0xFFD7EAFF);
+  }
+
+  Color get darkColor {
+    final brightness = Theme.of(context).brightness;
+    return brightness == Brightness.dark
+        ? const Color(0xFF43474e)
+        : const Color(0xFF43474e);
+  }
+
+  Color get highContrastDarkBlue {
+    final brightness = Theme.of(context).brightness;
+    return brightness == Brightness.dark
+        ? const Color(0xFFE3F2FD)
+        : const Color(0xFF191c20);
+  }
 
   @override
   void initState() {
@@ -26,10 +61,16 @@ class _NotificationSettingsScreenState
 
   Future<void> _loadNotificationSettings() async {
     try {
-      final pendingNotifications = await _notificationService
-          .getPendingNotifications();
+      final notificationsEnabled = await _notificationService
+          .areNotificationsEnabled();
+      final preferences = await NotificationPreferences.getPreferences();
+
       setState(() {
-        _pendingNotifications = pendingNotifications;
+        _notificationsEnabled = notificationsEnabled;
+        _paymentReminders = preferences['paymentReminders'] ?? true;
+        _weeklySummary = preferences['weeklySummary'] ?? false;
+        _budgetAlerts = preferences['budgetAlerts'] ?? true;
+        _renewalNotifications = preferences['renewalNotifications'] ?? true;
         _isLoading = false;
       });
     } catch (e) {
@@ -40,335 +81,451 @@ class _NotificationSettingsScreenState
   }
 
   Future<void> _requestPermissions() async {
+    final currentContext = context;
     final granted = await _notificationService.requestPermissions();
     setState(() {
       _notificationsEnabled = granted;
     });
-
-    if (granted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Notification permissions granted!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Notification permissions denied. Please enable them in settings.',
-          ),
-          backgroundColor: Colors.orange,
-        ),
-      );
-    }
-  }
-
-  Future<void> _testNotification() async {
-    await _notificationService.showImmediateNotification(
-      title: 'Test Notification',
-      body: 'This is a test notification from Payables!',
-    );
-  }
-
-  Future<void> _rescheduleAllNotifications() async {
-    try {
-      final subscriptions = await SubscriptionDatabase.getActiveSubscriptions();
-      await _notificationService.scheduleAllSubscriptionNotifications(
-        subscriptions,
-      );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Rescheduled notifications for ${subscriptions.length} active subscriptions',
-          ),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      _loadNotificationSettings(); // Refresh the list
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to reschedule notifications'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  Future<void> _cancelAllNotifications() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancel All Notifications'),
-        content: const Text(
-          'Are you sure you want to cancel all scheduled notifications?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Yes, Cancel All'),
-          ),
-        ],
-      ),
+    await NotificationPreferences.setPreference(
+      'notificationsEnabled',
+      granted,
     );
 
-    if (confirmed == true) {
-      await _notificationService.cancelAllNotifications();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('All notifications cancelled'),
-          backgroundColor: Colors.orange,
-        ),
+    if (!mounted) return;
+
+    if (granted && currentContext.mounted) {
+      SnackbarService.showSuccess(
+        currentContext,
+        'Notification permissions granted!',
       );
-      _loadNotificationSettings(); // Refresh the list
+    } else if (currentContext.mounted) {
+      SnackbarService.showWarning(
+        currentContext,
+        'Notification permissions denied. Please enable them in settings.',
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notification Settings'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
+      backgroundColor: backgroundColor,
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Permission Section
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+          ? Center(
+              child: CircularProgressIndicator(color: const Color(0xFF6750A4)),
+            )
+          : CustomScrollView(
+              slivers: [
+                // M3 Expressive Large Flexible App Bar
+                SliverAppBar(
+                  expandedHeight: 200.0,
+                  floating: false,
+                  pinned: true,
+                  snap: false,
+                  elevation: 0,
+                  surfaceTintColor: lightColor,
+                  backgroundColor: backgroundColor,
+                  leading: Padding(
+                    padding: const EdgeInsets.only(left: 16.0),
+                    child: RepaintBoundary(
+                      child: IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: Icon(
+                          Icons.arrow_back_rounded,
+                          color: highContrastDarkBlue,
+                          size: 24,
+                        ),
+                        splashRadius: 24,
+                      ),
+                    ),
+                  ),
+                  flexibleSpace: FlexibleSpaceBar(
+                    background: RepaintBoundary(
+                      child: Stack(
                         children: [
-                          const Text(
-                            'Notification Permissions',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                          Container(
+                            decoration: BoxDecoration(color: backgroundColor),
+                          ),
+                          // Animated Notification Settings Title
+                          Positioned(
+                            left: 16.0,
+                            bottom: 32.0,
+                            child: SafeArea(
+                              child:
+                                  Text(
+                                        'Notification Settings',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .headlineLarge
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w400,
+                                              color: highContrastDarkBlue,
+                                            ),
+                                      )
+                                      .animate()
+                                      .fadeIn(
+                                        duration: const Duration(
+                                          milliseconds: 800,
+                                        ),
+                                        curve: Curves.easeOutCubic,
+                                      )
+                                      .scale(
+                                        duration: const Duration(
+                                          milliseconds: 600,
+                                        ),
+                                        curve: Curves.elasticOut,
+                                        begin: const Offset(0.8, 0.8),
+                                        end: const Offset(1.0, 1.0),
+                                      ),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Icon(
-                                _notificationsEnabled
-                                    ? Icons.notifications_active
-                                    : Icons.notifications_off,
-                                color: _notificationsEnabled
-                                    ? Colors.green
-                                    : Colors.grey,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  _notificationsEnabled
-                                      ? 'Notifications are enabled'
-                                      : 'Notifications are disabled',
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: _requestPermissions,
-                            child: const Text('Request Permissions'),
                           ),
                         ],
                       ),
                     ),
                   ),
+                ),
+                // M3 Expressive Notification Settings Content
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 32.0),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      // Main Notification Toggle Section
+                      _buildMainNotificationSection(),
+                      const SizedBox(height: 32),
 
-                  const SizedBox(height: 16),
-
-                  // Test Notification Section
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Test Notifications',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Send a test notification to verify everything is working correctly.',
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: _testNotification,
-                            child: const Text('Send Test Notification'),
-                          ),
-                        ],
+                      // Notification Types Section
+                      _buildNotificationTypesSection(),
+                      SizedBox(
+                        height: 32 + MediaQuery.of(context).padding.bottom,
                       ),
-                    ),
+                    ]),
                   ),
-
-                  const SizedBox(height: 16),
-
-                  // Manage Notifications Section
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Manage Notifications',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: _rescheduleAllNotifications,
-                                  child: const Text('Reschedule All'),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: _cancelAllNotifications,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.orange,
-                                  ),
-                                  child: const Text('Cancel All'),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Pending Notifications Section
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Text(
-                                'Pending Notifications',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  '${_pendingNotifications.length}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          if (_pendingNotifications.isEmpty)
-                            const Text(
-                              'No pending notifications',
-                              style: TextStyle(color: Colors.grey),
-                            )
-                          else
-                            ListView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: _pendingNotifications.length,
-                              itemBuilder: (context, index) {
-                                final notification =
-                                    _pendingNotifications[index];
-                                return ListTile(
-                                  leading: const Icon(Icons.schedule),
-                                  title: Text(notification.title ?? 'No title'),
-                                  subtitle: Text(
-                                    notification.body ?? 'No body',
-                                  ),
-                                  trailing: Text(
-                                    'ID: ${notification.id}',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Information Section
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'How Notifications Work',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            '• Notifications are automatically scheduled when you add or update subscriptions\n'
-                            '• You\'ll receive a reminder 1 day before each renewal\n'
-                            '• You\'ll also receive a notification on the day of renewal\n'
-                            '• Notifications are automatically cancelled when you delete subscriptions\n'
-                            '• Paused subscriptions won\'t trigger notifications',
-                            style: TextStyle(fontSize: 14),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
     );
+  }
+
+  Widget _buildMainNotificationSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Push Notifications',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w400,
+            color: highContrastDarkBlue,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Container(
+          decoration: BoxDecoration(
+            color: lightColor.withAlpha(150),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: lightColor.withAlpha(100), width: 1),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () async {
+                final currentContext = context;
+                if (!_notificationsEnabled) {
+                  await _requestPermissions();
+                } else {
+                  setState(() {
+                    _notificationsEnabled = false;
+                  });
+                  await NotificationPreferences.setPreference(
+                    'notificationsEnabled',
+                    false,
+                  );
+                  if (mounted && currentContext.mounted) {
+                    SnackbarService.showWarning(
+                      currentContext,
+                      'Notifications disabled. You can re-enable them anytime.',
+                    );
+                  }
+                }
+              },
+              borderRadius: BorderRadius.circular(24),
+              splashColor: const Color(0xFF6750A4).withAlpha(31),
+              highlightColor: const Color(0xFF6750A4).withAlpha(20),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6750A4).withAlpha(41),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(
+                        _notificationsEnabled
+                            ? Icons.notifications_active_rounded
+                            : Icons.notifications_off_rounded,
+                        color: const Color(0xFF6750A4),
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Enable Notifications',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  color: highContrastDarkBlue,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _notificationsEnabled
+                                ? 'Receive app notifications and reminders'
+                                : 'Notifications are currently disabled',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: darkColor,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: _notificationsEnabled,
+                      onChanged: (value) async {
+                        final currentContext = context;
+                        if (value) {
+                          await _requestPermissions();
+                        } else {
+                          setState(() {
+                            _notificationsEnabled = false;
+                          });
+                          await NotificationPreferences.setPreference(
+                            'notificationsEnabled',
+                            false,
+                          );
+                          if (mounted && currentContext.mounted) {
+                            SnackbarService.showWarning(
+                              currentContext,
+                              'Notifications disabled. You can re-enable them anytime.',
+                            );
+                          }
+                        }
+                      },
+                      activeColor: const Color(0xFF6750A4),
+                      activeTrackColor: const Color(0xFF6750A4).withAlpha(120),
+                      inactiveThumbColor: darkColor,
+                      inactiveTrackColor: lightColor,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNotificationTypesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Notification Types',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w400,
+            color: highContrastDarkBlue,
+          ),
+        ),
+        const SizedBox(height: 20),
+        _buildNotificationOptionsSection([
+          _buildNotificationOption(
+            'Payment Reminders',
+            'Get notified before payments are due',
+            Icons.payment_rounded,
+            _paymentReminders,
+            (value) async {
+              setState(() {
+                _paymentReminders = value;
+              });
+              await NotificationPreferences.setPreference(
+                'paymentReminders',
+                value,
+              );
+            },
+            isFirst: true,
+          ),
+          _buildNotificationOption(
+            'Renewal Notifications',
+            'Get notified when subscriptions renew',
+            Icons.refresh_rounded,
+            _renewalNotifications,
+            (value) async {
+              setState(() {
+                _renewalNotifications = value;
+              });
+              await NotificationPreferences.setPreference(
+                'renewalNotifications',
+                value,
+              );
+            },
+          ),
+          _buildNotificationOption(
+            'Weekly Summary',
+            'Get weekly spending summaries',
+            Icons.summarize_rounded,
+            _weeklySummary,
+            (value) async {
+              setState(() {
+                _weeklySummary = value;
+              });
+              await NotificationPreferences.setPreference(
+                'weeklySummary',
+                value,
+              );
+            },
+          ),
+          _buildNotificationOption(
+            'Budget Alerts',
+            'Get alerts when approaching budget limits',
+            Icons.warning_rounded,
+            _budgetAlerts,
+            (value) async {
+              setState(() {
+                _budgetAlerts = value;
+              });
+              await NotificationPreferences.setPreference(
+                'budgetAlerts',
+                value,
+              );
+            },
+            isLast: true,
+          ),
+        ]),
+      ],
+    );
+  }
+
+  Widget _buildNotificationOptionsSection(List<Widget> items) {
+    return Column(children: items);
+  }
+
+  Widget _buildNotificationOption(
+    String title,
+    String subtitle,
+    IconData icon,
+    bool isEnabled,
+    Function(bool) onToggle, {
+    bool isFirst = false,
+    bool isLast = false,
+  }) {
+    final iconColor = _getIconColor(icon);
+
+    BorderRadius borderRadius;
+    if (isFirst && isLast) {
+      borderRadius = BorderRadius.circular(24);
+    } else if (isFirst) {
+      borderRadius = const BorderRadius.only(
+        topLeft: Radius.circular(24),
+        topRight: Radius.circular(24),
+        bottomLeft: Radius.circular(5),
+        bottomRight: Radius.circular(5),
+      );
+    } else if (isLast) {
+      borderRadius = const BorderRadius.only(
+        topLeft: Radius.circular(5),
+        topRight: Radius.circular(5),
+        bottomLeft: Radius.circular(24),
+        bottomRight: Radius.circular(24),
+      );
+    } else {
+      borderRadius = BorderRadius.circular(5);
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 2),
+      child: Card(
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        color: lightColor.withAlpha(150),
+        shape: RoundedRectangleBorder(borderRadius: borderRadius),
+        child: InkWell(
+          onTap: () => onToggle(!isEnabled),
+          borderRadius: borderRadius,
+          splashColor: iconColor.withAlpha(31),
+          highlightColor: iconColor.withAlpha(20),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: iconColor.withAlpha(41),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 20),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: highContrastDarkBlue,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: darkColor,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: isEnabled,
+                  onChanged: onToggle,
+                  activeColor: iconColor,
+                  activeTrackColor: iconColor.withAlpha(120),
+                  inactiveThumbColor: darkColor,
+                  inactiveTrackColor: lightColor,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getIconColor(IconData icon) {
+    switch (icon) {
+      case Icons.payment_rounded:
+        return const Color(0xFF006A6B);
+      case Icons.refresh_rounded:
+        return const Color(0xFF8B5000);
+      case Icons.summarize_rounded:
+        return const Color(0xFF8E4EC6);
+      case Icons.warning_rounded:
+        return const Color(0xFFEF4444);
+      default:
+        return const Color(0xFF6750A4);
+    }
   }
 }

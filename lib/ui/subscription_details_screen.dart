@@ -174,29 +174,41 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
   }
 
   double _getTotalAmount() {
-    // Calculate total based on billing cycle and start date
+    // Calculate total based on billing cycle and billing date (start date)
     DateTime now = DateTime.now();
-    DateTime startDate = widget.subscription.createdAt;
-    double monthlyAmount = widget.subscription.amount;
+    DateTime startDate = widget.subscription.billingDate;
+    double amount = widget.subscription.amount;
 
     if (widget.subscription.billingCycle == 'Monthly') {
-      int months = (now.difference(startDate).inDays / 30).floor();
-      return monthlyAmount * months;
+      // Calculate months from start date to current month
+      int months =
+          ((now.year - startDate.year) * 12 + now.month - startDate.month);
+      if (now.day < startDate.day) {
+        months--; // Don't count current month if billing day hasn't passed
+      }
+      return amount * months;
     } else if (widget.subscription.billingCycle == 'Yearly') {
-      int years = (now.difference(startDate).inDays / 365).floor();
-      return monthlyAmount * 12 * years;
+      // Calculate years from start date to current year
+      int years = now.year - startDate.year;
+      if (now.month < startDate.month ||
+          (now.month == startDate.month && now.day < startDate.day)) {
+        years--; // Don't count current year if billing date hasn't passed
+      }
+      return amount * years;
     } else if (widget.subscription.billingCycle == 'Weekly') {
-      int weeks = (now.difference(startDate).inDays / 7).floor();
-      return monthlyAmount * weeks;
+      // Calculate weeks from start date to current week
+      int weeks = now.difference(startDate).inDays ~/ 7;
+      return amount * weeks;
     } else {
+      // Daily billing
       int days = now.difference(startDate).inDays;
-      return monthlyAmount * days;
+      return amount * days;
     }
   }
 
   String _getSubscriptionDuration() {
     DateTime now = DateTime.now();
-    DateTime startDate = widget.subscription.createdAt;
+    DateTime startDate = widget.subscription.billingDate;
     int days = now.difference(startDate).inDays;
 
     if (days < 30) {
@@ -217,14 +229,26 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
 
   int _getTotalPayments() {
     DateTime now = DateTime.now();
-    DateTime startDate = widget.subscription.createdAt;
+    DateTime startDate = widget.subscription.billingDate;
 
     if (widget.subscription.billingCycle == 'Monthly') {
-      return (now.difference(startDate).inDays / 30).floor();
+      // Calculate months from start date to current month
+      int months =
+          ((now.year - startDate.year) * 12 + now.month - startDate.month);
+      if (now.day < startDate.day) {
+        months--; // Don't count current month if billing day hasn't passed
+      }
+      return months;
     } else if (widget.subscription.billingCycle == 'Yearly') {
-      return (now.difference(startDate).inDays / 365).floor();
+      // Calculate years from start date to current year
+      int years = now.year - startDate.year;
+      if (now.month < startDate.month ||
+          (now.month == startDate.month && now.day < startDate.day)) {
+        years--; // Don't count current year if billing date hasn't passed
+      }
+      return years;
     } else if (widget.subscription.billingCycle == 'Weekly') {
-      return (now.difference(startDate).inDays / 7).floor();
+      return now.difference(startDate).inDays ~/ 7;
     } else {
       return now.difference(startDate).inDays;
     }
@@ -571,7 +595,7 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
       },
       {
         'label': 'Start date',
-        'value': _formatDate(widget.subscription.createdAt),
+        'value': _formatDate(widget.subscription.billingDate),
       },
       {
         'label': 'End date',
@@ -1077,13 +1101,48 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
     );
   }
 
-  void _handleFinish() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Finish ${widget.subscription.title}'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  void _handleFinish() async {
+    try {
+      // Check if subscription has a valid ID
+      if (widget.subscription.id == null) {
+        throw Exception('Subscription ID is null');
+      }
+
+      // Update subscription status to finished
+      await SubscriptionDatabase.updateSubscriptionStatus(
+        widget.subscription.id!,
+        'finished',
+      );
+
+      // Ensure database is synchronized
+      await SubscriptionDatabase.ensureDatabaseSync();
+
+      if (!mounted) return;
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${widget.subscription.title} finished successfully'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      // Return result to indicate status change for parent screens to refresh
+      Navigator.of(context).pop('status_updated');
+    } catch (e) {
+      if (!mounted) return;
+
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to finish ${widget.subscription.title}. Please try again.',
+          ),
+          duration: const Duration(seconds: 2),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _handleDelete() {

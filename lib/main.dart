@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
 import 'package:payables/data/currency_provider.dart';
+import 'package:payables/data/subscription_database.dart';
 import 'package:provider/provider.dart';
 import 'package:payables/ui/dashboard_screen.dart';
 import 'package:payables/utils/theme_provider.dart';
@@ -7,12 +9,31 @@ import 'package:payables/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final logger = Logger();
+
+  // Test database connection
+  try {
+    logger.i('Testing database connection...');
+    final dbTest = await SubscriptionDatabase.testDatabaseConnection();
+    if (dbTest) {
+      logger.i('Database connection successful');
+      final dbInfo = await SubscriptionDatabase.getDatabaseInfo();
+      logger.d('Database info: $dbInfo');
+    } else {
+      logger.e('Database connection failed');
+    }
+  } catch (e) {
+    logger.e('Database test error: $e');
+  }
 
   // Initialize notification service (with error handling)
   try {
     await NotificationService().initialize();
+
+    // Request notification permissions on first app launch
+    await NotificationService().requestPermissions();
   } catch (e) {
-    print('Failed to initialize notification service: $e');
+    logger.e('Failed to initialize notification service: $e');
     // Continue app execution even if notifications fail
   }
 

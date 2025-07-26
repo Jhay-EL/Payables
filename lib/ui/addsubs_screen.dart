@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter/services.dart';
+import 'package:logger/logger.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 
@@ -13,6 +14,7 @@ import '../data/currency_database.dart';
 import 'package:provider/provider.dart';
 import '../data/currency_provider.dart';
 import 'color_picker_screen.dart';
+import '../utils/snackbar_service.dart';
 
 class AddSubsScreen extends StatefulWidget {
   final List<Map<String, dynamic>>? categories;
@@ -24,6 +26,7 @@ class AddSubsScreen extends StatefulWidget {
 }
 
 class _AddSubsScreenState extends State<AddSubsScreen> {
+  static final Logger _logger = Logger();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _websiteController = TextEditingController();
@@ -52,6 +55,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
   String _selectedCategory = 'Not set';
   String _selectedType = 'Recurring';
   bool _isLoadingPaymentMethods = false;
+  int _selectedAlertDays = 1; // Default to 1 day before
 
   List<Map<String, dynamic>> get allPaymentMethods => [
     ..._paymentMethods,
@@ -192,6 +196,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
     _billingDate = subscription.billingDate;
     _endDate = subscription.endDate;
     _selectedColor = Color(subscription.colorValue);
+    _selectedAlertDays = subscription.alertDays;
 
     // Handle icon
     if (subscription.iconFilePath != null) {
@@ -216,12 +221,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading payment methods'),
-            backgroundColor: const Color(0xFFEF4444),
-          ),
-        );
+        SnackbarService.showError(context, 'Error loading payment methods');
       }
     } finally {
       setState(() => _isLoadingPaymentMethods = false);
@@ -294,6 +294,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
           notes: _notesController.text.trim().isEmpty
               ? null
               : _notesController.text.trim(),
+          alertDays: _selectedAlertDays,
           updatedAt: DateTime.now(),
         );
 
@@ -330,6 +331,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
           notes: _notesController.text.trim().isEmpty
               ? null
               : _notesController.text.trim(),
+          alertDays: _selectedAlertDays,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
@@ -362,7 +364,10 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
       await SubscriptionDatabase.ensureDatabaseSync();
 
       if (!mounted) return;
+
+      // Close the loading dialog
       Navigator.of(context).pop();
+
       _showSuccessSnackBar(
         widget.subscriptionToEdit != null
             ? 'Payable updated successfully!'
@@ -375,8 +380,12 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
       // Return true if subscription was saved, and also indicate if categories were modified
       Navigator.of(context).pop(categoryWasAdded ? 'categories_updated' : true);
     } catch (e) {
+      _logger.e('Error saving subscription: $e');
       if (!mounted) return;
+
+      // Close the loading dialog
       Navigator.of(context).pop();
+
       _showErrorSnackBar(
         widget.subscriptionToEdit != null
             ? 'Failed to update payable. Please try again.'
@@ -436,55 +445,11 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
   }
 
   void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: const Color(0xFF10B981),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
+    SnackbarService.showSuccess(context, message);
   }
 
   void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.error_rounded, color: Colors.white, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: const Color(0xFFEF4444),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
+    SnackbarService.showError(context, message);
   }
 
   String _getBillingInfo() {
@@ -913,6 +878,8 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
           const SizedBox(height: 16),
           _buildBillingCyclePicker(),
         ],
+        const SizedBox(height: 16),
+        _buildAlertSelection(),
       ],
     );
   }
@@ -1430,6 +1397,59 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
       items: ['Daily', 'Weekly', 'Monthly', 'Yearly'],
       onChanged: (value) => setState(() => _selectedBillingCycle = value!),
     );
+  }
+
+  Widget _buildAlertSelection() {
+    return _buildM3DropdownField(
+      label: 'Alert',
+      value: _getAlertDisplayText(_selectedAlertDays),
+      items: [
+        'No alert',
+        '1 day before',
+        '3 days before',
+        '1 week before',
+        '2 weeks before',
+      ],
+      onChanged: (value) {
+        setState(() {
+          _selectedAlertDays = _getAlertDaysFromText(value!);
+        });
+      },
+    );
+  }
+
+  String _getAlertDisplayText(int days) {
+    switch (days) {
+      case 0:
+        return 'No alert';
+      case 1:
+        return '1 day before';
+      case 3:
+        return '3 days before';
+      case 7:
+        return '1 week before';
+      case 14:
+        return '2 weeks before';
+      default:
+        return '1 day before';
+    }
+  }
+
+  int _getAlertDaysFromText(String text) {
+    switch (text) {
+      case 'No alert':
+        return 0;
+      case '1 day before':
+        return 1;
+      case '3 days before':
+        return 3;
+      case '1 week before':
+        return 7;
+      case '2 weeks before':
+        return 14;
+      default:
+        return 1;
+    }
   }
 
   Widget _buildPaymentMethodPicker() {

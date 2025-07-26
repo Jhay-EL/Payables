@@ -16,6 +16,7 @@ class Subscription {
   final int colorValue; // Store Color.value
   final String? notes;
   final String status; // 'active', 'paused', 'finished'
+  final int alertDays; // Days before billing date to send notification
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -37,6 +38,7 @@ class Subscription {
     required this.colorValue,
     this.notes,
     this.status = 'active',
+    this.alertDays = 1, // Default to 1 day before
     required this.createdAt,
     required this.updatedAt,
   });
@@ -61,6 +63,7 @@ class Subscription {
       'color_value': colorValue,
       'notes': notes,
       'status': status,
+      'alert_days': alertDays,
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
     };
@@ -88,6 +91,7 @@ class Subscription {
       colorValue: map['color_value']?.toInt() ?? 0xFF000000, // default black
       notes: map['notes'],
       status: map['status'] ?? 'active',
+      alertDays: map['alert_days']?.toInt() ?? 1, // Default to 1 day
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at']),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at']),
     );
@@ -112,6 +116,7 @@ class Subscription {
     int? colorValue,
     String? notes,
     String? status,
+    int? alertDays,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -133,6 +138,7 @@ class Subscription {
       colorValue: colorValue ?? this.colorValue,
       notes: notes ?? this.notes,
       status: status ?? this.status,
+      alertDays: alertDays ?? this.alertDays,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

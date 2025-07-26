@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'settings_screen.dart';
-import 'subscription_screen.dart';
-import 'addsubs_screen.dart';
-import '../data/subscription_database.dart';
-import '../models/subscription.dart';
+import 'package:payables/data/subscription_database.dart';
+import 'package:payables/models/subscription.dart';
+import 'package:payables/ui/addsubs_screen.dart';
+import 'package:payables/ui/subscription_screen.dart';
+import 'package:payables/ui/settings_screen.dart';
+
+import 'package:payables/utils/snackbar_service.dart';
 import 'dart:math' as math;
 
 class DashboardScreen extends StatefulWidget {
@@ -14,7 +16,8 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen>
+    with WidgetsBindingObserver {
   final ScrollController _scrollController = ScrollController();
   bool _isCategoryHidden = false;
   bool _isInsightsHidden = false;
@@ -120,8 +123,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadSubscriptionData();
     _scrollController.addListener(_onScroll);
+  }
+
+  // Public method to refresh dashboard data (can be called from other screens)
+  Future<void> refreshDashboard() async {
+    await _refreshDashboardData();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Refresh data when app comes back to foreground
+    if (state == AppLifecycleState.resumed) {
+      _refreshDashboardData();
+    }
   }
 
   void _onScroll() {
@@ -135,6 +153,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  Future<void> _refreshDashboardData() async {
+    if (!mounted) return;
+
+    try {
+      // Force refresh the database connection
+      await SubscriptionDatabase.forceRefreshConnection();
+
+      // Longer delay to ensure database is fully committed
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      // Load fresh data
+      await _loadSubscriptionData();
+
+      // Force UI update
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      // If refresh fails, try again after a longer delay
+      if (mounted) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        await _loadSubscriptionData();
+      }
+    }
+  }
+
   Future<void> _loadSubscriptionData() async {
     if (!mounted) return;
     setState(() {
@@ -143,7 +187,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     try {
       // Load subscriptions from database
-      final subscriptions = await SubscriptionDatabase.getAllSubscriptions();
+      final allSubscriptions = await SubscriptionDatabase.getAllSubscriptions();
+      final activeSubscriptions =
+          await SubscriptionDatabase.getActiveSubscriptions();
       final pausedSubscriptions =
           await SubscriptionDatabase.getPausedSubscriptions();
       final finishedSubscriptions =
@@ -152,24 +198,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // Calculate counts
       final now = DateTime.now();
       final weekFromNow = now.add(const Duration(days: 7));
-      final monthFromNow = now.add(const Duration(days: 30));
+
+      // Calculate current month end
+      final currentMonthEnd = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
 
       int thisWeekCount = 0;
       int thisMonthCount = 0;
 
-      // Count upcoming subscriptions
-      for (final subscription in subscriptions) {
-        if (subscription.billingDate.isBefore(weekFromNow)) {
+      // Count upcoming subscriptions (only active ones)
+      for (final subscription in activeSubscriptions) {
+        // Check if billing date is within the next 7 days (not overdue)
+        if (subscription.billingDate.isAfter(now) &&
+            subscription.billingDate.isBefore(weekFromNow)) {
           thisWeekCount++;
         }
-        if (subscription.billingDate.isBefore(monthFromNow)) {
+        // Check if billing date is within the current month (not overdue)
+        if (subscription.billingDate.isAfter(now) &&
+            subscription.billingDate.isBefore(currentMonthEnd)) {
           thisMonthCount++;
         }
       }
 
-      // Update category counts
+      // Update category counts (only active subscriptions)
       Map<String, int> categoryCounts = {};
-      for (final subscription in subscriptions) {
+      for (final subscription in activeSubscriptions) {
         final category = subscription.category;
         categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
       }
@@ -247,10 +299,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       if (mounted) {
         setState(() {
-          _subscriptions = subscriptions;
+          _subscriptions = allSubscriptions;
           _pausedSubscriptions = pausedSubscriptions;
           _finishedSubscriptions = finishedSubscriptions;
-          _totalSubscriptions = subscriptions.length;
+          _totalSubscriptions = activeSubscriptions
+              .length; // Only count active subscriptions for "All"
           _thisWeekCount = thisWeekCount;
           _thisMonthCount = thisMonthCount;
           _categories = updatedCategories;
@@ -322,6 +375,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scrollController.dispose();
     super.dispose();
   }
@@ -331,9 +385,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       backgroundColor: backgroundColor,
       body: RefreshIndicator(
-        onRefresh: () async {},
-        color: highContrastBlue,
-        backgroundColor: backgroundColor,
+        onRefresh: _refreshDashboardData,
         child: CustomScrollView(
           controller: _scrollController,
           slivers: [
@@ -457,31 +509,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 _isEditMode = false;
                               });
                               // Show success message
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.check_circle_rounded,
-                                        color: Colors.white,
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        'Changes saved successfully',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  backgroundColor: const Color(0xFF10B981),
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  margin: const EdgeInsets.all(16),
-                                ),
+                              SnackbarService.showSuccess(
+                                context,
+                                'Changes saved successfully',
                               );
                             },
                             icon: Icon(
@@ -1112,13 +1142,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
-    // Calculate category spending
+    // Calculate category spending (only active subscriptions)
     Map<String, double> categorySpending = {};
     for (final subscription in _subscriptions) {
-      final category = subscription.category;
-      final monthlyAmount = _getMonthlyAmount(subscription);
-      categorySpending[category] =
-          (categorySpending[category] ?? 0) + monthlyAmount;
+      // Only include active subscriptions in the chart
+      if (subscription.status == 'active') {
+        final category = subscription.category;
+        final monthlyAmount = _getMonthlyAmount(subscription);
+        categorySpending[category] =
+            (categorySpending[category] ?? 0) + monthlyAmount;
+      }
     }
 
     // Find max spending for scaling
@@ -1666,26 +1699,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
         curve: Curves.easeInOutCubicEmphasized,
         reverseCurve: Curves.easeInCubic,
       ),
-      onSelected: (String value) {
-        setState(() {
-          switch (value) {
-            case 'add':
-              _showAddOptionsBottomSheet();
-              break;
-            case 'edit':
+      onSelected: (String value) async {
+        switch (value) {
+          case 'add':
+            _showAddOptionsBottomSheet();
+            break;
+          case 'edit':
+            setState(() {
               _isEditMode = !_isEditMode;
-              break;
-            case 'hide_panel':
-              _showHidePanelBottomSheet();
-              break;
-            case 'settings':
-              if (!mounted) return;
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
-              );
-          }
-        });
+            });
+            break;
+          case 'hide_panel':
+            _showHidePanelBottomSheet();
+            break;
+          case 'settings':
+            if (!mounted) return;
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SettingsScreen()),
+            );
+            // Refresh data when returning from settings
+            if (result == true) {
+              await _refreshDashboardData();
+            }
+        }
       },
       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
         _buildM3PopupMenuItem(
@@ -1769,11 +1806,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
 
-    // If categories were updated, subscription was deleted, or status was updated, refresh the dashboard data
+    // Refresh dashboard data for any relevant changes
     if (result == 'categories_updated' ||
         result == 'deleted' ||
-        result == 'status_updated') {
-      _loadSubscriptionData();
+        result == 'status_updated' ||
+        result == true) {
+      await _refreshDashboardData();
     }
   }
 
@@ -1789,11 +1827,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
 
-    // If categories were updated, subscription was deleted, or status was updated, refresh the dashboard data
+    // Refresh dashboard data for any relevant changes
     if (result == 'categories_updated' ||
         result == 'deleted' ||
-        result == 'status_updated') {
-      _loadSubscriptionData();
+        result == 'status_updated' ||
+        result == true) {
+      await _refreshDashboardData();
     }
   }
 
@@ -1891,24 +1930,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ).then((result) async {
                       // Reload subscription data if a new one was added
                       if (result == true || result == 'categories_updated') {
-                        // Force a complete refresh of the dashboard data
-                        if (mounted) {
-                          // Immediate update with a small delay to ensure database is ready
-                          await Future.delayed(
-                            const Duration(milliseconds: 100),
-                          );
-
-                          // Force refresh the database connection
-                          await SubscriptionDatabase.forceRefreshConnection();
-
-                          // Load fresh data
-                          await _loadSubscriptionData();
-
-                          // Force UI update
-                          if (mounted) {
-                            setState(() {});
-                          }
-                        }
+                        await _refreshDashboardData();
                       }
                     });
                   },
@@ -2020,7 +2042,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  void _handleCategoryTap(String categoryName) {}
+  void _handleCategoryTap(String categoryName) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            SubscriptionScreen(categories: _categories, title: categoryName),
+      ),
+    );
+
+    // Refresh dashboard data for any relevant changes
+    if (result == 'categories_updated' ||
+        result == 'deleted' ||
+        result == 'status_updated' ||
+        result == true) {
+      await _refreshDashboardData();
+    }
+  }
 
   void _handleCategoryAdd() {
     // Controllers for editing
