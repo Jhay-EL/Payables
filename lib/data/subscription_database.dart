@@ -557,4 +557,97 @@ class SubscriptionDatabase {
       return {'error': e.toString()};
     }
   }
+
+  // Get all subscriptions with computed counts for dashboard optimization
+  static Future<Map<String, dynamic>> getDashboardData() async {
+    try {
+      final db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        _tableName,
+        orderBy: '$_columnBillingDate ASC',
+      );
+
+      // Convert to Subscription objects
+      final allSubscriptions = List.generate(maps.length, (i) {
+        return Subscription.fromMap(maps[i]);
+      });
+
+      // Compute counts efficiently
+      final now = DateTime.now();
+      final weekFromNow = now.add(const Duration(days: 7));
+      final currentMonthEnd = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+
+      int activeCount = 0;
+      int pausedCount = 0;
+      int finishedCount = 0;
+      int thisWeekCount = 0;
+      int thisMonthCount = 0;
+      Map<String, int> categoryCounts = {};
+
+      for (final subscription in allSubscriptions) {
+        // Status counts
+        switch (subscription.status) {
+          case 'active':
+            activeCount++;
+            // Only count active subscriptions for upcoming dates
+            if (subscription.billingDate.isAfter(now) &&
+                subscription.billingDate.isBefore(weekFromNow)) {
+              thisWeekCount++;
+            }
+            if (subscription.billingDate.isAfter(now) &&
+                subscription.billingDate.isBefore(currentMonthEnd)) {
+              thisMonthCount++;
+            }
+            // Category counts (only active)
+            final category = subscription.category;
+            categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
+            break;
+          case 'paused':
+            pausedCount++;
+            break;
+          case 'finished':
+            finishedCount++;
+            break;
+        }
+      }
+
+      return {
+        'allSubscriptions': allSubscriptions,
+        'activeSubscriptions': allSubscriptions
+            .where((s) => s.status == 'active')
+            .toList(),
+        'pausedSubscriptions': allSubscriptions
+            .where((s) => s.status == 'paused')
+            .toList(),
+        'finishedSubscriptions': allSubscriptions
+            .where((s) => s.status == 'finished')
+            .toList(),
+        'counts': {
+          'total': allSubscriptions.length,
+          'active': activeCount,
+          'paused': pausedCount,
+          'finished': finishedCount,
+          'thisWeek': thisWeekCount,
+          'thisMonth': thisMonthCount,
+        },
+        'categoryCounts': categoryCounts,
+      };
+    } catch (e) {
+      return {
+        'allSubscriptions': [],
+        'activeSubscriptions': [],
+        'pausedSubscriptions': [],
+        'finishedSubscriptions': [],
+        'counts': {
+          'total': 0,
+          'active': 0,
+          'paused': 0,
+          'finished': 0,
+          'thisWeek': 0,
+          'thisMonth': 0,
+        },
+        'categoryCounts': {},
+      };
+    }
+  }
 }

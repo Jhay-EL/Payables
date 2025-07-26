@@ -5,6 +5,7 @@ import 'package:payables/data/subscription_database.dart';
 import 'package:provider/provider.dart';
 import 'package:payables/ui/dashboard_screen.dart';
 import 'package:payables/utils/theme_provider.dart';
+import 'package:payables/utils/dashboard_refresh_provider.dart';
 import 'package:payables/services/notification_service.dart';
 
 void main() async {
@@ -42,6 +43,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => CurrencyProvider()),
+        ChangeNotifierProvider(create: (_) => DashboardRefreshProvider()),
       ],
       child: const PayablesApp(),
     ),

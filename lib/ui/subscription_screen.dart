@@ -1481,15 +1481,18 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       ),
     );
 
-    if (result == true ||
-        result == 'categories_updated' ||
-        result == 'deleted' ||
-        result == 'status_updated' ||
-        result == 'duplicated') {
-      _loadSubscriptions(); // Refresh the list if changes were saved, subscription was deleted, status was updated, or duplicated
+    if (result == true || result == 'categories_updated') {
+      _loadSubscriptions(); // Refresh the list if changes were saved or categories were updated
 
-      // If categories were updated, we might need to refresh the categories list
-      // This will be handled by the parent screen (dashboard) when it receives the result
+      // Return the result to the parent screen (dashboard) so it can refresh too
+      Navigator.of(context).pop(result);
+    } else if (result == 'deleted' ||
+        result == 'duplicated' ||
+        result == 'status_updated') {
+      _loadSubscriptions(); // Refresh the list if subscription was deleted, duplicated, or status was updated
+
+      // Don't pop back to dashboard, stay on subscription screen
+      // The dashboard will still refresh via the DashboardRefreshProvider
     }
   }
 

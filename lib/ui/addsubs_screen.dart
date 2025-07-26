@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 import '../data/currency_provider.dart';
 import 'color_picker_screen.dart';
 import '../utils/snackbar_service.dart';
+import '../utils/dashboard_refresh_provider.dart';
 
 class AddSubsScreen extends StatefulWidget {
   final List<Map<String, dynamic>>? categories;
@@ -360,6 +361,9 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
 
       if (!mounted) return;
 
+      // Force refresh the database connection to ensure the new subscription is available
+      await SubscriptionDatabase.forceRefreshConnection();
+
       // Ensure database is fully committed
       await SubscriptionDatabase.ensureDatabaseSync();
 
@@ -377,6 +381,16 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
       // Wait a bit longer to ensure database is ready
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
+
+      // Notify dashboard to refresh
+      if (mounted) {
+        final refreshProvider = Provider.of<DashboardRefreshProvider>(
+          context,
+          listen: false,
+        );
+        refreshProvider.refreshDashboard();
+      }
+
       // Return true if subscription was saved, and also indicate if categories were modified
       Navigator.of(context).pop(categoryWasAdded ? 'categories_updated' : true);
     } catch (e) {

@@ -7,6 +7,8 @@ import 'package:payables/ui/subscription_screen.dart';
 import 'package:payables/ui/settings_screen.dart';
 
 import 'package:payables/utils/snackbar_service.dart';
+import 'package:payables/utils/dashboard_refresh_provider.dart';
+import 'package:provider/provider.dart';
 import 'dart:math' as math;
 
 class DashboardScreen extends StatefulWidget {
@@ -126,6 +128,15 @@ class _DashboardScreenState extends State<DashboardScreen>
     WidgetsBinding.instance.addObserver(this);
     _loadSubscriptionData();
     _scrollController.addListener(_onScroll);
+
+    // Listen to dashboard refresh notifications
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final refreshProvider = Provider.of<DashboardRefreshProvider>(
+        context,
+        listen: false,
+      );
+      refreshProvider.addListener(_onDashboardRefreshRequested);
+    });
   }
 
   // Public method to refresh dashboard data (can be called from other screens)
@@ -133,12 +144,29 @@ class _DashboardScreenState extends State<DashboardScreen>
     await _refreshDashboardData();
   }
 
+  // Enhanced method to refresh dashboard with better error handling and state management
+  Future<void> _refreshDashboardWithDelay() async {
+    if (!mounted) return;
+
+    try {
+      // Use compute to move heavy work off main thread
+      await Future.delayed(const Duration(milliseconds: 50));
+      await _refreshDashboardData();
+    } catch (e) {
+      // If first attempt fails, try again with longer delay
+      if (mounted) {
+        await Future.delayed(const Duration(milliseconds: 300));
+        await _refreshDashboardData();
+      }
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     // Refresh data when app comes back to foreground
     if (state == AppLifecycleState.resumed) {
-      _refreshDashboardData();
+      _refreshDashboardWithDelay();
     }
   }
 
@@ -153,15 +181,18 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
+  void _onDashboardRefreshRequested() {
+    if (mounted) {
+      _refreshDashboardWithDelay();
+    }
+  }
+
   Future<void> _refreshDashboardData() async {
     if (!mounted) return;
 
     try {
-      // Force refresh the database connection
-      await SubscriptionDatabase.forceRefreshConnection();
-
-      // Longer delay to ensure database is fully committed
-      await Future.delayed(const Duration(milliseconds: 300));
+      // Reduced delay for better performance
+      await Future.delayed(const Duration(milliseconds: 100));
 
       // Load fresh data
       await _loadSubscriptionData();
@@ -173,7 +204,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     } catch (e) {
       // If refresh fails, try again after a longer delay
       if (mounted) {
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future.delayed(const Duration(milliseconds: 200));
         await _loadSubscriptionData();
       }
     }
@@ -186,45 +217,24 @@ class _DashboardScreenState extends State<DashboardScreen>
     });
 
     try {
-      // Load subscriptions from database
-      final allSubscriptions = await SubscriptionDatabase.getAllSubscriptions();
+      // Load all dashboard data in a single optimized call
+      final dashboardData = await SubscriptionDatabase.getDashboardData();
+
+      final allSubscriptions =
+          dashboardData['allSubscriptions'] as List<Subscription>;
       final activeSubscriptions =
-          await SubscriptionDatabase.getActiveSubscriptions();
+          dashboardData['activeSubscriptions'] as List<Subscription>;
       final pausedSubscriptions =
-          await SubscriptionDatabase.getPausedSubscriptions();
+          dashboardData['pausedSubscriptions'] as List<Subscription>;
       final finishedSubscriptions =
-          await SubscriptionDatabase.getFinishedSubscriptions();
+          dashboardData['finishedSubscriptions'] as List<Subscription>;
 
-      // Calculate counts
-      final now = DateTime.now();
-      final weekFromNow = now.add(const Duration(days: 7));
+      final counts = dashboardData['counts'] as Map<String, int>;
+      final categoryCounts =
+          dashboardData['categoryCounts'] as Map<String, int>;
 
-      // Calculate current month end
-      final currentMonthEnd = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
-
-      int thisWeekCount = 0;
-      int thisMonthCount = 0;
-
-      // Count upcoming subscriptions (only active ones)
-      for (final subscription in activeSubscriptions) {
-        // Check if billing date is within the next 7 days (not overdue)
-        if (subscription.billingDate.isAfter(now) &&
-            subscription.billingDate.isBefore(weekFromNow)) {
-          thisWeekCount++;
-        }
-        // Check if billing date is within the current month (not overdue)
-        if (subscription.billingDate.isAfter(now) &&
-            subscription.billingDate.isBefore(currentMonthEnd)) {
-          thisMonthCount++;
-        }
-      }
-
-      // Update category counts (only active subscriptions)
-      Map<String, int> categoryCounts = {};
-      for (final subscription in activeSubscriptions) {
-        final category = subscription.category;
-        categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
-      }
+      final thisWeekCount = counts['thisWeek'] ?? 0;
+      final thisMonthCount = counts['thisMonth'] ?? 0;
 
       final defaultCategories = [
         {
@@ -377,6 +387,18 @@ class _DashboardScreenState extends State<DashboardScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _scrollController.dispose();
+
+    // Remove dashboard refresh listener
+    try {
+      final refreshProvider = Provider.of<DashboardRefreshProvider>(
+        context,
+        listen: false,
+      );
+      refreshProvider.removeListener(_onDashboardRefreshRequested);
+    } catch (e) {
+      // Ignore errors if provider is not available
+    }
+
     super.dispose();
   }
 
@@ -384,204 +406,197 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
-      body: RefreshIndicator(
-        onRefresh: _refreshDashboardData,
-        child: CustomScrollView(
-          controller: _scrollController,
-          slivers: [
-            // M3 Expressive Large Flexible App Bar
-            SliverAppBar(
-              expandedHeight: 200.0,
-              floating: false,
-              pinned: true,
-              snap: false,
-              elevation: 0,
-              surfaceTintColor: lightColor,
-              backgroundColor: backgroundColor,
-              automaticallyImplyLeading: false,
-              actions: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 16.0),
-                  child: _buildM3PopupMenu(),
-                ),
-              ],
-              flexibleSpace: FlexibleSpaceBar(
-                background: RepaintBoundary(
-                  child: Stack(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(color: backgroundColor),
-                      ),
-                      // Animated Payables Title with enhanced flutter_animate
-                      Positioned(
-                        left: _getAnimatedTitleLeft(),
-                        bottom: _getAnimatedTitleBottom(),
-                        child: SafeArea(
-                          child: AnimatedOpacity(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOutCubicEmphasized,
-                            opacity: _getAnimatedTitleOpacity(),
-                            child:
-                                Text(
-                                      'Payables',
-                                      style: _getAnimatedTitleStyle(context),
-                                    )
-                                    .animate()
-                                    .fadeIn(
-                                      duration: const Duration(
-                                        milliseconds: 800,
-                                      ),
-                                      curve: Curves.easeOutCubic,
-                                    )
-                                    .scale(
-                                      duration: const Duration(
-                                        milliseconds: 600,
-                                      ),
-                                      curve: Curves.elasticOut,
-                                      begin: const Offset(0.8, 0.8),
-                                      end: const Offset(1.0, 1.0),
-                                    )
-                                    .then(delay: const Duration(seconds: 2))
-                                    .shimmer(
-                                      duration: const Duration(
-                                        milliseconds: 2000,
-                                      ),
-                                      color: highContrastDarkBlue.withValues(
-                                        alpha: 0.3,
-                                      ),
-                                      size: 2.0,
+      body: CustomScrollView(
+        // Add physics for smoother scrolling
+        physics: const AlwaysScrollableScrollPhysics(),
+        controller: _scrollController,
+        slivers: [
+          // M3 Expressive Large Flexible App Bar
+          SliverAppBar(
+            expandedHeight: 200.0,
+            floating: false,
+            pinned: true,
+            snap: false,
+            elevation: 0,
+            surfaceTintColor: lightColor,
+            backgroundColor: backgroundColor,
+            automaticallyImplyLeading: false,
+            actions: [
+              Padding(
+                padding: const EdgeInsets.only(right: 16.0),
+                child: _buildM3PopupMenu(),
+              ),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
+              background: RepaintBoundary(
+                child: Stack(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(color: backgroundColor),
+                    ),
+                    // Animated Payables Title with enhanced flutter_animate
+                    Positioned(
+                      left: _getAnimatedTitleLeft(),
+                      bottom: _getAnimatedTitleBottom(),
+                      child: SafeArea(
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOutCubicEmphasized,
+                          opacity: _getAnimatedTitleOpacity(),
+                          child:
+                              Text(
+                                    'Payables',
+                                    style: _getAnimatedTitleStyle(context),
+                                  )
+                                  .animate()
+                                  .fadeIn(
+                                    duration: const Duration(milliseconds: 800),
+                                    curve: Curves.easeOutCubic,
+                                  )
+                                  .scale(
+                                    duration: const Duration(milliseconds: 600),
+                                    curve: Curves.elasticOut,
+                                    begin: const Offset(0.8, 0.8),
+                                    end: const Offset(1.0, 1.0),
+                                  )
+                                  .then(delay: const Duration(seconds: 2))
+                                  .shimmer(
+                                    duration: const Duration(
+                                      milliseconds: 2000,
                                     ),
-                          ),
+                                    color: highContrastDarkBlue.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                    size: 2.0,
+                                  ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            // M3 Expressive Dashboard Content
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 32.0),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  // M3 Overview Section
-                  Text(
-                        'Overview',
+          ),
+          // M3 Expressive Dashboard Content
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 32.0),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                // M3 Overview Section
+                Text(
+                      'Overview',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            fontWeight: FontWeight.w400,
+                            color: highContrastDarkBlue,
+                          ),
+                    )
+                    .animate()
+                    .fadeIn(
+                      duration: const Duration(milliseconds: 600),
+                      curve: Curves.easeOutCubic,
+                    )
+                    .slideX(
+                      duration: const Duration(milliseconds: 500),
+                      curve: Curves.easeOutCubic,
+                      begin: -0.2,
+                      end: 0.0,
+                    ),
+                const SizedBox(height: 20),
+                _buildM3OverviewSection(),
+                const SizedBox(height: 32),
+
+                // M3 Category Section
+                if (!_isCategoryHidden) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Categories',
                         style: Theme.of(context).textTheme.headlineSmall
                             ?.copyWith(
                               fontWeight: FontWeight.w400,
                               color: highContrastDarkBlue,
                             ),
-                      )
-                      .animate()
-                      .fadeIn(
-                        duration: const Duration(milliseconds: 600),
-                        curve: Curves.easeOutCubic,
-                      )
-                      .slideX(
-                        duration: const Duration(milliseconds: 500),
-                        curve: Curves.easeOutCubic,
-                        begin: -0.2,
-                        end: 0.0,
                       ),
-                  const SizedBox(height: 20),
-                  _buildM3OverviewSection(),
-                  const SizedBox(height: 32),
-
-                  // M3 Category Section
-                  if (!_isCategoryHidden) ...[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Categories',
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.w400,
-                                color: highContrastDarkBlue,
-                              ),
-                        ),
-                        // Save button (only in edit mode)
-                        if (_isEditMode) ...[
-                          FilledButton.icon(
-                            onPressed: () {
-                              setState(() {
-                                _isEditMode = false;
-                              });
-                              // Show success message
-                              SnackbarService.showSuccess(
-                                context,
-                                'Changes saved successfully',
-                              );
-                            },
-                            icon: Icon(
-                              Icons.check_rounded,
+                      // Save button (only in edit mode)
+                      if (_isEditMode) ...[
+                        FilledButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _isEditMode = false;
+                            });
+                            // Show success message
+                            SnackbarService.showSuccess(
+                              context,
+                              'Changes saved successfully',
+                            );
+                          },
+                          icon: Icon(
+                            Icons.check_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          label: Text(
+                            'Save',
+                            style: TextStyle(
                               color: Colors.white,
-                              size: 18,
-                            ),
-                            label: Text(
-                              'Save',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: const Color(0xFF10B981),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                        ],
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF10B981),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        ),
                       ],
-                    ),
-                    const SizedBox(height: 20),
-                    _buildM3CategorySection(),
-                    const SizedBox(height: 32),
-                  ],
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  _buildM3CategorySection(),
+                  const SizedBox(height: 32),
+                ],
 
-                  // M3 Paused/Finished Payables Section
-                  if (!_isPausedFinishedHidden &&
-                      (_pausedSubscriptions.isNotEmpty ||
-                          _finishedSubscriptions.isNotEmpty)) ...[
-                    Text(
-                      'Paused/Finished Payables',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            fontWeight: FontWeight.w400,
-                            color: highContrastDarkBlue,
-                          ),
+                // M3 Paused/Finished Payables Section
+                if (!_isPausedFinishedHidden &&
+                    (_pausedSubscriptions.isNotEmpty ||
+                        _finishedSubscriptions.isNotEmpty)) ...[
+                  Text(
+                    'Paused/Finished Payables',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w400,
+                      color: highContrastDarkBlue,
                     ),
-                    const SizedBox(height: 20),
-                    _buildM3PausedFinishedSection(),
-                    const SizedBox(height: 32),
-                  ],
+                  ),
+                  const SizedBox(height: 20),
+                  _buildM3PausedFinishedSection(),
+                  const SizedBox(height: 32),
+                ],
 
-                  // M3 Insights Section
-                  if (!_isInsightsHidden) ...[
-                    Text(
-                      'Insights',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            fontWeight: FontWeight.w400,
-                            color: highContrastDarkBlue,
-                          ),
+                // M3 Insights Section
+                if (!_isInsightsHidden) ...[
+                  Text(
+                    'Insights',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w400,
+                      color: highContrastDarkBlue,
                     ),
-                    const SizedBox(height: 20),
-                    _buildM3InsightsSection(),
-                  ],
+                  ),
+                  const SizedBox(height: 20),
+                  _buildM3InsightsSection(),
+                ],
 
-                  SizedBox(height: 32 + MediaQuery.of(context).padding.bottom),
-                ]),
-              ),
+                SizedBox(height: 32 + MediaQuery.of(context).padding.bottom),
+              ]),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1720,7 +1735,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             );
             // Refresh data when returning from settings
             if (result == true) {
-              await _refreshDashboardData();
+              await _refreshDashboardWithDelay();
             }
         }
       },
@@ -1812,7 +1827,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         result == 'status_updated' ||
         result == 'duplicated' ||
         result == true) {
-      await _refreshDashboardData();
+      await _refreshDashboardWithDelay();
     }
   }
 
@@ -1834,7 +1849,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         result == 'status_updated' ||
         result == 'duplicated' ||
         result == true) {
-      await _refreshDashboardData();
+      await _refreshDashboardWithDelay();
     }
   }
 
@@ -1930,9 +1945,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                             AddSubsScreen(categories: _categories),
                       ),
                     ).then((result) async {
-                      // Reload subscription data if a new one was added
-                      if (result == true || result == 'categories_updated') {
-                        await _refreshDashboardData();
+                      // Reload subscription data if a new one was added, edited, or duplicated
+                      if (result == true ||
+                          result == 'categories_updated' ||
+                          result == 'duplicated' ||
+                          result == 'status_updated') {
+                        await _refreshDashboardWithDelay();
                       }
                     });
                   },
@@ -2059,7 +2077,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         result == 'status_updated' ||
         result == 'duplicated' ||
         result == true) {
-      await _refreshDashboardData();
+      await _refreshDashboardWithDelay();
     }
   }
 
@@ -2245,6 +2263,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                             });
                           });
                           Navigator.pop(context);
+
+                          // Refresh dashboard to ensure all data is up to date
+                          _refreshDashboardWithDelay();
 
                           // Show success message
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -2482,6 +2503,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                           });
                           Navigator.pop(context);
 
+                          // Refresh dashboard to ensure all data is up to date
+                          _refreshDashboardWithDelay();
+
                           // Show success message
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -2636,6 +2660,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                   _categories.removeAt(index);
                 });
                 Navigator.of(context).pop();
+
+                // Refresh dashboard to ensure all data is up to date
+                _refreshDashboardWithDelay();
 
                 // Show success message
                 ScaffoldMessenger.of(context).showSnackBar(

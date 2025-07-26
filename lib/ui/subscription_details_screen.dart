@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:payables/models/subscription.dart';
 import 'package:payables/data/subscription_database.dart';
+import 'package:payables/utils/dashboard_refresh_provider.dart';
+import 'package:provider/provider.dart';
 import 'addsubs_screen.dart';
 
 class SubscriptionDetailsScreen extends StatefulWidget {
@@ -953,6 +955,15 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
         ),
       );
 
+      // Notify dashboard to refresh
+      if (mounted) {
+        final refreshProvider = Provider.of<DashboardRefreshProvider>(
+          context,
+          listen: false,
+        );
+        refreshProvider.refreshDashboard();
+      }
+
       // Return result to indicate status change for parent screens to refresh
       Navigator.of(context).pop('status_updated');
     } catch (e) {
@@ -996,6 +1007,15 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
           duration: const Duration(seconds: 2),
         ),
       );
+
+      // Notify dashboard to refresh
+      if (mounted) {
+        final refreshProvider = Provider.of<DashboardRefreshProvider>(
+          context,
+          listen: false,
+        );
+        refreshProvider.refreshDashboard();
+      }
 
       // Return result to indicate status change for parent screens to refresh
       Navigator.of(context).pop('status_updated');
@@ -1044,8 +1064,14 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
       // Save the duplicate to the database
       await SubscriptionDatabase.insertSubscription(newSubscription);
 
+      // Force refresh the database connection to ensure the new subscription is available
+      await SubscriptionDatabase.forceRefreshConnection();
+
       // Ensure database is synchronized
       await SubscriptionDatabase.ensureDatabaseSync();
+
+      // Add a small delay to ensure the database operation is fully committed
+      await Future.delayed(const Duration(milliseconds: 200));
 
       if (!mounted) return;
 
@@ -1071,6 +1097,15 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
           duration: const Duration(seconds: 3),
         ),
       );
+
+      // Notify dashboard to refresh
+      if (mounted) {
+        final refreshProvider = Provider.of<DashboardRefreshProvider>(
+          context,
+          listen: false,
+        );
+        refreshProvider.refreshDashboard();
+      }
 
       // Return result to indicate a new subscription was created for parent screens to refresh
       Navigator.of(context).pop('duplicated');
@@ -1127,6 +1162,15 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
           duration: const Duration(seconds: 2),
         ),
       );
+
+      // Notify dashboard to refresh
+      if (mounted) {
+        final refreshProvider = Provider.of<DashboardRefreshProvider>(
+          context,
+          listen: false,
+        );
+        refreshProvider.refreshDashboard();
+      }
 
       // Return result to indicate status change for parent screens to refresh
       Navigator.of(context).pop('status_updated');
@@ -1192,6 +1236,16 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
                       duration: const Duration(seconds: 2),
                     ),
                   );
+
+                  // Notify dashboard to refresh
+                  if (mounted) {
+                    final refreshProvider =
+                        Provider.of<DashboardRefreshProvider>(
+                          context,
+                          listen: false,
+                        );
+                    refreshProvider.refreshDashboard();
+                  }
 
                   // Return result to indicate deletion for parent screens to refresh
                   Navigator.of(context).pop('deleted');
