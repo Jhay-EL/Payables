@@ -153,178 +153,243 @@ class _IconsScreenState extends State<IconsScreen>
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          if (!_isSearchVisible && _tabController.index != 2)
-            IconButton(
-              icon: Icon(Icons.search_rounded, color: colorScheme.onSurface),
-              onPressed: () {
-                setState(() {
-                  _isSearchVisible = true;
-                });
-                // Focus the search field after a short delay
-                Future.delayed(const Duration(milliseconds: 100), () {
-                  if (mounted) {
-                    FocusManager.instance.primaryFocus?.unfocus();
-                  }
-                });
-              },
-            ),
+          // Search Icon Button - Animated visibility to prevent overlap
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
+            duration: const Duration(milliseconds: 200),
+            child: (!_isSearchVisible && _tabController.index != 2)
+                ? IconButton(
+                    key: const ValueKey('search_button'),
+                    icon: Icon(
+                      Icons.search_rounded,
+                      color: colorScheme.onSurface,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _isSearchVisible = true;
+                      });
+                      // Focus the search field after a short delay
+                      Future.delayed(const Duration(milliseconds: 100), () {
+                        if (mounted) {
+                          FocusManager.instance.primaryFocus?.unfocus();
+                        }
+                      });
+                    },
+                  ).animate().fadeIn(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOut,
+                  )
+                : const SizedBox.shrink(),
+          ),
+          // Animated Search Bar with circle-to-oblong expansion
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 120),
             transitionBuilder: (Widget child, Animation<double> animation) {
-              return FadeTransition(opacity: animation, child: child);
+              return AnimatedBuilder(
+                animation: animation,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scaleX: Tween<double>(begin: 0.1, end: 1.0)
+                        .animate(
+                          CurvedAnimation(
+                            parent: animation,
+                            curve: Curves.easeOutCubic,
+                          ),
+                        )
+                        .value,
+                    scaleY: Tween<double>(begin: 0.1, end: 1.0)
+                        .animate(
+                          CurvedAnimation(
+                            parent: animation,
+                            curve: Curves.easeOutCubic,
+                          ),
+                        )
+                        .value,
+                    child: Opacity(opacity: animation.value, child: child),
+                  );
+                },
+                child: child,
+              );
             },
             child: _isSearchVisible && _tabController.index != 2
                 ? SizedBox(
-                    key: const ValueKey('search'),
-                    width:
-                        MediaQuery.of(context).size.width -
-                        60, // Much wider - minimal margins
-                    child: Padding(
-                      padding: const EdgeInsets.only(
-                        left:
-                            4.0, // Increased left padding to move search bar left
-                        right:
-                            16.0, // Increased right padding to move search bar further from right edge
-                      ),
-                      child: Container(
-                        height: 48, // Increased height
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? colorScheme.surfaceContainerHighest.withValues(
-                                  alpha: 0.6,
-                                )
-                              : colorScheme.surfaceContainerHighest.withValues(
+                        key: const ValueKey('search'),
+                        width: MediaQuery.of(context).size.width - 60,
+                        child: Padding(
+                          padding: const EdgeInsets.only(
+                            left: 4.0,
+                            right: 16.0,
+                          ),
+                          child: Container(
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? colorScheme.surfaceContainerHighest
+                                        .withValues(alpha: 0.6)
+                                  : colorScheme.surfaceContainerHighest
+                                        .withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: colorScheme.outline.withValues(
                                   alpha: 0.3,
                                 ),
-                          borderRadius: BorderRadius.circular(
-                            24,
-                          ), // Increased border radius
-                          border: Border.all(
-                            color: colorScheme.outline.withValues(alpha: 0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                left: 16.0,
-                              ), // Increased padding
-                              child: Icon(
-                                Icons.search_rounded,
-                                color: colorScheme.onSurfaceVariant,
-                                size: 22, // Increased icon size
+                                width: 1,
                               ),
                             ),
-                            Expanded(
-                              child: Container(
-                                height: 48, // Match container height
-                                alignment: Alignment.center, // Center alignment
-                                child: TextField(
-                                  controller: _tabController.index == 0
-                                      ? _genericSearchController
-                                      : _presetsSearchController,
-                                  focusNode: _tabController.index == 0
-                                      ? _genericSearchFocusNode
-                                      : _presetsSearchFocusNode,
-                                  autofocus: true,
-                                  decoration: InputDecoration(
-                                    hintText: _tabController.index == 0
-                                        ? 'Search icons...'
-                                        : 'Search services...',
-                                    hintStyle: TextStyle(
-                                      color: colorScheme.onSurfaceVariant,
-                                      fontSize: 16, // Increased font size
-                                      fontWeight: FontWeight.w400,
-                                    ),
-                                    border: InputBorder.none,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12, // Increased padding
-                                      vertical:
-                                          0, // Remove vertical padding to let container handle centering
-                                    ),
-                                    isDense:
-                                        true, // Makes the TextField more compact
-                                  ),
-                                  style: Theme.of(context).textTheme.bodyLarge
-                                      ?.copyWith(
-                                        color: colorScheme.onSurface,
-                                        fontSize: 16, // Increased font size
-                                        fontWeight: FontWeight.w400,
+                            child: Row(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 16.0),
+                                  child:
+                                      Icon(
+                                        Icons.search_rounded,
+                                        color: colorScheme.onSurfaceVariant,
+                                        size: 22,
+                                      ).animate().fadeIn(
+                                        duration: const Duration(
+                                          milliseconds: 80,
+                                        ),
+                                        delay: const Duration(milliseconds: 40),
                                       ),
-                                  onChanged: (value) {
+                                ),
+                                Expanded(
+                                  child:
+                                      Container(
+                                        height: 48,
+                                        alignment: Alignment.center,
+                                        child: TextField(
+                                          controller: _tabController.index == 0
+                                              ? _genericSearchController
+                                              : _presetsSearchController,
+                                          focusNode: _tabController.index == 0
+                                              ? _genericSearchFocusNode
+                                              : _presetsSearchFocusNode,
+                                          autofocus: true,
+                                          decoration: InputDecoration(
+                                            hintText: _tabController.index == 0
+                                                ? 'Search icons...'
+                                                : 'Search services...',
+                                            hintStyle: TextStyle(
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w400,
+                                            ),
+                                            border: InputBorder.none,
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                  vertical: 0,
+                                                ),
+                                            isDense: true,
+                                          ),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyLarge
+                                              ?.copyWith(
+                                                color: colorScheme.onSurface,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w400,
+                                              ),
+                                          onChanged: (value) {
+                                            if (_tabController.index == 0) {
+                                              _genericSearchQuery.value = value;
+                                            } else {
+                                              _presetsSearchQuery.value = value;
+                                            }
+                                          },
+                                          onSubmitted: (value) {
+                                            setState(() {
+                                              _isSearchVisible = false;
+                                            });
+                                          },
+                                        ),
+                                      ).animate().fadeIn(
+                                        duration: const Duration(
+                                          milliseconds: 120,
+                                        ),
+                                        delay: const Duration(milliseconds: 60),
+                                      ),
+                                ),
+                                if ((_tabController.index == 0 &&
+                                        _genericSearchController
+                                            .text
+                                            .isNotEmpty) ||
+                                    (_tabController.index == 1 &&
+                                        _presetsSearchController
+                                            .text
+                                            .isNotEmpty))
+                                  IconButton(
+                                    onPressed: () {
+                                      if (_tabController.index == 0) {
+                                        _genericSearchController.clear();
+                                        _genericSearchQuery.value = '';
+                                      } else {
+                                        _presetsSearchController.clear();
+                                        _presetsSearchQuery.value = '';
+                                      }
+                                    },
+                                    icon:
+                                        Icon(
+                                          Icons.clear_rounded,
+                                          color: colorScheme.onSurfaceVariant,
+                                          size: 22,
+                                        ).animate().scale(
+                                          duration: const Duration(
+                                            milliseconds: 200,
+                                          ),
+                                          curve: Curves.easeOutBack,
+                                        ),
+                                    padding: const EdgeInsets.all(8),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 40,
+                                      minHeight: 40,
+                                    ),
+                                  ),
+                                IconButton(
+                                  onPressed: () {
                                     if (_tabController.index == 0) {
-                                      _genericSearchQuery.value = value;
+                                      _genericSearchController.clear();
+                                      _genericSearchQuery.value = '';
                                     } else {
-                                      _presetsSearchQuery.value = value;
+                                      _presetsSearchController.clear();
+                                      _presetsSearchQuery.value = '';
                                     }
-                                  },
-                                  onSubmitted: (value) {
                                     setState(() {
                                       _isSearchVisible = false;
                                     });
                                   },
+                                  icon:
+                                      Icon(
+                                        Icons.close_rounded,
+                                        color: colorScheme.onSurfaceVariant,
+                                        size: 22,
+                                      ).animate().rotate(
+                                        duration: const Duration(
+                                          milliseconds: 300,
+                                        ),
+                                        curve: Curves.easeInOut,
+                                      ),
+                                  padding: const EdgeInsets.all(8),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 40,
+                                    minHeight: 40,
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
-                            if ((_tabController.index == 0 &&
-                                    _genericSearchController.text.isNotEmpty) ||
-                                (_tabController.index == 1 &&
-                                    _presetsSearchController.text.isNotEmpty))
-                              IconButton(
-                                onPressed: () {
-                                  if (_tabController.index == 0) {
-                                    _genericSearchController.clear();
-                                    _genericSearchQuery.value = '';
-                                  } else {
-                                    _presetsSearchController.clear();
-                                    _presetsSearchQuery.value = '';
-                                  }
-                                },
-                                icon: Icon(
-                                  Icons.clear_rounded,
-                                  color: colorScheme.onSurfaceVariant,
-                                  size: 22, // Increased icon size
-                                ),
-                                padding: const EdgeInsets.all(
-                                  8,
-                                ), // Increased padding
-                                constraints: const BoxConstraints(
-                                  minWidth: 40, // Increased size
-                                  minHeight: 40, // Increased size
-                                ),
-                              ),
-                            IconButton(
-                              onPressed: () {
-                                if (_tabController.index == 0) {
-                                  _genericSearchController.clear();
-                                  _genericSearchQuery.value = '';
-                                } else {
-                                  _presetsSearchController.clear();
-                                  _presetsSearchQuery.value = '';
-                                }
-                                setState(() {
-                                  _isSearchVisible = false;
-                                });
-                              },
-                              icon: Icon(
-                                Icons.close_rounded,
-                                color: colorScheme.onSurfaceVariant,
-                                size: 22, // Increased icon size
-                              ),
-                              padding: const EdgeInsets.all(
-                                8,
-                              ), // Increased padding
-                              constraints: const BoxConstraints(
-                                minWidth: 40, // Increased size
-                                minHeight: 40, // Increased size
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
-                  )
+                      )
+                      .animate()
+                      .scale(
+                        begin: const Offset(0.1, 0.1),
+                        duration: const Duration(milliseconds: 120),
+                        curve: Curves.easeOutCubic,
+                      )
+                      .fadeIn(
+                        duration: const Duration(milliseconds: 100),
+                        delay: const Duration(milliseconds: 30),
+                      )
                 : const SizedBox.shrink(),
           ),
         ],
@@ -342,28 +407,21 @@ class _IconsScreenState extends State<IconsScreen>
               ],
             ),
           ),
-          // Custom Navigation Bar at bottom
+          // Material 3 Navigation Bar - Full Width
           Container(
-            margin: EdgeInsets.fromLTRB(
-              16,
-              8,
-              16,
-              16 +
-                  MediaQuery.of(
-                    context,
-                  ).padding.bottom, // Add bottom safe area padding
+            width: double.infinity,
+            padding: EdgeInsets.only(
+              top: 8,
+              bottom: 8 + MediaQuery.of(context).padding.bottom,
             ),
             decoration: BoxDecoration(
-              color: isDark
-                  ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
-                  : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(16),
-              border: isDark
-                  ? Border.all(
-                      color: colorScheme.outline.withValues(alpha: 0.2),
-                      width: 1,
-                    )
-                  : null,
+              color: colorScheme.surfaceContainerHighest,
+              border: Border(
+                top: BorderSide(
+                  color: colorScheme.outline.withValues(alpha: 0.12),
+                  width: 0.5,
+                ),
+              ),
             ),
             child: Row(
               children: [
@@ -1006,38 +1064,59 @@ class _IconsScreenState extends State<IconsScreen>
 
   Widget _buildNavigationItem(int index, String label, IconData icon) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isSelected = _tabController.index == index;
 
-    return InkWell(
-      onTap: () {
-        _tabController.animateTo(index);
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: _tabController.index == index
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
-              size: 24,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: _tabController.index == index
-                    ? FontWeight.w600
-                    : FontWeight.w400,
-                color: _tabController.index == index
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          _tabController.animateTo(index);
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Icon with selection indicator
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isSelected ? 12 : 0,
+                  vertical: isSelected ? 8 : 0,
+                ),
+                decoration: isSelected
+                    ? BoxDecoration(
+                        color: colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(16),
+                      )
+                    : null,
+                child: Icon(
+                  icon,
+                  color: isSelected
+                      ? colorScheme.onPrimaryContainer
+                      : colorScheme.onSurfaceVariant,
+                  size: 24,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              // Label with proper typography
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 200),
+                style: Theme.of(context).textTheme.labelSmall!.copyWith(
+                  color: isSelected
+                      ? colorScheme.onSurface
+                      : colorScheme.onSurfaceVariant,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                ),
+                child: Text(label),
+              ),
+            ],
+          ),
         ),
       ),
     );

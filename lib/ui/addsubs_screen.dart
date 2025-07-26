@@ -518,13 +518,12 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
         elevation: 0,
         backgroundColor: backgroundColor,
         surfaceTintColor: Colors.transparent,
-        centerTitle: true,
+        centerTitle: false,
         title: Text(
           widget.subscriptionToEdit != null ? 'Edit Payable' : 'Add Payable',
-          style: TextStyle(
-            color: highContrastDarkBlue,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
-            fontSize: 18,
+            color: highContrastDarkBlue,
           ),
         ),
         actions: [
