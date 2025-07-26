@@ -100,6 +100,17 @@ class NotificationPreferences {
     return prefs.getBool(_keyPaymentReminders) ?? _defaultPaymentReminders;
   }
 
+  // Clear all notification preferences
+  static Future<void> clearAllPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.remove(_keyPaymentReminders);
+    await prefs.remove(_keyWeeklySummary);
+    await prefs.remove(_keyBudgetAlerts);
+    await prefs.remove(_keyRenewalNotifications);
+    await prefs.remove(_keyNotificationsEnabled);
+  }
+
   static Future<bool> getWeeklySummary() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_keyWeeklySummary) ?? _defaultWeeklySummary;

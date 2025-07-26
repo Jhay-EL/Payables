@@ -6,6 +6,13 @@ import 'widget_settings_screen.dart';
 import 'notification_settings_screen.dart';
 import 'appearance_settings_screen.dart';
 import 'currency_settings_screen.dart';
+import '../data/subscription_database.dart';
+import '../data/payment_method_database.dart';
+import '../data/currency_provider.dart';
+import '../data/custom_icon_database.dart';
+import '../data/notification_preferences.dart';
+import '../utils/dashboard_refresh_provider.dart';
+import 'package:provider/provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -1082,19 +1089,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Are you sure you want to erase all data? This action will permanently delete:',
+                'This will permanently delete all your subscriptions, payment methods, custom icons, and app preferences.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: darkColor,
                   fontWeight: FontWeight.w400,
                 ),
               ),
-              const SizedBox(height: 16),
-              // List of what will be erased
-              _buildEraseItem(Icons.subscriptions_rounded, 'All subscriptions'),
-              const SizedBox(height: 8),
-              _buildEraseItem(Icons.settings_rounded, 'All settings'),
-              const SizedBox(height: 8),
-              _buildEraseItem(Icons.analytics_rounded, 'All insights data'),
               const SizedBox(height: 16),
               // Warning container
               Container(
@@ -1130,61 +1130,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
           actions: [
-            OutlinedButton(
+            TextButton(
               onPressed: () => Navigator.pop(context),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                side: BorderSide(color: darkColor),
-              ),
               child: Text('Cancel', style: TextStyle(color: darkColor)),
             ),
-            const SizedBox(width: 12),
             FilledButton(
-              onPressed: () {
+              onPressed: () async {
                 Navigator.pop(context);
-                // Show success message
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Row(
-                      children: [
-                        Icon(
-                          Icons.check_circle_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'All data has been erased successfully',
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      ],
-                    ),
-                    backgroundColor: const Color(0xFFEF4444),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    margin: const EdgeInsets.all(16),
-                  ),
-                );
-                // ignore: avoid_print
-                print('Data erased');
+                await _eraseAllData(context);
               },
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFFEF4444),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
               ),
               child: const Text(
                 'Erase All Data',
@@ -1200,20 +1156,127 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildEraseItem(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, color: const Color(0xFFEF4444).withAlpha(153), size: 16),
-        const SizedBox(width: 8),
-        Text(
-          text,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: darkColor.withAlpha(179),
-            fontWeight: FontWeight.w400,
+  Future<void> _eraseAllData(BuildContext context) async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(
+                    color: const Color(0xFFEF4444),
+                    strokeWidth: 3,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Erasing all data...',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: highContrastDarkBlue,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+
+      // Delete all data from databases
+      await Future.wait([
+        // Delete all subscriptions
+        SubscriptionDatabase.clearAllSubscriptions(),
+        // Delete all payment methods
+        PaymentMethodDatabase.clearAllPaymentMethods(),
+        // Delete all custom icons
+        CustomIconDatabase.clearAllCustomIcons(),
+        // Clear notification preferences
+        NotificationPreferences.clearAllPreferences(),
+        // Clear currency preference
+        CurrencyProvider.clearCurrencyPreference(),
+      ]);
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Notify dashboard to refresh
+      if (mounted) {
+        final refreshProvider = Provider.of<DashboardRefreshProvider>(
+          context,
+          listen: false,
+        );
+        refreshProvider.refreshDashboard();
+      }
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 12),
+                Text(
+                  'All data has been erased successfully',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 3),
           ),
-        ),
-      ],
-    );
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 12),
+                Text(
+                  'Failed to erase data. Please try again.',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 }
 

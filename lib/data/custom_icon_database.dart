@@ -46,4 +46,25 @@ class CustomIconDatabase {
       await file.delete();
     }
   }
+
+  // Delete all custom icons
+  static Future<void> clearAllCustomIcons() async {
+    final instance = CustomIconDatabase();
+    final db = await instance.database;
+
+    // Get all icon paths before deleting from database
+    final icons = await db.query(_tableName);
+    final paths = icons.map((icon) => icon['path'] as String).toList();
+
+    // Delete all records from database
+    await db.delete(_tableName);
+
+    // Delete all icon files
+    for (final path in paths) {
+      final file = File(path);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
+  }
 }

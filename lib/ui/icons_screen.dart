@@ -36,6 +36,9 @@ class _IconsScreenState extends State<IconsScreen>
   final _genericSearchQuery = ValueNotifier<String>('');
   final _presetsSearchQuery = ValueNotifier<String>('');
 
+  // Search visibility state
+  bool _isSearchVisible = false;
+
   // Custom Icons
   final _customIconDb = CustomIconDatabase();
   List<Map<String, dynamic>> _customIcons = [];
@@ -45,7 +48,18 @@ class _IconsScreenState extends State<IconsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(() => setState(() {}));
+    _tabController.addListener(() {
+      setState(() {
+        // Hide search when switching tabs
+        if (_isSearchVisible) {
+          _isSearchVisible = false;
+          _genericSearchController.clear();
+          _presetsSearchController.clear();
+          _genericSearchQuery.value = '';
+          _presetsSearchQuery.value = '';
+        }
+      });
+    });
     _initializeDatabase();
     _loadCustomIcons();
 
@@ -113,55 +127,210 @@ class _IconsScreenState extends State<IconsScreen>
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F7FF),
+      backgroundColor: isDark
+          ? const Color(0xFF121212)
+          : const Color(0xFFF2F7FF),
       appBar: AppBar(
-        title: Text(
-          'Choose Icon',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: colorScheme.onSurface,
-          ),
-        ),
-        backgroundColor: const Color(0xFFF2F7FF),
+        title: !_isSearchVisible
+            ? Text(
+                'Choose Icon',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface,
+                ),
+              )
+            : null,
+        backgroundColor: isDark
+            ? const Color(0xFF121212)
+            : const Color(0xFFF2F7FF),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: TabBar(
-              controller: _tabController,
-              dividerColor: Colors.transparent,
-              indicatorColor: colorScheme.primary,
-              indicatorWeight: 3,
-              labelColor: colorScheme.primary,
-              unselectedLabelColor: colorScheme.onSurfaceVariant,
-              labelStyle: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-              unselectedLabelStyle: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500),
-              tabs: const [
-                Tab(text: 'Generic'),
-                Tab(text: 'Presets'),
-                Tab(text: 'Custom'),
-              ],
+        actions: [
+          if (!_isSearchVisible && _tabController.index != 2)
+            IconButton(
+              icon: Icon(Icons.search_rounded, color: colorScheme.onSurface),
+              onPressed: () {
+                setState(() {
+                  _isSearchVisible = true;
+                });
+                // Focus the search field after a short delay
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  if (mounted) {
+                    FocusManager.instance.primaryFocus?.unfocus();
+                  }
+                });
+              },
             ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            child: _isSearchVisible && _tabController.index != 2
+                ? SizedBox(
+                    key: const ValueKey('search'),
+                    width:
+                        MediaQuery.of(context).size.width -
+                        60, // Much wider - minimal margins
+                    child: Padding(
+                      padding: const EdgeInsets.only(
+                        left:
+                            4.0, // Increased left padding to move search bar left
+                        right:
+                            16.0, // Increased right padding to move search bar further from right edge
+                      ),
+                      child: Container(
+                        height: 48, // Increased height
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? colorScheme.surfaceContainerHighest.withValues(
+                                  alpha: 0.6,
+                                )
+                              : colorScheme.surfaceContainerHighest.withValues(
+                                  alpha: 0.3,
+                                ),
+                          borderRadius: BorderRadius.circular(
+                            24,
+                          ), // Increased border radius
+                          border: Border.all(
+                            color: colorScheme.outline.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                left: 16.0,
+                              ), // Increased padding
+                              child: Icon(
+                                Icons.search_rounded,
+                                color: colorScheme.onSurfaceVariant,
+                                size: 22, // Increased icon size
+                              ),
+                            ),
+                            Expanded(
+                              child: Container(
+                                height: 48, // Match container height
+                                alignment: Alignment.center, // Center alignment
+                                child: TextField(
+                                  controller: _tabController.index == 0
+                                      ? _genericSearchController
+                                      : _presetsSearchController,
+                                  focusNode: _tabController.index == 0
+                                      ? _genericSearchFocusNode
+                                      : _presetsSearchFocusNode,
+                                  autofocus: true,
+                                  decoration: InputDecoration(
+                                    hintText: _tabController.index == 0
+                                        ? 'Search icons...'
+                                        : 'Search services...',
+                                    hintStyle: TextStyle(
+                                      color: colorScheme.onSurfaceVariant,
+                                      fontSize: 16, // Increased font size
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                    border: InputBorder.none,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12, // Increased padding
+                                      vertical:
+                                          0, // Remove vertical padding to let container handle centering
+                                    ),
+                                    isDense:
+                                        true, // Makes the TextField more compact
+                                  ),
+                                  style: Theme.of(context).textTheme.bodyLarge
+                                      ?.copyWith(
+                                        color: colorScheme.onSurface,
+                                        fontSize: 16, // Increased font size
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                  onChanged: (value) {
+                                    if (_tabController.index == 0) {
+                                      _genericSearchQuery.value = value;
+                                    } else {
+                                      _presetsSearchQuery.value = value;
+                                    }
+                                  },
+                                  onSubmitted: (value) {
+                                    setState(() {
+                                      _isSearchVisible = false;
+                                    });
+                                  },
+                                ),
+                              ),
+                            ),
+                            if ((_tabController.index == 0 &&
+                                    _genericSearchController.text.isNotEmpty) ||
+                                (_tabController.index == 1 &&
+                                    _presetsSearchController.text.isNotEmpty))
+                              IconButton(
+                                onPressed: () {
+                                  if (_tabController.index == 0) {
+                                    _genericSearchController.clear();
+                                    _genericSearchQuery.value = '';
+                                  } else {
+                                    _presetsSearchController.clear();
+                                    _presetsSearchQuery.value = '';
+                                  }
+                                },
+                                icon: Icon(
+                                  Icons.clear_rounded,
+                                  color: colorScheme.onSurfaceVariant,
+                                  size: 22, // Increased icon size
+                                ),
+                                padding: const EdgeInsets.all(
+                                  8,
+                                ), // Increased padding
+                                constraints: const BoxConstraints(
+                                  minWidth: 40, // Increased size
+                                  minHeight: 40, // Increased size
+                                ),
+                              ),
+                            IconButton(
+                              onPressed: () {
+                                if (_tabController.index == 0) {
+                                  _genericSearchController.clear();
+                                  _genericSearchQuery.value = '';
+                                } else {
+                                  _presetsSearchController.clear();
+                                  _presetsSearchQuery.value = '';
+                                }
+                                setState(() {
+                                  _isSearchVisible = false;
+                                });
+                              },
+                              icon: Icon(
+                                Icons.close_rounded,
+                                color: colorScheme.onSurfaceVariant,
+                                size: 22, // Increased icon size
+                              ),
+                              padding: const EdgeInsets.all(
+                                8,
+                              ), // Increased padding
+                              constraints: const BoxConstraints(
+                                minWidth: 40, // Increased size
+                                minHeight: 40, // Increased size
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
           ),
-        ),
+        ],
       ),
       body: Column(
         children: [
-          // Search Bar
-          if (_tabController.index != 2) _buildSearchBar(),
-
           // Content
           Expanded(
             child: TabBarView(
@@ -173,53 +342,52 @@ class _IconsScreenState extends State<IconsScreen>
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isGeneric = _tabController.index == 0;
-    final controller = isGeneric
-        ? _genericSearchController
-        : _presetsSearchController;
-    final focusNode = isGeneric
-        ? _genericSearchFocusNode
-        : _presetsSearchFocusNode;
-    final hintText = isGeneric ? 'Search icons...' : 'Search services...';
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: SearchBar(
-        controller: controller,
-        focusNode: focusNode,
-        hintText: hintText,
-        hintStyle: WidgetStateProperty.all(
-          TextStyle(color: colorScheme.onSurfaceVariant),
-        ),
-        leading: Icon(
-          Icons.search_rounded,
-          color: colorScheme.onSurfaceVariant,
-        ),
-        trailing: controller.text.isNotEmpty
-            ? [
-                IconButton(
-                  icon: Icon(
-                    Icons.clear_rounded,
-                    color: colorScheme.onSurfaceVariant,
+          // Custom Navigation Bar at bottom
+          Container(
+            margin: EdgeInsets.fromLTRB(
+              16,
+              8,
+              16,
+              16 +
+                  MediaQuery.of(
+                    context,
+                  ).padding.bottom, // Add bottom safe area padding
+            ),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
+                  : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(16),
+              border: isDark
+                  ? Border.all(
+                      color: colorScheme.outline.withValues(alpha: 0.2),
+                      width: 1,
+                    )
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildNavigationItem(
+                    0,
+                    'Generic',
+                    Icons.category_rounded,
                   ),
-                  onPressed: () => controller.clear(),
                 ),
-              ]
-            : null,
-        backgroundColor: WidgetStateProperty.all(
-          colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        ),
-        elevation: WidgetStateProperty.all(0),
-        shape: WidgetStateProperty.all(
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        ),
+                Expanded(
+                  child: _buildNavigationItem(1, 'Presets', Icons.apps_rounded),
+                ),
+                Expanded(
+                  child: _buildNavigationItem(
+                    2,
+                    'Custom',
+                    Icons.photo_library_rounded,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -328,7 +496,7 @@ class _IconsScreenState extends State<IconsScreen>
         }
 
         return GridView.builder(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 6,
             crossAxisSpacing: 12,
@@ -381,7 +549,7 @@ class _IconsScreenState extends State<IconsScreen>
         }
 
         return GridView.builder(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 5,
             crossAxisSpacing: 16,
@@ -425,7 +593,7 @@ class _IconsScreenState extends State<IconsScreen>
     }
 
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 5,
         crossAxisSpacing: 16,
@@ -462,6 +630,7 @@ class _IconsScreenState extends State<IconsScreen>
     required VoidCallback onTap,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Material(
       color: Colors.transparent,
@@ -473,12 +642,28 @@ class _IconsScreenState extends State<IconsScreen>
               decoration: BoxDecoration(
                 color: isSelected
                     ? colorScheme.primary
+                    : isDark
+                    ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
                     : colorScheme.surfaceContainerHighest.withValues(
                         alpha: 0.3,
                       ),
                 borderRadius: BorderRadius.circular(16),
                 border: isSelected
                     ? Border.all(color: colorScheme.primary, width: 2)
+                    : isDark
+                    ? Border.all(
+                        color: colorScheme.outline.withValues(alpha: 0.2),
+                        width: 1,
+                      )
+                    : null,
+                boxShadow: isDark && !isSelected
+                    ? [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
                     : null,
               ),
               child: Icon(
@@ -500,6 +685,7 @@ class _IconsScreenState extends State<IconsScreen>
 
   Widget _buildCustomIconCard({required File file, required bool isSelected}) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Material(
       color: Colors.transparent,
@@ -511,6 +697,20 @@ class _IconsScreenState extends State<IconsScreen>
                 borderRadius: BorderRadius.circular(16),
                 border: isSelected
                     ? Border.all(color: colorScheme.primary, width: 2)
+                    : isDark
+                    ? Border.all(
+                        color: colorScheme.outline.withValues(alpha: 0.3),
+                        width: 1,
+                      )
+                    : null,
+                boxShadow: isDark && !isSelected
+                    ? [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
                     : null,
                 image: DecorationImage(
                   image: FileImage(file),
@@ -529,6 +729,7 @@ class _IconsScreenState extends State<IconsScreen>
 
   Widget _buildUploadButton({bool isGridItem = false}) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (isGridItem) {
       return Material(
@@ -538,12 +739,25 @@ class _IconsScreenState extends State<IconsScreen>
           borderRadius: BorderRadius.circular(16),
           child: Container(
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+              color: isDark
+                  ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
+                  : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: colorScheme.outline.withValues(alpha: 0.3),
+                color: isDark
+                    ? colorScheme.outline.withValues(alpha: 0.4)
+                    : colorScheme.outline.withValues(alpha: 0.3),
                 width: 1,
               ),
+              boxShadow: isDark
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
             ),
             child: Icon(
               Icons.add_photo_alternate_outlined,
@@ -556,7 +770,7 @@ class _IconsScreenState extends State<IconsScreen>
     }
 
     return Padding(
-      padding: const EdgeInsets.only(top: 80),
+      padding: const EdgeInsets.fromLTRB(0, 80, 0, 100),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
@@ -565,14 +779,27 @@ class _IconsScreenState extends State<IconsScreen>
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.3,
-                ),
+                color: isDark
+                    ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
+                    : colorScheme.surfaceContainerHighest.withValues(
+                        alpha: 0.3,
+                      ),
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(
-                  color: colorScheme.outline.withValues(alpha: 0.3),
+                  color: isDark
+                      ? colorScheme.outline.withValues(alpha: 0.4)
+                      : colorScheme.outline.withValues(alpha: 0.3),
                   width: 1,
                 ),
+                boxShadow: isDark
+                    ? [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : null,
               ),
               child: Icon(
                 Icons.cloud_upload_outlined,
@@ -618,7 +845,7 @@ class _IconsScreenState extends State<IconsScreen>
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.fromLTRB(32, 32, 32, 100),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -651,7 +878,7 @@ class _IconsScreenState extends State<IconsScreen>
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.fromLTRB(32, 32, 32, 100),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -705,9 +932,12 @@ class _IconsScreenState extends State<IconsScreen>
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error picking icon: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error picking icon: $e'),
+              backgroundColor: Theme.of(context).colorScheme.errorContainer,
+            ),
+          );
         }
       }
     } else if (status.isPermanentlyDenied) {
@@ -738,10 +968,11 @@ class _IconsScreenState extends State<IconsScreen>
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
+          SnackBar(
+            content: const Text(
               'Photo library permission is required to pick icons.',
             ),
+            backgroundColor: Theme.of(context).colorScheme.errorContainer,
           ),
         );
       }
@@ -771,5 +1002,45 @@ class _IconsScreenState extends State<IconsScreen>
       await _customIconDb.deleteIcon(id, path);
       _loadCustomIcons();
     }
+  }
+
+  Widget _buildNavigationItem(int index, String label, IconData icon) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return InkWell(
+      onTap: () {
+        _tabController.animateTo(index);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: _tabController.index == index
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant,
+              size: 24,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: _tabController.index == index
+                    ? FontWeight.w600
+                    : FontWeight.w400,
+                color: _tabController.index == index
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -23,4 +23,10 @@ class CurrencyProvider with ChangeNotifier {
     await prefs.setString(_currencyKey, currencyCode);
     notifyListeners();
   }
+
+  // Clear currency preference and reset to default
+  static Future<void> clearCurrencyPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_currencyKey);
+  }
 }
