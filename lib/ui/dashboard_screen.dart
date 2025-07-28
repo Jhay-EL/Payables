@@ -28,48 +28,13 @@ class _DashboardScreenState extends State<DashboardScreen>
   bool _isLoading = true;
   double _scrollOffset = 0.0;
 
-  // Dynamic color system that adapts to dark/light mode
-  Color get backgroundColor {
-    final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF121212)
-        : const Color(0xFFF2F7FF);
-  }
-
-  Color get lightColor {
-    final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF1E1E1E)
-        : const Color(0xFFD7EAFF);
-  }
-
-  Color get darkColor {
-    final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF43474e)
-        : const Color(0xFF43474e);
-  }
-
-  Color get userSelectedColor {
-    final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF3D5A80)
-        : const Color(0xFFAAD6FF);
-  }
-
-  Color get highContrastBlue {
-    final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF4FC3F7)
-        : const Color(0xFF00AFEC);
-  }
-
-  Color get highContrastDarkBlue {
-    final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFFE3F2FD)
-        : const Color(0xFF191c20);
-  }
+  // Cache color calculations to avoid repeated theme lookups
+  late Color _backgroundColor;
+  late Color _lightColor;
+  late Color _darkColor;
+  late Color _userSelectedColor;
+  late Color _highContrastBlue;
+  late Color _highContrastDarkBlue;
 
   // Real subscription data
   List<Subscription> _subscriptions = [];
@@ -79,48 +44,51 @@ class _DashboardScreenState extends State<DashboardScreen>
   int _thisWeekCount = 0;
   int _thisMonthCount = 0;
 
-  List<Map<String, dynamic>> _categories = [
+  // Cache default categories to avoid recreating them
+  static const List<Map<String, dynamic>> _defaultCategories = [
     {
       'icon': Icons.play_circle_filled_rounded,
       'name': 'Entertainment',
       'count': 0,
-      'color': const Color(0xFFEC4899),
-      'originalColor': const Color(0xFF006A6B),
-      'originalBackgroundColor': const Color(0xFFA6F2FF),
+      'color': Color(0xFFEC4899),
+      'originalColor': Color(0xFF006A6B),
+      'originalBackgroundColor': Color(0xFFA6F2FF),
     },
     {
       'icon': Icons.cloud_upload_rounded,
       'name': 'Cloud & Software',
       'count': 0,
-      'color': const Color(0xFF3B82F6),
-      'originalColor': const Color(0xFF6750A4),
-      'originalBackgroundColor': const Color(0xFFEADDFF),
+      'color': Color(0xFF3B82F6),
+      'originalColor': Color(0xFF6750A4),
+      'originalBackgroundColor': Color(0xFFEADDFF),
     },
     {
       'icon': Icons.bolt_rounded,
       'name': 'Utilities & Household',
       'count': 0,
-      'color': const Color(0xFFF59E0B),
-      'originalColor': const Color(0xFF795548),
-      'originalBackgroundColor': const Color(0xFFEFEBE9),
+      'color': Color(0xFFF59E0B),
+      'originalColor': Color(0xFF795548),
+      'originalBackgroundColor': Color(0xFFEFEBE9),
     },
     {
       'icon': Icons.phone_android_rounded,
       'name': 'Mobile & Connectivity',
       'count': 0,
-      'color': const Color(0xFF84CC16),
-      'originalColor': const Color(0xFF006B5D),
-      'originalBackgroundColor': const Color(0xFFA6F2ED),
+      'color': Color(0xFF84CC16),
+      'originalColor': Color(0xFF006B5D),
+      'originalBackgroundColor': Color(0xFFA6F2ED),
     },
     {
       'icon': Icons.account_balance_wallet_rounded,
       'name': 'Insurance & Finance',
       'count': 0,
-      'color': const Color(0xFF10B981),
-      'originalColor': const Color(0xFF8E4EC6),
-      'originalBackgroundColor': const Color(0xFFE8DEF8),
+      'color': Color(0xFF10B981),
+      'originalColor': Color(0xFF8E4EC6),
+      'originalBackgroundColor': Color(0xFFE8DEF8),
     },
   ];
+
+  List<Map<String, dynamic>> _categories = List.from(_defaultCategories);
 
   @override
   void initState() {
@@ -139,6 +107,33 @@ class _DashboardScreenState extends State<DashboardScreen>
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Cache color calculations once when dependencies change
+    _cacheColors();
+  }
+
+  void _cacheColors() {
+    final brightness = Theme.of(context).brightness;
+    _backgroundColor = brightness == Brightness.dark
+        ? const Color(0xFF121212)
+        : const Color(0xFFF2F7FF);
+    _lightColor = brightness == Brightness.dark
+        ? const Color(0xFF1E1E1E)
+        : const Color(0xFFD7EAFF);
+    _darkColor = const Color(0xFF43474e);
+    _userSelectedColor = brightness == Brightness.dark
+        ? const Color(0xFF3D5A80)
+        : const Color(0xFFAAD6FF);
+    _highContrastBlue = brightness == Brightness.dark
+        ? const Color(0xFF4FC3F7)
+        : const Color(0xFF00AFEC);
+    _highContrastDarkBlue = brightness == Brightness.dark
+        ? const Color(0xFFE3F2FD)
+        : const Color(0xFF191c20);
+  }
+
   // Public method to refresh dashboard data (can be called from other screens)
   Future<void> refreshDashboard() async {
     await _refreshDashboardData();
@@ -149,13 +144,13 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (!mounted) return;
 
     try {
-      // Use compute to move heavy work off main thread
-      await Future.delayed(const Duration(milliseconds: 50));
+      // Reduced delay for better performance
+      await Future.delayed(const Duration(milliseconds: 10));
       await _refreshDashboardData();
     } catch (e) {
-      // If first attempt fails, try again with longer delay
+      // If first attempt fails, try again with shorter delay
       if (mounted) {
-        await Future.delayed(const Duration(milliseconds: 300));
+        await Future.delayed(const Duration(milliseconds: 100));
         await _refreshDashboardData();
       }
     }
@@ -174,7 +169,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     // Only update if the change is significant enough to warrant a rebuild
     final newOffset = _scrollController.offset;
     // Use a larger threshold to reduce rebuild frequency
-    if ((newOffset - _scrollOffset).abs() > 5.0) {
+    if ((newOffset - _scrollOffset).abs() > 10.0) {
       setState(() {
         _scrollOffset = newOffset;
       });
@@ -191,13 +186,11 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (!mounted) return;
 
     try {
-      // Reduced delay for better performance
-      await Future.delayed(const Duration(milliseconds: 100));
+      // Minimal delay for better performance
+      await Future.delayed(const Duration(milliseconds: 5));
 
       // Load fresh data
       await _loadSubscriptionData();
-
-      // Force UI update
       if (mounted) {
         setState(() {});
       }
@@ -212,13 +205,22 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _loadSubscriptionData() async {
     if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-    });
+
+    // Only show loading on first load, not on refresh
+    if (_subscriptions.isEmpty) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
 
     try {
+      // Use a small delay to prevent UI blocking
+      await Future.delayed(const Duration(milliseconds: 10));
+
       // Load all dashboard data in a single optimized call
       final dashboardData = await SubscriptionDatabase.getDashboardData();
+
+      if (!mounted) return;
 
       final allSubscriptions =
           dashboardData['allSubscriptions'] as List<Subscription>;
@@ -236,56 +238,13 @@ class _DashboardScreenState extends State<DashboardScreen>
       final thisWeekCount = counts['thisWeek'] ?? 0;
       final thisMonthCount = counts['thisMonth'] ?? 0;
 
-      final defaultCategories = [
-        {
-          'icon': Icons.play_circle_filled_rounded,
-          'name': 'Entertainment',
-          'count': 0,
-          'color': const Color(0xFFEC4899),
-          'originalColor': const Color(0xFF006A6B),
-          'originalBackgroundColor': const Color(0xFFA6F2FF),
-        },
-        {
-          'icon': Icons.cloud_upload_rounded,
-          'name': 'Cloud & Software',
-          'count': 0,
-          'color': const Color(0xFF3B82F6),
-          'originalColor': const Color(0xFF6750A4),
-          'originalBackgroundColor': const Color(0xFFEADDFF),
-        },
-        {
-          'icon': Icons.bolt_rounded,
-          'name': 'Utilities & Household',
-          'count': 0,
-          'color': const Color(0xFFF59E0B),
-          'originalColor': const Color(0xFF795548),
-          'originalBackgroundColor': const Color(0xFFEFEBE9),
-        },
-        {
-          'icon': Icons.phone_android_rounded,
-          'name': 'Mobile & Connectivity',
-          'count': 0,
-          'color': const Color(0xFF84CC16),
-          'originalColor': const Color(0xFF006B5D),
-          'originalBackgroundColor': const Color(0xFFA6F2ED),
-        },
-        {
-          'icon': Icons.account_balance_wallet_rounded,
-          'name': 'Insurance & Finance',
-          'count': 0,
-          'color': const Color(0xFF10B981),
-          'originalColor': const Color(0xFF8E4EC6),
-          'originalBackgroundColor': const Color(0xFFE8DEF8),
-        },
-      ];
-
       // Create a new list of categories with updated counts
       final List<Map<String, dynamic>> updatedCategories = [];
-      final defaultCategoryNames = defaultCategories
+      final defaultCategoryNames = _defaultCategories
           .map((c) => c['name'])
           .toSet();
 
-      for (final category in defaultCategories) {
+      for (final category in _defaultCategories) {
         final categoryName = category['name'].toString();
         final newCategory = Map<String, dynamic>.from(category);
         newCategory['count'] = categoryCounts[categoryName] ?? 0;
@@ -379,7 +338,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     return TextStyle(
       fontSize: animatedSize,
       fontWeight: FontWeight.w400,
-      color: highContrastDarkBlue,
+      color: _highContrastDarkBlue,
     );
   }
 
@@ -404,8 +363,56 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Show loading screen for first load
+    if (_isLoading && _subscriptions.isEmpty) {
+      return Scaffold(
+        backgroundColor: _backgroundColor,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [_highContrastBlue, _userSelectedColor],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(
+                  Icons.account_balance_wallet_rounded,
+                  color: Colors.white,
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Loading Payables...',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: _highContrastDarkBlue,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(_highContrastBlue),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: _backgroundColor,
       body: CustomScrollView(
         // Add physics for smoother scrolling
         physics: const AlwaysScrollableScrollPhysics(),
@@ -418,8 +425,8 @@ class _DashboardScreenState extends State<DashboardScreen>
             pinned: true,
             snap: false,
             elevation: 0,
-            surfaceTintColor: lightColor,
-            backgroundColor: backgroundColor,
+            surfaceTintColor: _lightColor,
+            backgroundColor: _backgroundColor,
             automaticallyImplyLeading: false,
             actions: [
               Padding(
@@ -432,7 +439,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 child: Stack(
                   children: [
                     Container(
-                      decoration: BoxDecoration(color: backgroundColor),
+                      decoration: BoxDecoration(color: _backgroundColor),
                     ),
                     // Animated Payables Title with enhanced flutter_animate
                     Positioned(
@@ -464,7 +471,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     duration: const Duration(
                                       milliseconds: 2000,
                                     ),
-                                    color: highContrastDarkBlue.withValues(
+                                    color: _highContrastDarkBlue.withValues(
                                       alpha: 0.3,
                                     ),
                                     size: 2.0,
@@ -488,7 +495,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(
                             fontWeight: FontWeight.w400,
-                            color: highContrastDarkBlue,
+                            color: _highContrastDarkBlue,
                           ),
                     )
                     .animate()
@@ -516,7 +523,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                         style: Theme.of(context).textTheme.headlineSmall
                             ?.copyWith(
                               fontWeight: FontWeight.w400,
-                              color: highContrastDarkBlue,
+                              color: _highContrastDarkBlue,
                             ),
                       ),
                       // Save button (only in edit mode)
@@ -571,7 +578,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     'Paused/Finished Payables',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w400,
-                      color: highContrastDarkBlue,
+                      color: _highContrastDarkBlue,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -585,7 +592,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     'Insights',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w400,
-                      color: highContrastDarkBlue,
+                      color: _highContrastDarkBlue,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -605,7 +612,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (_isLoading) {
       return Card(
         elevation: 0,
-        color: lightColor.withAlpha(150),
+        color: _lightColor.withAlpha(150),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: const Padding(
           padding: EdgeInsets.all(32.0),
@@ -621,7 +628,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               title: 'All',
               subtitle: 'View all payables',
               count: _totalSubscriptions,
-              color: darkColor,
+              color: _darkColor,
               isFirst: true,
               isLast: false,
             )
@@ -642,7 +649,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               title: 'This Week',
               subtitle: 'Due in 7 days',
               count: _thisWeekCount,
-              color: darkColor,
+              color: _darkColor,
               isFirst: false,
               isLast: false,
             )
@@ -663,7 +670,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               title: 'This Month',
               subtitle: 'Due in 30 days',
               count: _thisMonthCount,
-              color: darkColor,
+              color: _darkColor,
               isFirst: false,
               isLast: true,
             )
@@ -692,8 +699,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     required bool isLast,
   }) {
     // Use consistent custom colors for all cards
-    Color cardBackgroundColor = lightColor.withAlpha(150);
-    Color iconColor = darkColor;
+    Color cardBackgroundColor = _lightColor.withAlpha(150);
+    Color iconColor = _darkColor;
 
     // Determine border radius based on position
     BorderRadius borderRadius;
@@ -748,7 +755,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     Text(
                       title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: highContrastDarkBlue,
+                        color: _highContrastDarkBlue,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -756,7 +763,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     Text(
                       subtitle,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: darkColor,
+                        color: _darkColor,
                         fontWeight: FontWeight.w400,
                       ),
                     ),
@@ -885,7 +892,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     // In dark mode, use consistent background like overview cards
     final cardBackgroundColor = Theme.of(context).brightness == Brightness.dark
-        ? lightColor.withAlpha(150) // Same as overview cards
+        ? _lightColor.withAlpha(150) // Same as overview cards
         : categoryBackgroundColor.withAlpha(120); // Colorful in light mode
 
     // Determine border radius based on position
@@ -935,12 +942,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: darkColor.withAlpha(41),
+                        color: _darkColor.withAlpha(41),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Icon(
                         Icons.drag_handle_rounded,
-                        color: darkColor,
+                        color: _darkColor,
                         size: 20,
                       ),
                     ),
@@ -963,7 +970,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   child: Text(
                     name,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: highContrastDarkBlue,
+                      color: _highContrastDarkBlue,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -996,12 +1003,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: highContrastBlue.withAlpha(41),
+                        color: _highContrastBlue.withAlpha(41),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Icon(
                         Icons.edit_rounded,
-                        color: highContrastBlue,
+                        color: _highContrastBlue,
                         size: 20,
                       ),
                     ),
@@ -1042,7 +1049,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (_isLoading) {
       return Card(
         elevation: 0,
-        color: lightColor.withAlpha(150),
+        color: _lightColor.withAlpha(150),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: const Padding(
           padding: EdgeInsets.all(32.0),
@@ -1054,7 +1061,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Card(
       elevation: 0,
       margin: EdgeInsets.zero,
-      color: lightColor.withAlpha(150),
+      color: _lightColor.withAlpha(150),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -1072,7 +1079,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                         'Spending Insights',
                         style: Theme.of(context).textTheme.headlineSmall
                             ?.copyWith(
-                              color: highContrastDarkBlue,
+                              color: _highContrastDarkBlue,
                               fontWeight: FontWeight.w500,
                               letterSpacing: -0.5,
                             ),
@@ -1081,7 +1088,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       Text(
                         'Monthly breakdown by category',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: darkColor.withAlpha(179),
+                          color: _darkColor.withAlpha(179),
                           fontWeight: FontWeight.w400,
                         ),
                       ),
@@ -1090,16 +1097,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
                 Container(
                   decoration: BoxDecoration(
-                    color: userSelectedColor.withAlpha(100),
+                    color: _userSelectedColor.withAlpha(100),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: userSelectedColor.withAlpha(120),
+                      color: _userSelectedColor.withAlpha(120),
                       width: 1.5,
                     ),
                   ),
                   child: IconButton(
                     onPressed: () => _handleInsightsFilter(),
-                    icon: Icon(Icons.tune_rounded, size: 20, color: darkColor),
+                    icon: Icon(Icons.tune_rounded, size: 20, color: _darkColor),
                     style: IconButton.styleFrom(
                       padding: const EdgeInsets.all(12),
                     ),
@@ -1125,9 +1132,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       return Container(
         height: 200,
         decoration: BoxDecoration(
-          color: backgroundColor.withAlpha(120),
+          color: _backgroundColor.withAlpha(120),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: darkColor.withAlpha(51), width: 1),
+          border: Border.all(color: _darkColor.withAlpha(51), width: 1),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1135,22 +1142,22 @@ class _DashboardScreenState extends State<DashboardScreen>
             Icon(
               Icons.insights_rounded,
               size: 48,
-              color: darkColor.withAlpha(102),
+              color: _darkColor.withAlpha(102),
             ),
             const SizedBox(height: 16),
             Text(
               'No spending data available',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: darkColor.withAlpha(153),
+                color: _darkColor.withAlpha(153),
                 fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               'Add subscriptions to see insights',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: darkColor.withAlpha(102)),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: _darkColor.withAlpha(102),
+              ),
             ),
           ],
         ),
@@ -1202,9 +1209,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: backgroundColor.withAlpha(80),
+        color: _backgroundColor.withAlpha(80),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: lightColor.withAlpha(100), width: 1),
+        border: Border.all(color: _lightColor.withAlpha(100), width: 1),
       ),
       child: Column(
         children: chartBars.isEmpty
@@ -1213,13 +1220,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                 Icon(
                   Icons.bar_chart_rounded,
                   size: 48,
-                  color: darkColor.withAlpha(102),
+                  color: _darkColor.withAlpha(102),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'No category data available',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: darkColor.withAlpha(153),
+                    color: _darkColor.withAlpha(153),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -1287,7 +1294,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 Text(
                   categoryName,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: highContrastDarkBlue,
+                    color: _highContrastDarkBlue,
                     fontWeight: FontWeight.w600,
                     letterSpacing: -0.3,
                   ),
@@ -1373,7 +1380,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             Text(
               '${(barWidth * 100).toStringAsFixed(1)}% of total',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: darkColor.withAlpha(153),
+                color: _darkColor.withAlpha(153),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -1398,12 +1405,12 @@ class _DashboardScreenState extends State<DashboardScreen>
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [lightColor.withAlpha(100), backgroundColor.withAlpha(80)],
+          colors: [_lightColor.withAlpha(100), _backgroundColor.withAlpha(80)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: lightColor.withAlpha(120), width: 1),
+        border: Border.all(color: _lightColor.withAlpha(120), width: 1),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -1412,21 +1419,21 @@ class _DashboardScreenState extends State<DashboardScreen>
             icon: Icons.euro_rounded,
             label: 'Total Monthly',
             value: '€${totalSpending.toStringAsFixed(2)}',
-            color: highContrastBlue,
+            color: _highContrastBlue,
           ),
-          Container(width: 1, height: 40, color: darkColor.withAlpha(51)),
+          Container(width: 1, height: 40, color: _darkColor.withAlpha(51)),
           _buildAxisLabelItem(
             icon: Icons.trending_up_rounded,
             label: 'Highest Category',
             value: '€${maxCategorySpending.toStringAsFixed(2)}',
-            color: darkColor,
+            color: _darkColor,
           ),
-          Container(width: 1, height: 40, color: darkColor.withAlpha(51)),
+          Container(width: 1, height: 40, color: _darkColor.withAlpha(51)),
           _buildAxisLabelItem(
             icon: Icons.category_rounded,
             label: 'Categories',
             value: _getActiveCategoriesCount().toString(),
-            color: userSelectedColor,
+            color: _userSelectedColor,
           ),
         ],
       ),
@@ -1454,7 +1461,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         Text(
           value,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: highContrastDarkBlue,
+            color: _highContrastDarkBlue,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -1462,7 +1469,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: darkColor.withAlpha(153),
+            color: _darkColor.withAlpha(153),
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -1521,7 +1528,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (_isLoading) {
       return Card(
         elevation: 0,
-        color: lightColor.withAlpha(150),
+        color: _lightColor.withAlpha(150),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: const Padding(
           padding: EdgeInsets.all(32.0),
@@ -1602,7 +1609,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Card(
       elevation: 0,
       margin: EdgeInsets.zero,
-      color: lightColor.withAlpha(150),
+      color: _lightColor.withAlpha(150),
       shape: RoundedRectangleBorder(borderRadius: borderRadius),
       child: InkWell(
         onTap: () => _handlePausedFinishedTap(title, subscriptions),
@@ -1629,7 +1636,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     Text(
                       title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: highContrastDarkBlue,
+                        color: _highContrastDarkBlue,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1637,7 +1644,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     Text(
                       subtitle,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: darkColor,
+                        color: _darkColor,
                         fontWeight: FontWeight.w400,
                       ),
                     ),
@@ -1801,7 +1808,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 fontWeight: FontWeight.w400,
                 color: isDark
                     ? Colors.white.withAlpha(230)
-                    : highContrastDarkBlue,
+                    : _highContrastDarkBlue,
               ),
               textAlign: TextAlign.start,
             ),
@@ -1861,7 +1868,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       builder: (context) {
         return Container(
           decoration: BoxDecoration(
-            color: backgroundColor,
+            color: _backgroundColor,
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(28),
               topRight: Radius.circular(28),
@@ -1879,7 +1886,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     width: 32,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: darkColor.withAlpha(102),
+                      color: _darkColor.withAlpha(102),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -1891,12 +1898,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: darkColor.withAlpha(41),
+                        color: _darkColor.withAlpha(41),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Icon(
                         Icons.add_circle_outline_rounded,
-                        color: darkColor,
+                        color: _darkColor,
                         size: 24,
                       ),
                     ),
@@ -1910,7 +1917,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             style: Theme.of(context).textTheme.headlineSmall
                                 ?.copyWith(
                                   fontWeight: FontWeight.w500,
-                                  color: highContrastDarkBlue,
+                                  color: _highContrastDarkBlue,
                                   letterSpacing: -0.5,
                                 ),
                           ),
@@ -1919,7 +1926,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             'What would you like to add?',
                             style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
-                                  color: darkColor.withAlpha(179),
+                                  color: _darkColor.withAlpha(179),
                                   fontWeight: FontWeight.w400,
                                 ),
                           ),
@@ -1935,7 +1942,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   title: 'Payable',
                   subtitle: 'Add a new subscription or bill',
                   icon: Icons.post_add_rounded,
-                  color: highContrastBlue,
+                  color: _highContrastBlue,
                   onTap: () {
                     Navigator.pop(context); // Close bottom sheet
                     Navigator.push(
@@ -1962,7 +1969,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   title: 'Category',
                   subtitle: 'Create a new category for payables',
                   icon: Icons.create_new_folder_outlined,
-                  color: darkColor,
+                  color: _darkColor,
                   onTap: () {
                     Navigator.pop(context); // Close bottom sheet
                     _handleCategoryAdd();
@@ -2012,7 +2019,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Card(
       elevation: 0,
       margin: EdgeInsets.zero,
-      color: lightColor.withAlpha(150),
+      color: _lightColor.withAlpha(150),
       shape: RoundedRectangleBorder(borderRadius: borderRadius),
       child: InkWell(
         onTap: onTap,
@@ -2039,7 +2046,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     Text(
                       title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: highContrastDarkBlue,
+                        color: _highContrastDarkBlue,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -2047,7 +2054,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     Text(
                       subtitle,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: darkColor,
+                        color: _darkColor,
                         fontWeight: FontWeight.w400,
                       ),
                     ),
@@ -2096,7 +2103,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         builder: (context, setModalState) => Container(
           height: MediaQuery.of(context).size.height * 0.9,
           decoration: BoxDecoration(
-            color: backgroundColor,
+            color: _backgroundColor,
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(28),
               topRight: Radius.circular(28),
@@ -2110,7 +2117,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 width: 32,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: darkColor.withAlpha(102),
+                  color: _darkColor.withAlpha(102),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -2137,7 +2144,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             style: Theme.of(context).textTheme.headlineSmall
                                 ?.copyWith(
                                   fontWeight: FontWeight.w500,
-                                  color: highContrastDarkBlue,
+                                  color: _highContrastDarkBlue,
                                 ),
                           ),
                           const SizedBox(height: 4),
@@ -2145,7 +2152,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             'Create a new category',
                             style: Theme.of(
                               context,
-                            ).textTheme.bodyMedium?.copyWith(color: darkColor),
+                            ).textTheme.bodyMedium?.copyWith(color: _darkColor),
                           ),
                         ],
                       ),
@@ -2168,7 +2175,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                           decoration: InputDecoration(
                             hintText: 'Enter category name',
                             filled: true,
-                            fillColor: lightColor.withAlpha(100),
+                            fillColor: _lightColor.withAlpha(100),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
                               borderSide: BorderSide.none,
@@ -2223,9 +2230,9 @@ class _DashboardScreenState extends State<DashboardScreen>
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: lightColor.withAlpha(50),
+                  color: _lightColor.withAlpha(50),
                   border: Border(
-                    top: BorderSide(color: darkColor.withAlpha(51), width: 1),
+                    top: BorderSide(color: _darkColor.withAlpha(51), width: 1),
                   ),
                 ),
                 child: Row(
@@ -2238,11 +2245,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          side: BorderSide(color: darkColor),
+                          side: BorderSide(color: _darkColor),
                         ),
                         child: Text(
                           'Cancel',
-                          style: TextStyle(color: darkColor),
+                          style: TextStyle(color: _darkColor),
                         ),
                       ),
                     ),
@@ -2336,7 +2343,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         builder: (context, setModalState) => Container(
           height: MediaQuery.of(context).size.height * 0.9,
           decoration: BoxDecoration(
-            color: backgroundColor,
+            color: _backgroundColor,
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(28),
               topRight: Radius.circular(28),
@@ -2350,7 +2357,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 width: 32,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: darkColor.withAlpha(102),
+                  color: _darkColor.withAlpha(102),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -2377,7 +2384,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             style: Theme.of(context).textTheme.headlineSmall
                                 ?.copyWith(
                                   fontWeight: FontWeight.w500,
-                                  color: highContrastDarkBlue,
+                                  color: _highContrastDarkBlue,
                                 ),
                           ),
                           const SizedBox(height: 4),
@@ -2385,7 +2392,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             'Customize name, icon, and color',
                             style: Theme.of(
                               context,
-                            ).textTheme.bodyMedium?.copyWith(color: darkColor),
+                            ).textTheme.bodyMedium?.copyWith(color: _darkColor),
                           ),
                         ],
                       ),
@@ -2408,7 +2415,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                           decoration: InputDecoration(
                             hintText: 'Enter category name',
                             filled: true,
-                            fillColor: lightColor.withAlpha(100),
+                            fillColor: _lightColor.withAlpha(100),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
                               borderSide: BorderSide.none,
@@ -2463,9 +2470,9 @@ class _DashboardScreenState extends State<DashboardScreen>
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: lightColor.withAlpha(50),
+                  color: _lightColor.withAlpha(50),
                   border: Border(
-                    top: BorderSide(color: darkColor.withAlpha(51), width: 1),
+                    top: BorderSide(color: _darkColor.withAlpha(51), width: 1),
                   ),
                 ),
                 child: Row(
@@ -2478,11 +2485,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          side: BorderSide(color: darkColor),
+                          side: BorderSide(color: _darkColor),
                         ),
                         child: Text(
                           'Cancel',
-                          style: TextStyle(color: darkColor),
+                          style: TextStyle(color: _darkColor),
                         ),
                       ),
                     ),
@@ -2563,7 +2570,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: backgroundColor,
+          backgroundColor: _backgroundColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
@@ -2586,7 +2593,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 child: Text(
                   'Delete Category',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: highContrastDarkBlue,
+                    color: _highContrastDarkBlue,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -2600,7 +2607,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               Text(
                 'Are you sure you want to delete the "$categoryName" category?',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: darkColor,
+                  color: _darkColor,
                   fontWeight: FontWeight.w400,
                 ),
               ),
@@ -2648,9 +2655,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
-                side: BorderSide(color: darkColor),
+                side: BorderSide(color: _darkColor),
               ),
-              child: Text('Cancel', style: TextStyle(color: darkColor)),
+              child: Text('Cancel', style: TextStyle(color: _darkColor)),
             ),
             const SizedBox(width: 12),
             FilledButton(
@@ -2721,7 +2728,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           title,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
-            color: highContrastDarkBlue,
+            color: _highContrastDarkBlue,
           ),
         ),
         const SizedBox(height: 16),
@@ -2740,7 +2747,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: lightColor.withAlpha(100),
+          color: _lightColor.withAlpha(100),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: selectedColor.withAlpha(51), width: 1),
         ),
@@ -2759,12 +2766,12 @@ class _DashboardScreenState extends State<DashboardScreen>
               child: Text(
                 'Tap to change icon',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: darkColor,
+                  color: _darkColor,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: darkColor, size: 20),
+            Icon(Icons.chevron_right_rounded, color: _darkColor, size: 20),
           ],
         ),
       ),
@@ -3964,7 +3971,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             }
 
             return AlertDialog(
-              backgroundColor: backgroundColor,
+              backgroundColor: _backgroundColor,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
               ),
@@ -3975,7 +3982,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   Text(
                     'Choose Icon',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: highContrastDarkBlue,
+                      color: _highContrastDarkBlue,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -3985,10 +3992,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                     controller: searchController,
                     decoration: InputDecoration(
                       hintText: 'Search icons...',
-                      prefixIcon: Icon(Icons.search_rounded, color: darkColor),
+                      prefixIcon: Icon(Icons.search_rounded, color: _darkColor),
                       suffixIcon: searchController.text.isNotEmpty
                           ? IconButton(
-                              icon: Icon(Icons.clear_rounded, color: darkColor),
+                              icon: Icon(
+                                Icons.clear_rounded,
+                                color: _darkColor,
+                              ),
                               onPressed: () {
                                 searchController.clear();
                                 setState(() {});
@@ -3996,7 +4006,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             )
                           : null,
                       filled: true,
-                      fillColor: lightColor.withAlpha(100),
+                      fillColor: _lightColor.withAlpha(100),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide.none,
@@ -4011,7 +4021,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                     ),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: highContrastDarkBlue,
+                      color: _highContrastDarkBlue,
                     ),
                     onChanged: (value) {
                       setState(() {});
@@ -4030,14 +4040,14 @@ class _DashboardScreenState extends State<DashboardScreen>
                             Icon(
                               Icons.search_off_rounded,
                               size: 48,
-                              color: darkColor.withAlpha(102),
+                              color: _darkColor.withAlpha(102),
                             ),
                             const SizedBox(height: 16),
                             Text(
                               'No icons found',
                               style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(
-                                    color: darkColor.withAlpha(153),
+                                    color: _darkColor.withAlpha(153),
                                     fontWeight: FontWeight.w500,
                                   ),
                             ),
@@ -4045,7 +4055,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             Text(
                               'Try a different search term',
                               style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(color: darkColor.withAlpha(102)),
+                                  ?.copyWith(color: _darkColor.withAlpha(102)),
                             ),
                           ],
                         ),
@@ -4071,13 +4081,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                             child: Container(
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? highContrastBlue.withAlpha(41)
-                                    : lightColor.withAlpha(100),
+                                    ? _highContrastBlue.withAlpha(41)
+                                    : _lightColor.withAlpha(100),
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
                                   color: isSelected
-                                      ? highContrastBlue
-                                      : darkColor.withAlpha(51),
+                                      ? _highContrastBlue
+                                      : _darkColor.withAlpha(51),
                                   width: isSelected ? 2 : 1,
                                 ),
                               ),
@@ -4104,9 +4114,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    side: BorderSide(color: darkColor),
+                    side: BorderSide(color: _darkColor),
                   ),
-                  child: Text('Cancel', style: TextStyle(color: darkColor)),
+                  child: Text('Cancel', style: TextStyle(color: _darkColor)),
                 ),
               ],
             );
@@ -4164,7 +4174,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                       color: color,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isSelected ? darkColor : darkColor.withAlpha(51),
+                        color: isSelected
+                            ? _darkColor
+                            : _darkColor.withAlpha(51),
                         width: isSelected ? 3 : 1,
                       ),
                     ),
@@ -4198,7 +4210,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: darkColor.withAlpha(102),
+                      color: _darkColor.withAlpha(102),
                       width: 1.5,
                     ),
                   ),
@@ -4227,7 +4239,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         builder: (BuildContext context, StateSetter setModalState) {
           return Container(
             decoration: BoxDecoration(
-              color: backgroundColor,
+              color: _backgroundColor,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(28),
                 topRight: Radius.circular(28),
@@ -4245,7 +4257,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       width: 32,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: darkColor.withAlpha(102),
+                        color: _darkColor.withAlpha(102),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -4257,12 +4269,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: darkColor.withAlpha(41),
+                          color: _darkColor.withAlpha(41),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Icon(
                           Icons.visibility_off_rounded,
-                          color: darkColor,
+                          color: _darkColor,
                           size: 24,
                         ),
                       ),
@@ -4276,7 +4288,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                               style: Theme.of(context).textTheme.headlineSmall
                                   ?.copyWith(
                                     fontWeight: FontWeight.w500,
-                                    color: highContrastDarkBlue,
+                                    color: _highContrastDarkBlue,
                                     letterSpacing: -0.5,
                                   ),
                             ),
@@ -4285,7 +4297,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                               'Toggle panels to show or hide them',
                               style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(
-                                    color: darkColor.withAlpha(179),
+                                    color: _darkColor.withAlpha(179),
                                     fontWeight: FontWeight.w400,
                                   ),
                             ),
@@ -4301,7 +4313,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     'Panel Options',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: highContrastDarkBlue,
+                      color: _highContrastDarkBlue,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -4354,7 +4366,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         'subtitle': 'Hide category breakdown section',
         'icon': Icons.category_rounded,
         'isHidden': localCategoryHidden,
-        'color': darkColor,
+        'color': _darkColor,
         'onChanged': onCategoryChanged,
       },
       {
@@ -4362,7 +4374,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         'subtitle': 'Hide spending insights section',
         'icon': Icons.insights_rounded,
         'isHidden': localInsightsHidden,
-        'color': highContrastBlue,
+        'color': _highContrastBlue,
         'onChanged': onInsightsChanged,
       },
       {
@@ -4427,7 +4439,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Card(
       elevation: 0,
       margin: EdgeInsets.zero,
-      color: lightColor.withAlpha(150),
+      color: _lightColor.withAlpha(150),
       shape: RoundedRectangleBorder(borderRadius: borderRadius),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -4450,14 +4462,14 @@ class _DashboardScreenState extends State<DashboardScreen>
                     title,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w500,
-                      color: highContrastDarkBlue,
+                      color: _highContrastDarkBlue,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: darkColor,
+                      color: _darkColor,
                       fontWeight: FontWeight.w400,
                     ),
                   ),
@@ -4474,7 +4486,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 activeColor: Colors.white,
                 activeTrackColor: color,
                 inactiveThumbColor: Colors.white,
-                inactiveTrackColor: lightColor.withAlpha(120),
+                inactiveTrackColor: _lightColor.withAlpha(120),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),
@@ -4528,7 +4540,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(28),
               ),
-              backgroundColor: backgroundColor,
+              backgroundColor: _backgroundColor,
               title: Row(
                 children: [
                   Icon(icon, color: activeColor, size: 24),
@@ -4536,7 +4548,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   Text(
                     title,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: highContrastDarkBlue,
+                      color: _highContrastDarkBlue,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -4553,7 +4565,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                         color: pickedColor,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: darkColor.withAlpha(77),
+                          color: _darkColor.withAlpha(77),
                           width: 4,
                         ),
                       ),
@@ -4569,7 +4581,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       textAlign: TextAlign.center,
                       maxLength: 6,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: highContrastDarkBlue,
+                        color: _highContrastDarkBlue,
                         fontFamily: 'monospace',
                       ),
                       decoration: InputDecoration(
@@ -4577,7 +4589,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                         prefixText: '#',
                         counterText: '',
                         filled: true,
-                        fillColor: lightColor.withAlpha(100),
+                        fillColor: _lightColor.withAlpha(100),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide.none,
@@ -4609,7 +4621,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   child: Text(
                     'Cancel',
                     style: TextStyle(
-                      color: highContrastDarkBlue,
+                      color: _highContrastDarkBlue,
                       fontWeight: FontWeight.w500,
                     ),
                   ),

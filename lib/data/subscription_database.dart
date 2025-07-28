@@ -562,66 +562,82 @@ class SubscriptionDatabase {
   static Future<Map<String, dynamic>> getDashboardData() async {
     try {
       final db = await database;
-      final List<Map<String, dynamic>> maps = await db.query(
-        _tableName,
-        orderBy: '$_columnBillingDate ASC',
-      );
 
-      // Convert to Subscription objects
-      final allSubscriptions = List.generate(maps.length, (i) {
-        return Subscription.fromMap(maps[i]);
-      });
-
-      // Compute counts efficiently
+      // Use a single optimized query with computed values
       final now = DateTime.now();
       final weekFromNow = now.add(const Duration(days: 7));
       final currentMonthEnd = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+
+      // Single query to get all data with computed counts
+      final List<Map<String, dynamic>> maps = await db.rawQuery(
+        '''
+        SELECT 
+          *,
+          CASE 
+            WHEN status = 'active' AND billing_date BETWEEN ? AND ? THEN 1 
+            ELSE 0 
+          END as is_this_week,
+          CASE 
+            WHEN status = 'active' AND billing_date BETWEEN ? AND ? THEN 1 
+            ELSE 0 
+          END as is_this_month
+        FROM $_tableName 
+        ORDER BY billing_date ASC
+      ''',
+        [
+          now.millisecondsSinceEpoch,
+          weekFromNow.millisecondsSinceEpoch,
+          now.millisecondsSinceEpoch,
+          currentMonthEnd.millisecondsSinceEpoch,
+        ],
+      );
+
+      // Efficient single-pass processing
+      final List<Subscription> allSubscriptions = [];
+      final List<Subscription> activeSubscriptions = [];
+      final List<Subscription> pausedSubscriptions = [];
+      final List<Subscription> finishedSubscriptions = [];
 
       int activeCount = 0;
       int pausedCount = 0;
       int finishedCount = 0;
       int thisWeekCount = 0;
       int thisMonthCount = 0;
-      Map<String, int> categoryCounts = {};
+      final Map<String, int> categoryCounts = <String, int>{};
 
-      for (final subscription in allSubscriptions) {
-        // Status counts
+      for (final map in maps) {
+        final subscription = Subscription.fromMap(map);
+        allSubscriptions.add(subscription);
+
+        // Single-pass categorization and counting
         switch (subscription.status) {
           case 'active':
             activeCount++;
-            // Only count active subscriptions for upcoming dates
-            if (subscription.billingDate.isAfter(now) &&
-                subscription.billingDate.isBefore(weekFromNow)) {
-              thisWeekCount++;
-            }
-            if (subscription.billingDate.isAfter(now) &&
-                subscription.billingDate.isBefore(currentMonthEnd)) {
-              thisMonthCount++;
-            }
-            // Category counts (only active)
-            final category = subscription.category;
-            categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
+            activeSubscriptions.add(subscription);
+
+            // Use pre-computed values from SQL
+            if (map['is_this_week'] == 1) thisWeekCount++;
+            if (map['is_this_month'] == 1) thisMonthCount++;
+
+            categoryCounts[subscription.category] =
+                (categoryCounts[subscription.category] ?? 0) + 1;
             break;
           case 'paused':
             pausedCount++;
+            pausedSubscriptions.add(subscription);
             break;
           case 'finished':
             finishedCount++;
+            finishedSubscriptions.add(subscription);
             break;
         }
       }
 
       return {
         'allSubscriptions': allSubscriptions,
-        'activeSubscriptions': allSubscriptions
-            .where((s) => s.status == 'active')
-            .toList(),
-        'pausedSubscriptions': allSubscriptions
-            .where((s) => s.status == 'paused')
-            .toList(),
-        'finishedSubscriptions': allSubscriptions
-            .where((s) => s.status == 'finished')
-            .toList(),
+        'activeSubscriptions': activeSubscriptions,
+        'pausedSubscriptions': pausedSubscriptions,
+        'finishedSubscriptions': finishedSubscriptions,
         'counts': {
           'total': allSubscriptions.length,
           'active': activeCount,

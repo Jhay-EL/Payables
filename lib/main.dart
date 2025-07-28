@@ -8,20 +8,17 @@ import 'package:payables/utils/theme_provider.dart';
 import 'package:payables/utils/dashboard_refresh_provider.dart';
 import 'package:payables/services/notification_service.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  final logger = Logger();
-
-  // Test database connection
+// Initialize app services in background
+void _initializeAppServices(Logger logger) async {
   try {
-    logger.i('Testing database connection...');
+    // Test database connection
     final dbTest = await SubscriptionDatabase.testDatabaseConnection();
     if (dbTest) {
-      logger.i('Database connection successful');
+      logger.i('Database initialization successful');
       final dbInfo = await SubscriptionDatabase.getDatabaseInfo();
       logger.d('Database info: $dbInfo');
     } else {
-      logger.e('Database connection failed');
+      logger.e('Database initialization failed');
     }
   } catch (e) {
     logger.e('Database test error: $e');
@@ -29,14 +26,22 @@ void main() async {
 
   // Initialize notification service (with error handling)
   try {
-    await NotificationService().initialize();
-
-    // Request notification permissions on first app launch
-    await NotificationService().requestPermissions();
+    final notificationService = NotificationService();
+    await notificationService.initialize();
+    await notificationService.requestPermissions();
+    logger.i('Notification service initialized successfully');
   } catch (e) {
     logger.e('Failed to initialize notification service: $e');
     // Continue app execution even if notifications fail
   }
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final logger = Logger();
+
+  // Run initialization in background without blocking UI
+  _initializeAppServices(logger);
 
   runApp(
     MultiProvider(
