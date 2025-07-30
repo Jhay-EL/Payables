@@ -1485,7 +1485,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       _loadSubscriptions(); // Refresh the list if changes were saved or categories were updated
 
       // Return the result to the parent screen (dashboard) so it can refresh too
-      Navigator.of(context).pop(result);
+      if (mounted) {
+        Navigator.of(context).pop(result);
+      }
     } else if (result == 'deleted' ||
         result == 'duplicated' ||
         result == 'status_updated') {

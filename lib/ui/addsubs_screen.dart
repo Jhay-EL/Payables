@@ -13,9 +13,9 @@ import '../models/payment_method.dart';
 import '../data/currency_database.dart';
 import 'package:provider/provider.dart';
 import '../data/currency_provider.dart';
-import 'color_picker_screen.dart';
 import '../utils/snackbar_service.dart';
 import '../utils/dashboard_refresh_provider.dart';
+import '../utils/material3_color_system.dart';
 
 class AddSubsScreen extends StatefulWidget {
   final List<Map<String, dynamic>>? categories;
@@ -1370,21 +1370,196 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
   }
 
   void _showColorPickerDialog() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ColorPickerScreen(
-          initialColor: _selectedColor,
-          currentTitle: _titleController.text,
-          currentIcon: _selectedIcon,
-          currentAmount: _amountController.text,
-          currentDescription: _descriptionController.text,
-          currentDueDate: _getBillingInfo(),
-          onColorSelected: (color) {
-            setState(() {
-              _selectedColor = color;
-            });
-          },
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(28),
+              topRight: Radius.circular(28),
+            ),
+          ),
+          child: Column(
+            children: [
+              // Bottom sheet handle
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 32,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: darkColor.withAlpha(102),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _selectedColor.withAlpha(41),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(
+                        Icons.palette_rounded,
+                        color: _selectedColor,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Choose Color',
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  color: highContrastDarkBlue,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Select a Material 3 color for your payable',
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.copyWith(color: darkColor),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Color grid
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    children: [
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: Material3ColorSystem.categoryColors.map((
+                          color,
+                        ) {
+                          final isSelected = color == _selectedColor;
+                          return GestureDetector(
+                            onTap: () {
+                              setModalState(() {
+                                _selectedColor = color;
+                              });
+                              setState(() {
+                                _selectedColor = color;
+                              });
+                            },
+                            child: Container(
+                              width: 56,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isSelected
+                                      ? darkColor
+                                      : darkColor.withAlpha(51),
+                                  width: isSelected ? 3 : 1,
+                                ),
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: color.withAlpha(100),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                              child: isSelected
+                                  ? Icon(
+                                      Icons.check_rounded,
+                                      color: Colors.white,
+                                      size: 24,
+                                    )
+                                  : null,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+                      Center(
+                        child: Text(
+                          '${Material3ColorSystem.categoryColors.length} Material 3 colors available',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: darkColor.withAlpha(153),
+                                fontStyle: FontStyle.italic,
+                              ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+              // Actions
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: lightColor.withAlpha(50),
+                  border: Border(
+                    top: BorderSide(color: darkColor.withAlpha(51), width: 1),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          side: BorderSide(color: darkColor),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(color: darkColor),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _selectedColor,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: const Text(
+                          'Select',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: MediaQuery.of(context).padding.bottom),
+            ],
+          ),
         ),
       ),
     );

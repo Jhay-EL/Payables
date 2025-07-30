@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:payables/data/subscription_database.dart';
+import 'package:payables/data/category_preferences_database.dart';
 import 'package:payables/models/subscription.dart';
 import 'package:payables/ui/addsubs_screen.dart';
 import 'package:payables/ui/subscription_screen.dart';
@@ -8,6 +9,7 @@ import 'package:payables/ui/settings_screen.dart';
 
 import 'package:payables/utils/snackbar_service.dart';
 import 'package:payables/utils/dashboard_refresh_provider.dart';
+import 'package:payables/utils/material3_color_system.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' as math;
 
@@ -45,46 +47,51 @@ class _DashboardScreenState extends State<DashboardScreen>
   int _thisMonthCount = 0;
 
   // Cache default categories to avoid recreating them
-  static const List<Map<String, dynamic>> _defaultCategories = [
+  static final List<Map<String, dynamic>> _defaultCategories = [
     {
       'icon': Icons.play_circle_filled_rounded,
       'name': 'Entertainment',
       'count': 0,
-      'color': Color(0xFFEC4899),
-      'originalColor': Color(0xFF006A6B),
-      'originalBackgroundColor': Color(0xFFA6F2FF),
+      'color': Material3ColorSystem.categoryColors[0],
+      'originalColor': Material3ColorSystem.categoryColors[0],
+      'originalBackgroundColor':
+          Material3ColorSystem.categoryBackgroundColors[0],
     },
     {
       'icon': Icons.cloud_upload_rounded,
       'name': 'Cloud & Software',
       'count': 0,
-      'color': Color(0xFF3B82F6),
-      'originalColor': Color(0xFF6750A4),
-      'originalBackgroundColor': Color(0xFFEADDFF),
+      'color': Material3ColorSystem.categoryColors[1],
+      'originalColor': Material3ColorSystem.categoryColors[1],
+      'originalBackgroundColor':
+          Material3ColorSystem.categoryBackgroundColors[1],
     },
     {
       'icon': Icons.bolt_rounded,
       'name': 'Utilities & Household',
       'count': 0,
-      'color': Color(0xFFF59E0B),
-      'originalColor': Color(0xFF795548),
-      'originalBackgroundColor': Color(0xFFEFEBE9),
+      'color': Material3ColorSystem.categoryColors[2],
+      'originalColor': Material3ColorSystem.categoryColors[2],
+      'originalBackgroundColor':
+          Material3ColorSystem.categoryBackgroundColors[2],
     },
     {
       'icon': Icons.phone_android_rounded,
       'name': 'Mobile & Connectivity',
       'count': 0,
-      'color': Color(0xFF84CC16),
-      'originalColor': Color(0xFF006B5D),
-      'originalBackgroundColor': Color(0xFFA6F2ED),
+      'color': Material3ColorSystem.categoryColors[3],
+      'originalColor': Material3ColorSystem.categoryColors[3],
+      'originalBackgroundColor':
+          Material3ColorSystem.categoryBackgroundColors[3],
     },
     {
       'icon': Icons.account_balance_wallet_rounded,
       'name': 'Insurance & Finance',
       'count': 0,
-      'color': Color(0xFF10B981),
-      'originalColor': Color(0xFF8E4EC6),
-      'originalBackgroundColor': Color(0xFFE8DEF8),
+      'color': Material3ColorSystem.categoryColors[4],
+      'originalColor': Material3ColorSystem.categoryColors[4],
+      'originalBackgroundColor':
+          Material3ColorSystem.categoryBackgroundColors[4],
     },
   ];
 
@@ -116,22 +123,16 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   void _cacheColors() {
     final brightness = Theme.of(context).brightness;
-    _backgroundColor = brightness == Brightness.dark
-        ? const Color(0xFF121212)
-        : const Color(0xFFF2F7FF);
-    _lightColor = brightness == Brightness.dark
-        ? const Color(0xFF1E1E1E)
-        : const Color(0xFFD7EAFF);
-    _darkColor = const Color(0xFF43474e);
-    _userSelectedColor = brightness == Brightness.dark
-        ? const Color(0xFF3D5A80)
-        : const Color(0xFFAAD6FF);
-    _highContrastBlue = brightness == Brightness.dark
-        ? const Color(0xFF4FC3F7)
-        : const Color(0xFF00AFEC);
-    _highContrastDarkBlue = brightness == Brightness.dark
-        ? const Color(0xFFE3F2FD)
-        : const Color(0xFF191c20);
+
+    // Use Material 3 color system for adaptive colors
+    _backgroundColor = Material3ColorSystem.getSurfaceColor(brightness);
+    _lightColor = Material3ColorSystem.getSurfaceVariantColor(brightness);
+    _darkColor = Material3ColorSystem.getOnSurfaceVariantColor(brightness);
+    _userSelectedColor = Material3ColorSystem.getPrimaryContainerColor(
+      brightness,
+    );
+    _highContrastBlue = Material3ColorSystem.getPrimaryColor(brightness);
+    _highContrastDarkBlue = Material3ColorSystem.getOnSurfaceColor(brightness);
   }
 
   // Public method to refresh dashboard data (can be called from other screens)
@@ -238,31 +239,141 @@ class _DashboardScreenState extends State<DashboardScreen>
       final thisWeekCount = counts['thisWeek'] ?? 0;
       final thisMonthCount = counts['thisMonth'] ?? 0;
 
-      // Create a new list of categories with updated counts
+      // Get category preferences from database
+      final hiddenCategories =
+          await CategoryPreferencesDatabase.getHiddenCategories();
+      final categoryCustomizations =
+          await CategoryPreferencesDatabase.getAllCategoryCustomizations();
+
+      // Create a new list of categories with updated counts, preserving custom changes
       final List<Map<String, dynamic>> updatedCategories = [];
       final defaultCategoryNames = _defaultCategories
           .map((c) => c['name'])
           .toSet();
 
+      // Create a map of existing categories to preserve their settings
+      final Map<String, Map<String, dynamic>> existingCategories = {};
+      for (final category in _categories) {
+        final categoryName = category['name'].toString();
+        existingCategories[categoryName] = Map<String, dynamic>.from(category);
+      }
+
+      // Process default categories first (only if they exist in subscriptions or have custom settings)
       for (final category in _defaultCategories) {
         final categoryName = category['name'].toString();
-        final newCategory = Map<String, dynamic>.from(category);
-        newCategory['count'] = categoryCounts[categoryName] ?? 0;
-        updatedCategories.add(newCategory);
+        final count = categoryCounts[categoryName] ?? 0;
+
+        // Skip hidden categories
+        if (hiddenCategories.contains(categoryName)) {
+          continue;
+        }
+
+        // Only include default categories if they have subscriptions or custom settings
+        if (count > 0 || existingCategories.containsKey(categoryName)) {
+          // Check if we have existing custom settings for this category
+          if (existingCategories.containsKey(categoryName)) {
+            final existingCategory = existingCategories[categoryName]!;
+            updatedCategories.add({
+              'name': categoryName,
+              'icon': existingCategory['icon'] ?? category['icon'],
+              'count': count,
+              'color': existingCategory['color'] ?? category['color'],
+              'originalColor':
+                  existingCategory['originalColor'] ??
+                  category['originalColor'],
+              'originalBackgroundColor':
+                  existingCategory['originalBackgroundColor'] ??
+                  category['originalBackgroundColor'],
+            });
+          } else {
+            // Use default settings
+            final newCategory = Map<String, dynamic>.from(category);
+            newCategory['count'] = count;
+            updatedCategories.add(newCategory);
+          }
+        }
       }
 
       // Add categories from subscriptions that are not in the default list
       categoryCounts.forEach((categoryName, count) {
         if (!defaultCategoryNames.contains(categoryName) &&
             categoryName != 'Not set') {
-          updatedCategories.add({
-            'name': categoryName,
-            'icon': Icons.category_rounded, // Default icon for new categories
-            'count': count,
-            'color': const Color(0xFF6B7280), // Default color
-            'originalColor': const Color(0xFF6B7280),
-            'originalBackgroundColor': const Color(0xFFE0E0E0),
-          });
+          // Skip hidden categories
+          if (hiddenCategories.contains(categoryName)) {
+            return;
+          }
+
+          // Check if we have customizations from preferences database
+          final customization = categoryCustomizations[categoryName];
+          if (customization != null) {
+            updatedCategories.add({
+              'name': categoryName,
+              'icon': IconData(
+                customization['icon_code_point'] ??
+                    Icons.category_rounded.codePoint,
+                fontFamily: 'MaterialIcons',
+              ),
+              'count': count,
+              'color': customization['color_value'] != null
+                  ? Color(customization['color_value'])
+                  : Material3ColorSystem.getOnSurfaceVariantColor(
+                      Theme.of(context).brightness,
+                    ),
+              'originalColor': customization['color_value'] != null
+                  ? Color(customization['color_value'])
+                  : Material3ColorSystem.getOnSurfaceVariantColor(
+                      Theme.of(context).brightness,
+                    ),
+              'originalBackgroundColor':
+                  customization['background_color_value'] != null
+                  ? Color(customization['background_color_value'])
+                  : Material3ColorSystem.getSurfaceVariantColor(
+                      Theme.of(context).brightness,
+                    ),
+            });
+          } else {
+            // Check if we have existing custom settings for this category
+            if (existingCategories.containsKey(categoryName)) {
+              final existingCategory = existingCategories[categoryName]!;
+              updatedCategories.add({
+                'name': categoryName,
+                'icon': existingCategory['icon'] ?? Icons.category_rounded,
+                'count': count,
+                'color':
+                    existingCategory['color'] ??
+                    Material3ColorSystem.getOnSurfaceVariantColor(
+                      Theme.of(context).brightness,
+                    ),
+                'originalColor':
+                    existingCategory['originalColor'] ??
+                    Material3ColorSystem.getOnSurfaceVariantColor(
+                      Theme.of(context).brightness,
+                    ),
+                'originalBackgroundColor':
+                    existingCategory['originalBackgroundColor'] ??
+                    Material3ColorSystem.getSurfaceVariantColor(
+                      Theme.of(context).brightness,
+                    ),
+              });
+            } else {
+              // New category, use defaults
+              updatedCategories.add({
+                'name': categoryName,
+                'icon': Icons.category_rounded,
+                'count': count,
+                'color': Material3ColorSystem.getOnSurfaceVariantColor(
+                  Theme.of(context).brightness,
+                ),
+                'originalColor': Material3ColorSystem.getOnSurfaceVariantColor(
+                  Theme.of(context).brightness,
+                ),
+                'originalBackgroundColor':
+                    Material3ColorSystem.getSurfaceVariantColor(
+                      Theme.of(context).brightness,
+                    ),
+              });
+            }
+          }
         }
       });
 
@@ -425,7 +536,9 @@ class _DashboardScreenState extends State<DashboardScreen>
             pinned: true,
             snap: false,
             elevation: 0,
-            surfaceTintColor: _lightColor,
+            surfaceTintColor: Material3ColorSystem.getSurfaceTintColor(
+              Theme.of(context).brightness,
+            ),
             backgroundColor: _backgroundColor,
             automaticallyImplyLeading: false,
             actions: [
@@ -519,13 +632,24 @@ class _DashboardScreenState extends State<DashboardScreen>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Categories',
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(
-                              fontWeight: FontWeight.w400,
-                              color: _highContrastDarkBlue,
-                            ),
-                      ),
+                            'Categories',
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w400,
+                                  color: _highContrastDarkBlue,
+                                ),
+                          )
+                          .animate()
+                          .fadeIn(
+                            duration: const Duration(milliseconds: 600),
+                            curve: Curves.easeOutCubic,
+                          )
+                          .slideX(
+                            duration: const Duration(milliseconds: 500),
+                            curve: Curves.easeOutCubic,
+                            begin: -0.2,
+                            end: 0.0,
+                          ),
                       // Save button (only in edit mode)
                       if (_isEditMode) ...[
                         FilledButton.icon(
@@ -552,7 +676,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                             ),
                           ),
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF10B981),
+                            backgroundColor:
+                                Material3ColorSystem.getTertiaryColor(
+                                  Theme.of(context).brightness,
+                                ),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
                               vertical: 12,
@@ -589,12 +716,24 @@ class _DashboardScreenState extends State<DashboardScreen>
                 // M3 Insights Section
                 if (!_isInsightsHidden) ...[
                   Text(
-                    'Insights',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w400,
-                      color: _highContrastDarkBlue,
-                    ),
-                  ),
+                        'Insights',
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              fontWeight: FontWeight.w400,
+                              color: _highContrastDarkBlue,
+                            ),
+                      )
+                      .animate()
+                      .fadeIn(
+                        duration: const Duration(milliseconds: 600),
+                        curve: Curves.easeOutCubic,
+                      )
+                      .slideX(
+                        duration: const Duration(milliseconds: 500),
+                        curve: Curves.easeOutCubic,
+                        begin: -0.2,
+                        end: 0.0,
+                      ),
                   const SizedBox(height: 20),
                   _buildM3InsightsSection(),
                 ],
@@ -832,15 +971,26 @@ class _DashboardScreenState extends State<DashboardScreen>
           int index = entry.key;
           Map<String, dynamic> category = entry.value;
           return _buildM3CategoryItem(
-            category['icon'],
-            category['name'],
-            category['count'],
-            category['color'],
-            index: index,
-            isLast: index == _categories.length - 1,
-            originalColor: category['originalColor'],
-            originalBackgroundColor: category['originalBackgroundColor'],
-          );
+                category['icon'],
+                category['name'],
+                category['count'],
+                category['color'],
+                index: index,
+                isLast: index == _categories.length - 1,
+                originalColor: category['originalColor'],
+                originalBackgroundColor: category['originalBackgroundColor'],
+              )
+              .animate()
+              .fadeIn(
+                duration: Duration(milliseconds: 600 + (index * 100)),
+                curve: Curves.easeOutCubic,
+              )
+              .slideY(
+                duration: Duration(milliseconds: 500 + (index * 100)),
+                curve: Curves.easeOutCubic,
+                begin: 0.3,
+                end: 0.0,
+              );
         }),
       ],
     );
@@ -848,31 +998,11 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   // Get distinct colors for each category using Material 3 design language
   Color _getCategoryColor(int index) {
-    final colors = [
-      const Color(0xFF6750A4), // Primary Purple
-      const Color(0xFF006A6B), // Teal
-      const Color(0xFF8B5000), // Brown
-      const Color(0xFF006E1C), // Green
-      const Color(0xFF8E4EC6), // Secondary Purple
-      const Color(0xFF984061), // Pink
-      const Color(0xFF006B5D), // Dark Teal
-      const Color(0xFF795548), // Material Brown
-    ];
-    return colors[index % colors.length];
+    return Material3ColorSystem.getCategoryColor(index);
   }
 
   Color _getCategoryBackgroundColor(int index) {
-    final backgroundColors = [
-      const Color(0xFFEADDFF), // Light Purple
-      const Color(0xFFA6F2FF), // Light Teal
-      const Color(0xFFFFDCC5), // Light Brown
-      const Color(0xFFA6F7B1), // Light Green
-      const Color(0xFFE8DEF8), // Light Secondary Purple
-      const Color(0xFFFFD8E4), // Light Pink
-      const Color(0xFFA6F2ED), // Light Dark Teal
-      const Color(0xFFEFEBE9), // Light Material Brown
-    ];
-    return backgroundColors[index % backgroundColors.length];
+    return Material3ColorSystem.getCategoryBackgroundColor(index);
   }
 
   Widget _buildM3CategoryItem(
@@ -1020,12 +1150,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444).withAlpha(41),
+                        color: Material3ColorSystem.getErrorColor(
+                          Theme.of(context).brightness,
+                        ).withAlpha(41),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Icon(
                         Icons.delete_rounded,
-                        color: const Color(0xFFEF4444),
+                        color: Material3ColorSystem.getErrorColor(
+                          Theme.of(context).brightness,
+                        ),
                         size: 20,
                       ),
                     ),
@@ -1059,104 +1193,214 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
 
     return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      color: _lightColor.withAlpha(150),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // M3 Expressive Header
-            Row(
+          elevation: 0,
+          margin: EdgeInsets.zero,
+          color: _lightColor.withAlpha(150),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Spending Insights',
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(
-                              color: _highContrastDarkBlue,
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: -0.5,
-                            ),
+                // M3 Expressive Header
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Spending Insights',
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(
+                                  color: _highContrastDarkBlue,
+                                  fontWeight: FontWeight.w500,
+                                  letterSpacing: -0.5,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Monthly breakdown by category',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: _darkColor.withAlpha(179),
+                                  fontWeight: FontWeight.w400,
+                                ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Monthly breakdown by category',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: _darkColor.withAlpha(179),
-                          fontWeight: FontWeight.w400,
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: _userSelectedColor.withAlpha(100),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: _userSelectedColor.withAlpha(120),
+                          width: 1.5,
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: _userSelectedColor.withAlpha(100),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: _userSelectedColor.withAlpha(120),
-                      width: 1.5,
+                      child: IconButton(
+                        onPressed: () => _handleInsightsFilter(),
+                        icon: Icon(
+                          Icons.tune_rounded,
+                          size: 20,
+                          color: _darkColor,
+                        ),
+                        style: IconButton.styleFrom(
+                          padding: const EdgeInsets.all(12),
+                        ),
+                      ),
                     ),
-                  ),
-                  child: IconButton(
-                    onPressed: () => _handleInsightsFilter(),
-                    icon: Icon(Icons.tune_rounded, size: 20, color: _darkColor),
-                    style: IconButton.styleFrom(
-                      padding: const EdgeInsets.all(12),
-                    ),
-                  ),
+                  ],
                 ),
+                const SizedBox(height: 32),
+                // M3 Expressive Chart Content
+                RepaintBoundary(child: _buildM3ExpressiveChart()),
+                if (_subscriptions.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  _buildM3ExpressiveAxisLabels(),
+                ],
               ],
             ),
-            const SizedBox(height: 32),
-            // M3 Expressive Chart Content
-            RepaintBoundary(child: _buildM3ExpressiveChart()),
-            if (_subscriptions.isNotEmpty) ...[
-              const SizedBox(height: 24),
-              _buildM3ExpressiveAxisLabels(),
-            ],
-          ],
-        ),
-      ),
-    );
+          ),
+        )
+        .animate()
+        .fadeIn(
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeOutCubic,
+        )
+        .slideY(
+          duration: const Duration(milliseconds: 700),
+          curve: Curves.easeOutCubic,
+          begin: 0.3,
+          end: 0.0,
+        );
   }
 
   Widget _buildM3ExpressiveChart() {
     if (_subscriptions.isEmpty) {
       return Container(
-        height: 200,
+        constraints: const BoxConstraints(minHeight: 160, maxHeight: 180),
         decoration: BoxDecoration(
-          color: _backgroundColor.withAlpha(120),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: _darkColor.withAlpha(51), width: 1),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.insights_rounded,
-              size: 48,
-              color: _darkColor.withAlpha(102),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Material3ColorSystem.getPrimaryColor(
+                Theme.of(context).brightness,
+              ).withAlpha(25),
+              Material3ColorSystem.getSecondaryColor(
+                Theme.of(context).brightness,
+              ).withAlpha(20),
+              Material3ColorSystem.getTertiaryColor(
+                Theme.of(context).brightness,
+              ).withAlpha(15),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color: Material3ColorSystem.getPrimaryColor(
+              Theme.of(context).brightness,
+            ).withAlpha(40),
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Material3ColorSystem.getPrimaryColor(
+                Theme.of(context).brightness,
+              ).withAlpha(15),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'No spending data available',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: _darkColor.withAlpha(153),
-                fontWeight: FontWeight.w500,
+          ],
+        ),
+        child: Stack(
+          children: [
+            // Enhanced background pattern
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(28),
+                  color: Colors.transparent,
+                ),
+                child: CustomPaint(
+                  painter: _EnhancedInsightsPatternPainter(
+                    color: Material3ColorSystem.getPrimaryColor(
+                      Theme.of(context).brightness,
+                    ).withAlpha(12),
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Add subscriptions to see insights',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: _darkColor.withAlpha(102),
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Enhanced icon with glow effect
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Material3ColorSystem.getPrimaryColor(
+                            Theme.of(context).brightness,
+                          ).withAlpha(50),
+                          Material3ColorSystem.getSecondaryColor(
+                            Theme.of(context).brightness,
+                          ).withAlpha(40),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Material3ColorSystem.getPrimaryColor(
+                            Theme.of(context).brightness,
+                          ).withAlpha(30),
+                          blurRadius: 12,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.analytics_outlined,
+                      size: 28,
+                      color: Material3ColorSystem.getPrimaryColor(
+                        Theme.of(context).brightness,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Enhanced title with better typography
+                  Text(
+                    'No Insights Yet',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: _highContrastDarkBlue,
+                      fontWeight: FontWeight
+                          .w500, // Material 3: medium weight for titles
+                      letterSpacing: -0.2,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 4),
+                  // Enhanced subtitle
+                  Text(
+                    'Add subscriptions to see spending patterns',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: _darkColor.withAlpha(179),
+                      fontWeight: FontWeight
+                          .w400, // Material 3: regular weight for body text
+                      height: 1.2,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
             ),
           ],
@@ -1546,7 +1790,9 @@ class _DashboardScreenState extends State<DashboardScreen>
             title: 'Paused',
             subtitle: 'Temporarily suspended payables',
             count: _pausedSubscriptions.length,
-            color: const Color(0xFFF59E0B), // Orange for paused
+            color: Material3ColorSystem.getTertiaryColor(
+              Theme.of(context).brightness,
+            ), // Tertiary for paused
             subscriptions: _pausedSubscriptions,
             isFirst: true,
             isLast: _finishedSubscriptions.isEmpty,
@@ -1560,7 +1806,9 @@ class _DashboardScreenState extends State<DashboardScreen>
             title: 'Finished',
             subtitle: 'Completed or expired payables',
             count: _finishedSubscriptions.length,
-            color: const Color(0xFF10B981), // Green for finished
+            color: Material3ColorSystem.getSecondaryColor(
+              Theme.of(context).brightness,
+            ), // Secondary for finished
             subscriptions: _finishedSubscriptions,
             isFirst: _pausedSubscriptions.isEmpty,
             isLast: true,
@@ -1677,49 +1925,56 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Widget _buildM3PopupMenu() {
     final brightness = Theme.of(context).brightness;
-    final isDark = brightness == Brightness.dark;
 
     return PopupMenuButton<String>(
       icon: Container(
-        width: 48, // 48dp minimum touch target
-        height: 48,
+        width: 40, // Material 3: 40dp touch target
+        height: 40,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           color: Colors.transparent,
         ),
         child: Icon(
           Icons.more_vert_rounded,
-          color: const Color(0xFF43474e),
-          size: 24, // 24dp icon size as per Material 3
+          color: Material3ColorSystem.getOnSurfaceColor(brightness),
+          size: 24, // Material 3: 24dp icon size
         ),
       ),
-      splashRadius: 24,
-      offset: const Offset(0, 50),
+      splashRadius: 20, // Material 3: 20dp splash radius
+      offset: const Offset(
+        0,
+        16,
+      ), // Material 3: 16dp offset from trigger for better spacing
+      position: PopupMenuPosition.under, // Ensure menu appears below the icon
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(
-          12,
-        ), // 12dp corner radius for modern look
+        borderRadius: BorderRadius.circular(4), // Material 3: 4dp corner radius
       ),
-      elevation: 8,
-      color: isDark
-          ? const Color(0xFF1E1E1E)
-          : const Color(0xFFFFFFFF), // Dynamic background
-      surfaceTintColor: Colors.transparent, // Remove surface tint
-      shadowColor: isDark
-          ? const Color(0x40000000) // Darker shadow for dark mode
-          : const Color(
-              0x1F000000,
-            ), // Material 3 menu shadow color (12% opacity black)
+      elevation: 3, // Material 3: 3dp elevation
+      color: Material3ColorSystem.getSurfaceVariantColor(
+        brightness,
+      ), // Material 3: surface container
+      surfaceTintColor: Material3ColorSystem.getSurfaceTintColor(
+        brightness,
+      ), // Material 3: surface tint
+      shadowColor: Material3ColorSystem.getShadowColor(
+        brightness,
+      ), // Material 3: shadow color
       constraints: const BoxConstraints(
-        minWidth: 112, // Material 3 min width
-        maxWidth: 280, // Material 3 max width
+        minWidth: 112, // Material 3: 112dp minimum width
+        maxWidth: 280, // Material 3: 280dp maximum width
       ),
-      // Custom Material 3 expressive transitions
+      // Material 3 expressive transitions with enhanced easing and duration
       popUpAnimationStyle: AnimationStyle(
-        duration: const Duration(milliseconds: 300),
-        reverseDuration: const Duration(milliseconds: 250),
-        curve: Curves.easeInOutCubicEmphasized,
-        reverseCurve: Curves.easeInCubic,
+        duration: const Duration(
+          milliseconds: 300,
+        ), // Material 3: 300ms for emphasis
+        reverseDuration: const Duration(
+          milliseconds: 250,
+        ), // Material 3: 250ms reverse for emphasis
+        curve: Curves
+            .easeInOutCubicEmphasized, // Material 3: emphasized easing for emphasis
+        reverseCurve:
+            Curves.easeInCubic, // Material 3: ease-in-cubic for reverse
       ),
       onSelected: (String value) async {
         switch (value) {
@@ -1751,25 +2006,33 @@ class _DashboardScreenState extends State<DashboardScreen>
           value: 'add',
           text: 'Add',
           icon: Icons.add_circle_rounded,
-          color: const Color(0xFF43474e),
+          color: Material3ColorSystem.getPrimaryColor(
+            Theme.of(context).brightness,
+          ),
         ),
         _buildM3PopupMenuItem(
           value: 'edit',
           text: _isEditMode ? 'Done Editing' : 'Edit',
           icon: _isEditMode ? Icons.check_circle_rounded : Icons.edit_rounded,
-          color: const Color(0xFF43474e),
+          color: Material3ColorSystem.getSecondaryColor(
+            Theme.of(context).brightness,
+          ),
         ),
         _buildM3PopupMenuItem(
           value: 'hide_panel',
           text: 'Hide Panel',
           icon: Icons.visibility_off_rounded,
-          color: const Color(0xFF43474e),
+          color: Material3ColorSystem.getTertiaryColor(
+            Theme.of(context).brightness,
+          ),
         ),
         _buildM3PopupMenuItem(
           value: 'settings',
           text: 'Settings',
           icon: Icons.settings_rounded,
-          color: const Color(0xFF43474e),
+          color: Material3ColorSystem.getOnSurfaceColor(
+            Theme.of(context).brightness,
+          ),
         ),
       ],
     );
@@ -1782,38 +2045,56 @@ class _DashboardScreenState extends State<DashboardScreen>
     required Color color,
   }) {
     final brightness = Theme.of(context).brightness;
-    final isDark = brightness == Brightness.dark;
 
     return PopupMenuItem<String>(
       value: value,
       // Material 3 List Item Specifications
-      height: 48, // 48dp list item height
+      height: 48, // Material 3: 48dp list item height
       padding: const EdgeInsets.symmetric(
-        horizontal: 16, // 16dp left/right padding for better spacing
-        vertical: 8, // 8dp vertical padding
+        horizontal: 16, // Material 3: 16dp horizontal padding
+        vertical: 8, // Material 3: 8dp vertical padding
       ),
-      child: Row(
-        children: [
-          // Leading icon without background
-          Icon(
-            icon,
-            color: isDark ? Colors.white.withAlpha(230) : color,
-            size: 24, // 24dp icon size as per Material 3
-          ),
-          const SizedBox(width: 16), // 16dp padding between elements
-          Expanded(
-            child: Text(
-              text,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.w400,
-                color: isDark
-                    ? Colors.white.withAlpha(230)
-                    : _highContrastDarkBlue,
+      // Material 3 interaction states
+      mouseCursor: SystemMouseCursors.click, // Hover state cursor
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: null, // Handled by PopupMenuItem
+          borderRadius: BorderRadius.circular(
+            4,
+          ), // Material 3: 4dp corner radius
+          splashColor: Material3ColorSystem.getPrimaryColor(
+            brightness,
+          ).withValues(alpha: 0.12), // Material 3: 12% primary color splash
+          highlightColor: Material3ColorSystem.getPrimaryColor(
+            brightness,
+          ).withValues(alpha: 0.08), // Material 3: 8% primary color highlight
+          child: Row(
+            children: [
+              // Leading icon with Material 3 color roles
+              Icon(
+                icon,
+                color: color, // Use the semantic color passed from menu items
+                size: 24, // Material 3: 24dp icon size
               ),
-              textAlign: TextAlign.start,
-            ),
+              const SizedBox(
+                width: 12,
+              ), // Material 3: 12dp spacing between icon and text
+              Expanded(
+                child: Text(
+                  text,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w400, // Material 3: regular weight
+                    color: Material3ColorSystem.getOnSurfaceColor(
+                      brightness,
+                    ), // Material 3: on-surface
+                  ),
+                  textAlign: TextAlign.start,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -2180,12 +2461,41 @@ class _DashboardScreenState extends State<DashboardScreen>
                               borderRadius: BorderRadius.circular(16),
                               borderSide: BorderSide.none,
                             ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(
+                                color: _darkColor.withAlpha(51),
+                                width: 1,
+                              ),
+                            ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
                               borderSide: BorderSide(
                                 color: selectedColor,
                                 width: 2,
                               ),
+                            ),
+                            errorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(
+                                color: Material3ColorSystem.getErrorColor(
+                                  Theme.of(context).brightness,
+                                ),
+                                width: 1,
+                              ),
+                            ),
+                            focusedErrorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(
+                                color: Material3ColorSystem.getErrorColor(
+                                  Theme.of(context).brightness,
+                                ),
+                                width: 2,
+                              ),
+                            ),
+                            disabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
                             ),
                           ),
                         ),
@@ -2256,49 +2566,142 @@ class _DashboardScreenState extends State<DashboardScreen>
                     const SizedBox(width: 16),
                     Expanded(
                       child: FilledButton(
-                        onPressed: () {
-                          // Save changes
+                        onPressed: () async {
+                          final categoryName = nameController.text.trim();
+
+                          // Validate input
+                          if (categoryName.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.error_rounded,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'Category name cannot be empty',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                backgroundColor:
+                                    Material3ColorSystem.getErrorColor(
+                                      Theme.of(context).brightness,
+                                    ),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                margin: const EdgeInsets.all(16),
+                              ),
+                            );
+                            return;
+                          }
+
+                          // Check if category already exists
+                          final existingCategory = _categories.firstWhere(
+                            (cat) => cat['name'] == categoryName,
+                            orElse: () => {},
+                          );
+                          if (existingCategory.isNotEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.error_rounded,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'Category already exists',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                backgroundColor:
+                                    Material3ColorSystem.getErrorColor(
+                                      Theme.of(context).brightness,
+                                    ),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                margin: const EdgeInsets.all(16),
+                              ),
+                            );
+                            return;
+                          }
+
+                          Navigator.pop(context);
+
+                          // Save category customizations to preferences database
+                          await CategoryPreferencesDatabase.saveCategoryCustomization(
+                            categoryName: categoryName,
+                            iconCodePoint: selectedIcon.codePoint,
+                            colorValue: selectedColor.toARGB32(),
+                            backgroundColorValue: selectedBackgroundColor
+                                .toARGB32(),
+                          );
+
+                          // Add the new category to the local state
                           setState(() {
                             _categories.add({
-                              'name': nameController.text.trim(),
+                              'name': categoryName,
                               'icon': selectedIcon,
                               'originalColor': selectedColor,
                               'originalBackgroundColor':
                                   selectedBackgroundColor,
                               'count': 0,
-                              'color': const Color(0xFF8B5CF6), // default value
+                              'color': Material3ColorSystem.getPrimaryColor(
+                                Theme.of(context).brightness,
+                              ),
                             });
                           });
-                          Navigator.pop(context);
 
                           // Refresh dashboard to ensure all data is up to date
-                          _refreshDashboardWithDelay();
+                          await _refreshDashboardWithDelay();
 
                           // Show success message
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Row(
-                                children: [
-                                  Icon(
-                                    Icons.check_circle_rounded,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    'Category added successfully',
-                                    style: const TextStyle(color: Colors.white),
-                                  ),
-                                ],
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.check_circle_rounded,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'Category added successfully',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                backgroundColor:
+                                    Material3ColorSystem.getTertiaryColor(
+                                      Theme.of(context).brightness,
+                                    ),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                margin: const EdgeInsets.all(16),
                               ),
-                              backgroundColor: const Color(0xFF10B981),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              margin: const EdgeInsets.all(16),
-                            ),
-                          );
+                            );
+                          }
                         },
                         style: FilledButton.styleFrom(
                           backgroundColor: selectedColor,
@@ -2420,12 +2823,41 @@ class _DashboardScreenState extends State<DashboardScreen>
                               borderRadius: BorderRadius.circular(16),
                               borderSide: BorderSide.none,
                             ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(
+                                color: _darkColor.withAlpha(51),
+                                width: 1,
+                              ),
+                            ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
                               borderSide: BorderSide(
                                 color: selectedColor,
                                 width: 2,
                               ),
+                            ),
+                            errorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(
+                                color: Material3ColorSystem.getErrorColor(
+                                  Theme.of(context).brightness,
+                                ),
+                                width: 1,
+                              ),
+                            ),
+                            focusedErrorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(
+                                color: Material3ColorSystem.getErrorColor(
+                                  Theme.of(context).brightness,
+                                ),
+                                width: 2,
+                              ),
+                            ),
+                            disabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
                             ),
                           ),
                         ),
@@ -2457,6 +2889,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                               selectedBackgroundColor = bgColor;
                             });
                           },
+                          categoryName: nameController.text.trim(),
+                          categoryIcon: selectedIcon,
                         ),
                       ),
                       const SizedBox(height: 32),
@@ -2496,48 +2930,197 @@ class _DashboardScreenState extends State<DashboardScreen>
                     const SizedBox(width: 16),
                     Expanded(
                       child: FilledButton(
-                        onPressed: () {
-                          // Save changes
+                        onPressed: () async {
+                          final oldCategoryName = categoryName;
+                          final newCategoryName = nameController.text.trim();
+
+                          // Validate input
+                          if (newCategoryName.isEmpty) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.error_rounded,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'Category name cannot be empty',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  backgroundColor:
+                                      Material3ColorSystem.getErrorColor(
+                                        Theme.of(context).brightness,
+                                      ),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  margin: const EdgeInsets.all(16),
+                                ),
+                              );
+                            }
+                            return;
+                          }
+
+                          // Check if the new name conflicts with existing categories
+                          final existingCategory = _categories.firstWhere(
+                            (cat) =>
+                                cat['name'] == newCategoryName &&
+                                cat['name'] != oldCategoryName,
+                            orElse: () => {},
+                          );
+                          if (existingCategory.isNotEmpty) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.error_rounded,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'Category name already exists',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  backgroundColor:
+                                      Material3ColorSystem.getErrorColor(
+                                        Theme.of(context).brightness,
+                                      ),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  margin: const EdgeInsets.all(16),
+                                ),
+                              );
+                            }
+                            return;
+                          }
+
+                          Navigator.pop(context);
+
+                          // Update all subscriptions in this category with the new color and name
+                          try {
+                            // First update the color
+                            await SubscriptionDatabase.updateCategoryColor(
+                              oldCategoryName,
+                              selectedColor.toARGB32(),
+                            );
+
+                            // If the category name changed, also update the category name for all subscriptions
+                            if (oldCategoryName != newCategoryName) {
+                              await SubscriptionDatabase.updateCategoryForSubscriptions(
+                                oldCategoryName,
+                                newCategoryName,
+                              );
+                            }
+
+                            // Save category customizations to preferences database
+                            await CategoryPreferencesDatabase.saveCategoryCustomization(
+                              categoryName: newCategoryName,
+                              iconCodePoint: selectedIcon.codePoint,
+                              colorValue: selectedColor.value,
+                              backgroundColorValue:
+                                  selectedBackgroundColor.value,
+                            );
+                          } catch (e) {
+                            // Show error message
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.error_rounded,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'Error updating category: ${e.toString()}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  backgroundColor:
+                                      Material3ColorSystem.getErrorColor(
+                                        Theme.of(context).brightness,
+                                      ),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  margin: const EdgeInsets.all(16),
+                                ),
+                              );
+                            }
+                            return;
+                          }
+
+                          // Update the local state after successful database operations
                           setState(() {
                             _categories[index] = {
                               ..._categories[index],
-                              'name': nameController.text.trim(),
+                              'name': newCategoryName,
                               'icon': selectedIcon,
                               'originalColor': selectedColor,
                               'originalBackgroundColor':
                                   selectedBackgroundColor,
                             };
                           });
-                          Navigator.pop(context);
 
-                          // Refresh dashboard to ensure all data is up to date
-                          _refreshDashboardWithDelay();
+                          // Refresh dashboard data to update counts and ensure consistency
+                          await _refreshDashboardData();
 
                           // Show success message
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Row(
-                                children: [
-                                  Icon(
-                                    Icons.check_circle_rounded,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    'Category updated successfully',
-                                    style: const TextStyle(color: Colors.white),
-                                  ),
-                                ],
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.check_circle_rounded,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'Category updated successfully',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                backgroundColor:
+                                    Material3ColorSystem.getTertiaryColor(
+                                      Theme.of(context).brightness,
+                                    ),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                margin: const EdgeInsets.all(16),
                               ),
-                              backgroundColor: const Color(0xFF10B981),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              margin: const EdgeInsets.all(16),
-                            ),
-                          );
+                            );
+                          }
                         },
                         style: FilledButton.styleFrom(
                           backgroundColor: selectedColor,
@@ -2579,12 +3162,16 @@ class _DashboardScreenState extends State<DashboardScreen>
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444).withAlpha(41),
+                  color: Material3ColorSystem.getErrorColor(
+                    Theme.of(context).brightness,
+                  ).withAlpha(41),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(
                   Icons.delete_rounded,
-                  color: const Color(0xFFEF4444),
+                  color: Material3ColorSystem.getErrorColor(
+                    Theme.of(context).brightness,
+                  ),
                   size: 24,
                 ),
               ),
@@ -2615,10 +3202,14 @@ class _DashboardScreenState extends State<DashboardScreen>
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444).withAlpha(31),
+                  color: Material3ColorSystem.getErrorColor(
+                    Theme.of(context).brightness,
+                  ).withAlpha(31),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: const Color(0xFFEF4444).withAlpha(80),
+                    color: Material3ColorSystem.getErrorColor(
+                      Theme.of(context).brightness,
+                    ).withAlpha(80),
                     width: 1,
                   ),
                 ),
@@ -2626,7 +3217,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                   children: [
                     Icon(
                       Icons.warning_rounded,
-                      color: const Color(0xFFEF4444),
+                      color: Material3ColorSystem.getErrorColor(
+                        Theme.of(context).brightness,
+                      ),
                       size: 20,
                     ),
                     const SizedBox(width: 12),
@@ -2634,7 +3227,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                       child: Text(
                         'This action cannot be undone.',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFFEF4444),
+                          color: Material3ColorSystem.getErrorColor(
+                            Theme.of(context).brightness,
+                          ),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -2661,44 +3256,98 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
             const SizedBox(width: 12),
             FilledButton(
-              onPressed: () {
-                // Perform the deletion
-                setState(() {
-                  _categories.removeAt(index);
-                });
-                Navigator.of(context).pop();
+              onPressed: () async {
+                // For all categories (both default and custom), update subscriptions first, then hide the category
+                try {
+                  await SubscriptionDatabase.updateCategoryForSubscriptions(
+                    categoryName,
+                    'Not set',
+                  );
+
+                  // Hide the category in preferences database
+                  await CategoryPreferencesDatabase.hideCategory(categoryName);
+
+                  // Remove from UI after successful database update
+                  setState(() {
+                    _categories.removeWhere(
+                      (cat) => cat['name'] == categoryName,
+                    );
+                  });
+                } catch (e) {
+                  // Show error message
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            Icon(
+                              Icons.error_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Error updating subscriptions: ${e.toString()}',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ],
+                        ),
+                        backgroundColor: Material3ColorSystem.getErrorColor(
+                          Theme.of(context).brightness,
+                        ),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        margin: const EdgeInsets.all(16),
+                      ),
+                    );
+                  }
+                  return;
+                }
+
+                // Close the dialog
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                }
 
                 // Refresh dashboard to ensure all data is up to date
-                _refreshDashboardWithDelay();
+                await _refreshDashboardWithDelay();
 
                 // Show success message
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Row(
-                      children: [
-                        Icon(
-                          Icons.check_circle_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Category "$categoryName" deleted successfully',
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      ],
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Category "$categoryName" deleted successfully',
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ],
+                      ),
+                      backgroundColor: Material3ColorSystem.getTertiaryColor(
+                        Theme.of(context).brightness,
+                      ),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      margin: const EdgeInsets.all(16),
                     ),
-                    backgroundColor: const Color(0xFF10B981),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    margin: const EdgeInsets.all(16),
-                  ),
-                );
+                  );
+                }
               },
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFEF4444),
+                backgroundColor: Material3ColorSystem.getErrorColor(
+                  Theme.of(context).brightness,
+                ),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 12,
@@ -4129,26 +4778,19 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget _buildColorSelector(
     Color selectedColor,
     Color selectedBackgroundColor,
-    Function(Color, Color) onColorSelected,
-  ) {
-    final colorPairs = [
-      [const Color(0xFF6750A4), const Color(0xFFEADDFF)],
-      [const Color(0xFF006A6B), const Color(0xFFA6F2FF)],
-      [const Color(0xFF8B5000), const Color(0xFFFFDCC5)],
-      [const Color(0xFF006E1C), const Color(0xFFA6F7B1)],
-      [const Color(0xFF8E4EC6), const Color(0xFFE8DEF8)],
-      [const Color(0xFF984061), const Color(0xFFFFD8E4)],
-      [const Color(0xFF006B5D), const Color(0xFFA6F2ED)],
-      [const Color(0xFF795548), const Color(0xFFEFEBE9)],
-      [const Color(0xFFD32F2F), const Color(0xFFFFEBEE)],
-      [const Color(0xFF1976D2), const Color(0xFFE3F2FD)],
-      [const Color(0xFF388E3C), const Color(0xFFE8F5E8)],
-      [const Color(0xFFF57C00), const Color(0xFFFFF3E0)],
-      [const Color(0xFF7B1FA2), const Color(0xFFF3E5F5)],
-      [const Color(0xFF00796B), const Color(0xFFE0F2F1)],
-      [const Color(0xFF455A64), const Color(0xFFECEFF1)],
-      [const Color(0xFF5D4037), const Color(0xFFEFEBE9)],
-    ];
+    Function(Color, Color) onColorSelected, {
+    String? categoryName,
+    IconData? categoryIcon,
+  }) {
+    final colorPairs = Material3ColorSystem.categoryColors.asMap().entries.map((
+      entry,
+    ) {
+      final index = entry.key;
+      final color = entry.value;
+      final backgroundColor =
+          Material3ColorSystem.categoryBackgroundColors[index];
+      return [color, backgroundColor];
+    }).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -4159,7 +4801,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             spacing: 12,
             runSpacing: 12,
             children: [
-              // Pre-defined Colors
+              // Material 3 Preset Colors
               ...colorPairs.map((colorPair) {
                 final color = colorPair[0];
                 final backgroundColor = colorPair[1];
@@ -4179,51 +4821,38 @@ class _DashboardScreenState extends State<DashboardScreen>
                             : _darkColor.withAlpha(51),
                         width: isSelected ? 3 : 1,
                       ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: color.withAlpha(100),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
                     ),
                     child: isSelected
                         ? Icon(
                             Icons.check_rounded,
                             color: Colors.white,
-                            size: 16,
+                            size: 20,
                           )
                         : null,
                   ),
                 );
               }),
-              // Custom Color Button
-              GestureDetector(
-                onTap: () {
-                  _showColorWheelDialog(
-                    onColorSelected: (color) {
-                      final backgroundColor = color.withAlpha(120);
-                      onColorSelected(color, backgroundColor);
-                    },
-                    initialColor: selectedColor,
-                    title: 'Custom Color',
-                    icon: Icons.palette_rounded,
-                    activeColor: selectedColor,
-                  );
-                },
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: _darkColor.withAlpha(102),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      Icons.color_lens_rounded,
-                      color: selectedColor,
-                      size: 24,
-                    ),
-                  ),
-                ),
-              ),
             ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Info text
+        Center(
+          child: Text(
+            '${colorPairs.length} Material 3 colors available',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: _darkColor.withAlpha(153),
+              fontStyle: FontStyle.italic,
+            ),
           ),
         ),
       ],
@@ -4382,7 +5011,9 @@ class _DashboardScreenState extends State<DashboardScreen>
         'subtitle': 'Hide paused and finished payables section',
         'icon': Icons.pause_circle_rounded,
         'isHidden': localPausedFinishedHidden,
-        'color': const Color(0xFFF59E0B), // Orange color for paused/finished
+        'color': Material3ColorSystem.getTertiaryColor(
+          Theme.of(context).brightness,
+        ), // Tertiary color for paused/finished
         'onChanged': onPausedFinishedChanged,
       },
     ];
@@ -4495,265 +5126,76 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
     );
   }
-
-  void _showColorWheelDialog({
-    required Function(Color) onColorSelected,
-    required Color initialColor,
-    required String title,
-    required IconData icon,
-    required Color activeColor,
-  }) {
-    Color pickedColor = initialColor;
-    final hexController = TextEditingController(
-      text: initialColor
-          .toARGB32()
-          .toRadixString(16)
-          .substring(2)
-          .toUpperCase(),
-    );
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            void updateColor(Color newColor) {
-              if (newColor == pickedColor) return;
-
-              setState(() {
-                pickedColor = newColor;
-                final newHex = newColor
-                    .toARGB32()
-                    .toRadixString(16)
-                    .substring(2)
-                    .toUpperCase();
-                if (hexController.text.toUpperCase() != newHex) {
-                  hexController.text = newHex;
-                  hexController.selection = TextSelection.fromPosition(
-                    TextPosition(offset: hexController.text.length),
-                  );
-                }
-              });
-            }
-
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(28),
-              ),
-              backgroundColor: _backgroundColor,
-              title: Row(
-                children: [
-                  Icon(icon, color: activeColor, size: 24),
-                  const SizedBox(width: 12),
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: _highContrastDarkBlue,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: pickedColor,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _darkColor.withAlpha(77),
-                          width: 4,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    _ColorWheelWidget(
-                      currentColor: pickedColor,
-                      onColorChanged: updateColor,
-                    ),
-                    const SizedBox(height: 24),
-                    TextField(
-                      controller: hexController,
-                      textAlign: TextAlign.center,
-                      maxLength: 6,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: _highContrastDarkBlue,
-                        fontFamily: 'monospace',
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Hex Code',
-                        prefixText: '#',
-                        counterText: '',
-                        filled: true,
-                        fillColor: _lightColor.withAlpha(100),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(color: activeColor, width: 2),
-                        ),
-                      ),
-                      onChanged: (value) {
-                        if (value.length == 6) {
-                          try {
-                            final newColor = Color(
-                              int.parse('FF$value', radix: 16),
-                            );
-                            updateColor(newColor);
-                          } catch (e) {
-                            // Ignore invalid hex codes
-                          }
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(
-                    'Cancel',
-                    style: TextStyle(
-                      color: _highContrastDarkBlue,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    onColorSelected(pickedColor);
-                    Navigator.of(context).pop();
-                  },
-                  child: Text(
-                    'Select',
-                    style: TextStyle(
-                      color: activeColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
 }
 
-class _ColorWheelWidget extends StatelessWidget {
-  final ValueChanged<Color> onColorChanged;
-  final Color currentColor;
+class _EnhancedInsightsPatternPainter extends CustomPainter {
+  final Color color;
 
-  const _ColorWheelWidget({
-    required this.onColorChanged,
-    required this.currentColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: GestureDetector(
-        onPanStart: (details) => _handleColorSelection(details.localPosition),
-        onPanUpdate: (details) => _handleColorSelection(details.localPosition),
-        onTapDown: (details) => _handleColorSelection(details.localPosition),
-        child: CustomPaint(
-          size: const Size(280, 280),
-          painter: ColorWheelPainter(
-            currentColor: currentColor,
-            context: context,
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _handleColorSelection(Offset position) {
-    const size = 280.0;
-    final center = const Offset(size / 2, size / 2);
-    final offset = position - center;
-    final distance = offset.distance;
-
-    if (distance <= size / 2) {
-      final double angle =
-          (math.atan2(offset.dy, offset.dx) * 180 / math.pi + 360) % 360;
-      final double saturation = math.min(distance / (size / 2), 1.0);
-      const double value = 1.0;
-
-      final Color selectedColor = HSVColor.fromAHSV(
-        1.0,
-        angle,
-        saturation,
-        value,
-      ).toColor();
-
-      onColorChanged(selectedColor);
-    }
-  }
-}
-
-class ColorWheelPainter extends CustomPainter {
-  final Color currentColor;
-  final BuildContext context;
-
-  ColorWheelPainter({required this.currentColor, required this.context});
+  _EnhancedInsightsPatternPainter({required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
 
-    // Draw the color wheel with reduced resolution for better performance
-    for (int h = 0; h < 360; h += 3) {
-      // Reduced hue resolution from 1 to 3 degrees
-      final double hue = h.toDouble();
-      for (int s = 0; s < radius; s += 2) {
-        // Reduced saturation resolution from 1 to 2 pixels
-        final double saturation = s / radius;
-        final color = HSVColor.fromAHSV(1.0, hue, saturation, 1.0).toColor();
-        final paint = Paint()..color = color;
-        final angle = hue * (math.pi / 180);
-        final x = center.dx + s * math.cos(angle);
-        final y = center.dy + s * math.sin(angle);
-        canvas.drawCircle(
-          Offset(x, y),
-          1.5,
-          paint,
-        ); // Slightly larger circles to fill gaps
+    // Draw enhanced grid pattern with curves
+    final gridSize = 25.0;
+
+    // Vertical lines with slight curve
+    for (double x = 0; x < size.width; x += gridSize) {
+      final path = Path();
+      path.moveTo(x, 0);
+      path.quadraticBezierTo(x + 2, size.height / 2, x, size.height);
+      canvas.drawPath(path, paint);
+    }
+
+    // Horizontal lines with slight curve
+    for (double y = 0; y < size.height; y += gridSize) {
+      final path = Path();
+      path.moveTo(0, y);
+      path.quadraticBezierTo(size.width / 2, y + 2, size.width, y);
+      canvas.drawPath(path, paint);
+    }
+
+    // Draw enhanced dots at intersections with glow effect
+    final dotPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final glowPaint = Paint()
+      ..color = color.withAlpha(30)
+      ..style = PaintingStyle.fill;
+
+    for (double x = gridSize; x < size.width; x += gridSize) {
+      for (double y = gridSize; y < size.height; y += gridSize) {
+        // Draw glow effect
+        canvas.drawCircle(Offset(x, y), 3.0, glowPaint);
+        // Draw main dot
+        canvas.drawCircle(Offset(x, y), 1.5, dotPaint);
       }
     }
 
-    // Draw the selector
-    final hsvColor = HSVColor.fromColor(currentColor);
-    final angle = hsvColor.hue * math.pi / 180;
-    final distance = hsvColor.saturation * radius;
-
-    final selectorPosition = Offset(
-      center.dx + distance * math.cos(angle),
-      center.dy + distance * math.sin(angle),
-    );
-
-    final selectorPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(selectorPosition, 10, selectorPaint);
-
-    final selectorBorderPaint = Paint()
-      ..color = Theme.of(context).colorScheme.outline
-      ..strokeWidth = 2
+    // Add subtle wave pattern
+    final wavePaint = Paint()
+      ..color = color.withAlpha(20)
+      ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke;
-    canvas.drawCircle(selectorPosition, 10, selectorBorderPaint);
+
+    for (int i = 0; i < 3; i++) {
+      final path = Path();
+      final y = size.height * 0.3 + (i * 20);
+      path.moveTo(0, y);
+
+      for (double x = 0; x < size.width; x += 10) {
+        path.lineTo(x, y + math.sin(x * 0.02) * 8);
+      }
+
+      canvas.drawPath(path, wavePaint);
+    }
   }
 
   @override
-  bool shouldRepaint(covariant ColorWheelPainter oldDelegate) {
-    return oldDelegate.currentColor != currentColor;
-  }
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

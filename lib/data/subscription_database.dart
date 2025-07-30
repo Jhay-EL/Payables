@@ -666,4 +666,101 @@ class SubscriptionDatabase {
       };
     }
   }
+
+  // Update color for all subscriptions in a category
+  static Future<int> updateCategoryColor(
+    String category,
+    int colorValue,
+  ) async {
+    try {
+      final db = await database;
+      int count = await db.update(
+        _tableName,
+        {
+          _columnColorValue: colorValue,
+          _columnUpdatedAt: DateTime.now().millisecondsSinceEpoch,
+        },
+        where: '$_columnCategory = ?',
+        whereArgs: [category],
+      );
+      return count;
+    } catch (e) {
+      _logger.e('Error updating category color: $e');
+      rethrow;
+    }
+  }
+
+  // Update category for all subscriptions when a category is deleted
+  static Future<int> updateCategoryForSubscriptions(
+    String oldCategory,
+    String newCategory,
+  ) async {
+    try {
+      final db = await database;
+      int count = await db.update(
+        _tableName,
+        {
+          _columnCategory: newCategory,
+          _columnUpdatedAt: DateTime.now().millisecondsSinceEpoch,
+        },
+        where: '$_columnCategory = ?',
+        whereArgs: [oldCategory],
+      );
+      return count;
+    } catch (e) {
+      _logger.e('Error updating category for subscriptions: $e');
+      rethrow;
+    }
+  }
+
+  // Get all unique categories from subscriptions
+  static Future<List<String>> getAllCategories() async {
+    try {
+      final db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        _tableName,
+        distinct: true,
+        columns: [_columnCategory],
+        orderBy: '$_columnCategory ASC',
+      );
+
+      return maps.map((map) => map[_columnCategory] as String).toList();
+    } catch (e) {
+      _logger.e('Error getting all categories: $e');
+      return [];
+    }
+  }
+
+  // Check if category exists in subscriptions
+  static Future<bool> categoryExists(String category) async {
+    try {
+      final db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        _tableName,
+        where: '$_columnCategory = ?',
+        whereArgs: [category],
+        limit: 1,
+      );
+      return maps.isNotEmpty;
+    } catch (e) {
+      _logger.e('Error checking if category exists: $e');
+      return false;
+    }
+  }
+
+  // Get category count
+  static Future<int> getCategoryCount(String category) async {
+    try {
+      final db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        _tableName,
+        where: '$_columnCategory = ?',
+        whereArgs: [category],
+      );
+      return maps.length;
+    } catch (e) {
+      _logger.e('Error getting category count: $e');
+      return 0;
+    }
+  }
 }

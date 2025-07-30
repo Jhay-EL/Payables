@@ -7,6 +7,7 @@ import 'package:payables/ui/dashboard_screen.dart';
 import 'package:payables/utils/theme_provider.dart';
 import 'package:payables/utils/dashboard_refresh_provider.dart';
 import 'package:payables/services/notification_service.dart';
+import 'package:payables/utils/material3_color_system.dart';
 
 // Initialize app services in background
 void _initializeAppServices(Logger logger) async {
@@ -67,27 +68,60 @@ class PayablesApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             brightness: Brightness.light,
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.blue,
-              brightness: Brightness.light,
-            ),
+            colorScheme: Material3ColorSystem.getLightColorScheme(),
             useMaterial3: true,
-            textTheme: const TextTheme(
-              bodyLarge: TextStyle(color: Color(0xFF191c20)),
-              bodyMedium: TextStyle(color: Color(0xFF191c20)),
-              bodySmall: TextStyle(color: Color(0xFF191c20)),
-              titleLarge: TextStyle(color: Color(0xFF191c20)),
-              titleMedium: TextStyle(color: Color(0xFF191c20)),
-              titleSmall: TextStyle(color: Color(0xFF191c20)),
-              labelLarge: TextStyle(color: Color(0xFF191c20)),
-              labelMedium: TextStyle(color: Color(0xFF191c20)),
-              labelSmall: TextStyle(color: Color(0xFF191c20)),
-              headlineLarge: TextStyle(color: Color(0xFF191c20)),
-              headlineMedium: TextStyle(color: Color(0xFF191c20)),
-              headlineSmall: TextStyle(color: Color(0xFF191c20)),
-              displayLarge: TextStyle(color: Color(0xFF191c20)),
-              displayMedium: TextStyle(color: Color(0xFF191c20)),
-              displaySmall: TextStyle(color: Color(0xFF191c20)),
+            textTheme: TextTheme(
+              bodyLarge: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.light),
+              ),
+              bodyMedium: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.light),
+              ),
+              bodySmall: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceVariantColor(
+                  Brightness.light,
+                ),
+              ),
+              titleLarge: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.light),
+              ),
+              titleMedium: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.light),
+              ),
+              titleSmall: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.light),
+              ),
+              labelLarge: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.light),
+              ),
+              labelMedium: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceVariantColor(
+                  Brightness.light,
+                ),
+              ),
+              labelSmall: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceVariantColor(
+                  Brightness.light,
+                ),
+              ),
+              headlineLarge: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.light),
+              ),
+              headlineMedium: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.light),
+              ),
+              headlineSmall: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.light),
+              ),
+              displayLarge: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.light),
+              ),
+              displayMedium: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.light),
+              ),
+              displaySmall: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.light),
+              ),
             ),
             // Remove default borders
             inputDecorationTheme: InputDecorationTheme(
@@ -107,27 +141,60 @@ class PayablesApp extends StatelessWidget {
           ),
           darkTheme: ThemeData(
             brightness: Brightness.dark,
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.blue,
-              brightness: Brightness.dark,
-            ),
+            colorScheme: Material3ColorSystem.getDarkColorScheme(),
             useMaterial3: true,
-            textTheme: const TextTheme(
-              bodyLarge: TextStyle(color: Color(0xFF191c20)),
-              bodyMedium: TextStyle(color: Color(0xFF191c20)),
-              bodySmall: TextStyle(color: Color(0xFF191c20)),
-              titleLarge: TextStyle(color: Color(0xFF191c20)),
-              titleMedium: TextStyle(color: Color(0xFF191c20)),
-              titleSmall: TextStyle(color: Color(0xFF191c20)),
-              labelLarge: TextStyle(color: Color(0xFF191c20)),
-              labelMedium: TextStyle(color: Color(0xFF191c20)),
-              labelSmall: TextStyle(color: Color(0xFF191c20)),
-              headlineLarge: TextStyle(color: Color(0xFF191c20)),
-              headlineMedium: TextStyle(color: Color(0xFF191c20)),
-              headlineSmall: TextStyle(color: Color(0xFF191c20)),
-              displayLarge: TextStyle(color: Color(0xFF191c20)),
-              displayMedium: TextStyle(color: Color(0xFF191c20)),
-              displaySmall: TextStyle(color: Color(0xFF191c20)),
+            textTheme: TextTheme(
+              bodyLarge: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.dark),
+              ),
+              bodyMedium: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.dark),
+              ),
+              bodySmall: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceVariantColor(
+                  Brightness.dark,
+                ),
+              ),
+              titleLarge: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.dark),
+              ),
+              titleMedium: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.dark),
+              ),
+              titleSmall: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.dark),
+              ),
+              labelLarge: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.dark),
+              ),
+              labelMedium: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceVariantColor(
+                  Brightness.dark,
+                ),
+              ),
+              labelSmall: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceVariantColor(
+                  Brightness.dark,
+                ),
+              ),
+              headlineLarge: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.dark),
+              ),
+              headlineMedium: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.dark),
+              ),
+              headlineSmall: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.dark),
+              ),
+              displayLarge: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.dark),
+              ),
+              displayMedium: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.dark),
+              ),
+              displaySmall: TextStyle(
+                color: Material3ColorSystem.getOnSurfaceColor(Brightness.dark),
+              ),
             ),
             // Remove default borders
             inputDecorationTheme: InputDecorationTheme(

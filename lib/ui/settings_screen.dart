@@ -1209,12 +1209,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ]);
 
       // Close loading dialog
-      if (mounted) {
+      if (context.mounted) {
         Navigator.of(context).pop();
       }
 
       // Notify dashboard to refresh
-      if (mounted) {
+      if (context.mounted) {
         final refreshProvider = Provider.of<DashboardRefreshProvider>(
           context,
           listen: false,
@@ -1223,7 +1223,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
 
       // Show success message
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -1248,12 +1248,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     } catch (e) {
       // Close loading dialog
-      if (mounted) {
+      if (context.mounted) {
         Navigator.of(context).pop();
       }
 
       // Show error message
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(

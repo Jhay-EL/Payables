@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:payables/models/subscription.dart';
 import 'package:payables/data/subscription_database.dart';
 import 'package:payables/utils/dashboard_refresh_provider.dart';
+import 'package:payables/utils/material3_color_system.dart';
 import 'package:provider/provider.dart';
 import 'addsubs_screen.dart';
 
@@ -271,7 +272,7 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
             padding: const EdgeInsets.only(right: 16),
             child: PopupMenuButton<String>(
               icon: Container(
-                width: 48, // 48dp minimum touch target
+                width: 48, // Material 3: 48dp minimum touch target
                 height: 48,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(24),
@@ -279,30 +280,34 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
                 ),
                 child: Icon(
                   Icons.more_vert_rounded,
-                  color: const Color(0xFF43474e),
-                  size: 24, // 24dp icon size as per Material 3
+                  color: Material3ColorSystem.getOnSurfaceColor(
+                    Theme.of(context).brightness,
+                  ),
+                  size: 24, // Material 3: 24dp icon size
                 ),
               ),
-              splashRadius: 24,
-              offset: const Offset(0, 50),
+              splashRadius: 24, // Material 3: 24dp splash radius
+              offset: const Offset(0, 8), // Material 3: 8dp offset from trigger
               // Material 3 Menu Container Specifications
               constraints: const BoxConstraints(
-                minWidth: 112, // 112dp min width
-                maxWidth: 280, // 280dp max width
+                minWidth: 112, // Material 3: 112dp minimum width
+                maxWidth: 280, // Material 3: 280dp maximum width
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(
-                  12,
-                ), // 12dp corner radius for modern look
+                  4,
+                ), // Material 3: 4dp corner radius
               ),
-              elevation: 3,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFF1E1E1E)
-                  : const Color(0xFFFFFFFF),
-              surfaceTintColor: Colors.transparent,
-              shadowColor: Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0x40000000)
-                  : const Color(0x1F000000),
+              elevation: 3, // Material 3: 3dp elevation
+              color: Material3ColorSystem.getSurfaceVariantColor(
+                Theme.of(context).brightness,
+              ), // Material 3: surface container
+              surfaceTintColor: Material3ColorSystem.getSurfaceTintColor(
+                Theme.of(context).brightness,
+              ), // Material 3: surface tint
+              shadowColor: Material3ColorSystem.getShadowColor(
+                Theme.of(context).brightness,
+              ), // Material 3: shadow color
               // Material 3 expressive transitions
               popUpAnimationStyle: AnimationStyle(
                 duration: const Duration(milliseconds: 300),
@@ -872,33 +877,36 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
     required Color iconColor,
   }) {
     final brightness = Theme.of(context).brightness;
-    final isDark = brightness == Brightness.dark;
 
     return PopupMenuItem<String>(
       value: value,
       // Material 3 List Item Specifications
-      height: 48, // 48dp list item height
+      height: 48, // Material 3: 48dp list item height
       padding: const EdgeInsets.symmetric(
-        horizontal: 16, // 16dp left/right padding for better spacing
-        vertical: 8, // 8dp vertical padding
+        horizontal: 16, // Material 3: 16dp horizontal padding
+        vertical: 12, // Material 3: 12dp vertical padding
       ),
       child: Row(
         children: [
-          // Leading icon without background
+          // Leading icon with Material 3 specifications
           Icon(
             icon,
-            color: isDark ? Colors.white.withAlpha(230) : iconColor,
-            size: 24, // 24dp icon size as per Material 3
+            color: Material3ColorSystem.getOnSurfaceVariantColor(
+              brightness,
+            ), // Material 3: on-surface-variant
+            size: 24, // Material 3: 24dp icon size
           ),
-          const SizedBox(width: 16), // 16dp padding between elements
+          const SizedBox(
+            width: 12,
+          ), // Material 3: 12dp spacing between icon and text
           Expanded(
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.w400,
-                color: isDark
-                    ? Colors.white.withAlpha(230)
-                    : highContrastDarkBlue,
+                fontWeight: FontWeight.w400, // Material 3: regular weight
+                color: Material3ColorSystem.getOnSurfaceColor(
+                  brightness,
+                ), // Material 3: on-surface
               ),
               // Material 3 text alignment specifications
               textAlign: TextAlign.start,

@@ -58,7 +58,7 @@ class PerformanceUtils {
 
   // Optimized color calculations
   static Color getOptimizedColor(Color baseColor, double opacity) {
-    return baseColor.withOpacity(opacity);
+    return baseColor.withValues(alpha: opacity);
   }
 
   // Batch processing for large lists

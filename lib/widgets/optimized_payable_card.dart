@@ -39,7 +39,9 @@ class OptimizedPayableCard extends StatelessWidget {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: Color(subscription.colorValue).withOpacity(0.1),
+                    color: Color(
+                      subscription.colorValue,
+                    ).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -85,7 +87,7 @@ class OptimizedPayableCard extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: _getCategoryColor(
                                 subscription.category,
-                              ).withOpacity(0.1),
+                              ).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -109,7 +111,7 @@ class OptimizedPayableCard extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: _getStatusColor(
                                   subscription.status,
-                                ).withOpacity(0.1),
+                                ).withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
@@ -147,7 +149,7 @@ class OptimizedPayableCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(
                           context,
-                        ).textTheme.bodySmall?.color?.withOpacity(0.7),
+                        ).textTheme.bodySmall?.color?.withValues(alpha: 0.7),
                       ),
                     ),
                     Text(
@@ -155,7 +157,7 @@ class OptimizedPayableCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(
                           context,
-                        ).textTheme.bodySmall?.color?.withOpacity(0.7),
+                        ).textTheme.bodySmall?.color?.withValues(alpha: 0.7),
                       ),
                     ),
                   ],
@@ -169,20 +171,8 @@ class OptimizedPayableCard extends StatelessWidget {
   }
 
   Color _getCategoryColor(String category) {
-    switch (category.toLowerCase()) {
-      case 'entertainment':
-        return const Color(0xFFEC4899);
-      case 'cloud & software':
-        return const Color(0xFF3B82F6);
-      case 'utilities & household':
-        return const Color(0xFFF59E0B);
-      case 'mobile & connectivity':
-        return const Color(0xFF84CC16);
-      case 'insurance & finance':
-        return const Color(0xFF10B981);
-      default:
-        return const Color(0xFF6B7280);
-    }
+    // Use the subscription's actual color value instead of hardcoded colors
+    return Color(subscription.colorValue);
   }
 
   Color _getStatusColor(String status) {
