@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../data/database_helper.dart';
 import '../data/custom_icon_database.dart';
+import '../utils/material3_color_system.dart';
 
 class IconsScreen extends StatefulWidget {
   final Object? selectedIcon;
@@ -130,9 +131,9 @@ class _IconsScreenState extends State<IconsScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark
-          ? const Color(0xFF121212)
-          : const Color(0xFFF2F7FF),
+      backgroundColor: Material3ColorSystem.getSurfaceColor(
+        Theme.of(context).brightness,
+      ),
       appBar: AppBar(
         title: !_isSearchVisible
             ? Text(
@@ -143,10 +144,12 @@ class _IconsScreenState extends State<IconsScreen>
                 ),
               )
             : null,
-        backgroundColor: isDark
-            ? const Color(0xFF121212)
-            : const Color(0xFFF2F7FF),
-        surfaceTintColor: Colors.transparent,
+        backgroundColor: Material3ColorSystem.getSurfaceColor(
+          Theme.of(context).brightness,
+        ),
+        surfaceTintColor: Material3ColorSystem.getSurfaceTintColor(
+          Theme.of(context).brightness,
+        ),
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),

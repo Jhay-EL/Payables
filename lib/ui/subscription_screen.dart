@@ -9,6 +9,7 @@ import '../models/subscription.dart';
 import 'dart:io';
 import '../models/currency.dart';
 import '../data/currency_database.dart';
+import '../utils/material3_color_system.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   final List<Map<String, dynamic>>? categories;
@@ -38,47 +39,35 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   SortBy _sortBy = SortBy.createdDate;
   SortDirection _sortDirection = SortDirection.descending;
 
-  // Dynamic color system that adapts to dark/light mode
+  // Material 3 expressive color system
   Color get backgroundColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF121212)
-        : const Color(0xFFF2F7FF);
+    return Material3ColorSystem.getSurfaceColor(brightness);
   }
 
   Color get lightColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF1E1E1E)
-        : const Color(0xFFD7EAFF);
+    return Material3ColorSystem.getSurfaceVariantColor(brightness);
   }
 
   Color get darkColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF43474e)
-        : const Color(0xFF43474e);
+    return Material3ColorSystem.getOnSurfaceVariantColor(brightness);
   }
 
   Color get userSelectedColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF3D5A80)
-        : const Color(0xFFAAD6FF);
+    return Material3ColorSystem.getPrimaryContainerColor(brightness);
   }
 
   Color get highContrastBlue {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF4FC3F7)
-        : const Color(0xFF00AFEC);
+    return Material3ColorSystem.getPrimaryColor(brightness);
   }
 
   Color get highContrastDarkBlue {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFFE3F2FD)
-        : const Color(0xFF191c20);
+    return Material3ColorSystem.getOnSurfaceColor(brightness);
   }
 
   @override
@@ -329,7 +318,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   pinned: true,
                   snap: false,
                   elevation: 0,
-                  surfaceTintColor: lightColor,
+                  surfaceTintColor: Material3ColorSystem.getSurfaceTintColor(
+                    Theme.of(context).brightness,
+                  ),
                   backgroundColor: backgroundColor,
                   leading: BackButton(color: highContrastDarkBlue),
                   title: !_isSearchVisible && widget.title != null
@@ -782,7 +773,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   Widget _buildM3PopupMenu() {
     final brightness = Theme.of(context).brightness;
-    final isDark = brightness == Brightness.dark;
 
     return PopupMenuButton<String>(
       icon: Container(
@@ -794,7 +784,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         ),
         child: Icon(
           Icons.more_vert_rounded,
-          color: const Color(0xFF43474e),
+          color: Material3ColorSystem.getOnSurfaceVariantColor(brightness),
           size: 24, // 24dp icon size as per Material 3
         ),
       ),
@@ -806,15 +796,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         ), // 12dp corner radius for modern look
       ),
       elevation: 8,
-      color: isDark
-          ? const Color(0xFF1E1E1E)
-          : const Color(0xFFFFFFFF), // Dynamic background
-      surfaceTintColor: Colors.transparent, // Remove surface tint
-      shadowColor: isDark
-          ? const Color(0x40000000) // Darker shadow for dark mode
-          : const Color(
-              0x1F000000,
-            ), // Material 3 menu shadow color (12% opacity black)
+      color: Material3ColorSystem.getSurfaceVariantColor(brightness),
+      surfaceTintColor: Material3ColorSystem.getSurfaceTintColor(brightness),
+      shadowColor: Material3ColorSystem.getShadowColor(brightness),
       constraints: const BoxConstraints(
         minWidth: 112, // Material 3 min width
         maxWidth: 280, // Material 3 max width
@@ -869,25 +853,25 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           value: 'search',
           text: 'Search',
           icon: Icons.search_rounded,
-          color: const Color(0xFF43474e),
+          color: Material3ColorSystem.getOnSurfaceVariantColor(brightness),
         ),
         _buildM3PopupMenuItem(
           value: 'add',
           text: 'Add',
           icon: Icons.add_circle_rounded,
-          color: const Color(0xFF43474e),
+          color: Material3ColorSystem.getOnSurfaceVariantColor(brightness),
         ),
         _buildM3PopupMenuItem(
           value: 'filter',
           text: 'Filter',
           icon: Icons.filter_list_rounded,
-          color: const Color(0xFF43474e),
+          color: Material3ColorSystem.getOnSurfaceVariantColor(brightness),
         ),
         _buildM3PopupMenuItem(
           value: 'sort',
           text: 'Sort',
           icon: Icons.sort_rounded,
-          color: const Color(0xFF43474e),
+          color: Material3ColorSystem.getOnSurfaceVariantColor(brightness),
         ),
       ],
     );

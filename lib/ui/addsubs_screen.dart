@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 
 import 'icons_screen.dart';
+import 'color_picker_screen.dart';
 import '../data/subscription_database.dart';
 import '../data/payment_method_database.dart';
 import '../models/subscription.dart';
@@ -57,6 +58,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
   String _selectedType = 'Recurring';
   bool _isLoadingPaymentMethods = false;
   int _selectedAlertDays = 1; // Default to 1 day before
+  String _selectedCurrency = 'EUR'; // Local currency state for this payable
 
   List<Map<String, dynamic>> get allPaymentMethods => [
     ..._paymentMethods,
@@ -69,47 +71,35 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
 
   List<Map<String, dynamic>> _categories = [];
 
-  // Dynamic color system that adapts to dark/light mode
+  // Material 3 expressive color system
   Color get backgroundColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF121212)
-        : const Color(0xFFF2F7FF);
+    return Material3ColorSystem.getSurfaceColor(brightness);
   }
 
   Color get lightColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF1E1E1E)
-        : const Color(0xFFD7EAFF);
+    return Material3ColorSystem.getSurfaceVariantColor(brightness);
   }
 
   Color get darkColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF43474e)
-        : const Color(0xFF43474e);
+    return Material3ColorSystem.getOnSurfaceVariantColor(brightness);
   }
 
   Color get userSelectedColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF3D5A80)
-        : const Color(0xFFAAD6FF);
+    return Material3ColorSystem.getPrimaryContainerColor(brightness);
   }
 
   Color get highContrastBlue {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF4FC3F7)
-        : const Color(0xFF00AFEC);
+    return Material3ColorSystem.getPrimaryColor(brightness);
   }
 
   Color get highContrastDarkBlue {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFFE3F2FD)
-        : const Color(0xFF191c20);
+    return Material3ColorSystem.getOnSurfaceColor(brightness);
   }
 
   Color get _previewTextColor {
@@ -127,6 +117,17 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
     _descriptionController.addListener(() => setState(() {}));
     _websiteController.addListener(() => setState(() {}));
     _loadCustomPaymentMethods();
+
+    // Initialize with default currency from provider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final currencyProvider = Provider.of<CurrencyProvider>(
+        context,
+        listen: false,
+      );
+      setState(() {
+        _selectedCurrency = currencyProvider.selectedCurrency;
+      });
+    });
 
     // If editing an existing subscription, populate the fields
     if (widget.subscriptionToEdit != null) {
@@ -198,6 +199,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
     _endDate = subscription.endDate;
     _selectedColor = Color(subscription.colorValue);
     _selectedAlertDays = subscription.alertDays;
+    _selectedCurrency = subscription.currency;
 
     // Handle icon
     if (subscription.iconFilePath != null) {
@@ -267,10 +269,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
         // Update existing subscription
         final updatedSubscription = widget.subscriptionToEdit!.copyWith(
           title: _titleController.text.trim(),
-          currency: Provider.of<CurrencyProvider>(
-            context,
-            listen: false,
-          ).selectedCurrency,
+          currency: _selectedCurrency,
           amount: amount,
           billingDate:
               _billingDate ?? DateTime.now().add(const Duration(days: 1)),
@@ -304,10 +303,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
         // Create new subscription
         final subscription = Subscription(
           title: _titleController.text.trim(),
-          currency: Provider.of<CurrencyProvider>(
-            context,
-            listen: false,
-          ).selectedCurrency,
+          currency: _selectedCurrency,
           amount: amount,
           billingDate:
               _billingDate ?? DateTime.now().add(const Duration(days: 1)),
@@ -517,7 +513,9 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: backgroundColor,
-        surfaceTintColor: Colors.transparent,
+        surfaceTintColor: Material3ColorSystem.getSurfaceTintColor(
+          Theme.of(context).brightness,
+        ),
         centerTitle: false,
         title: Text(
           widget.subscriptionToEdit != null ? 'Edit Payable' : 'Add Payable',
@@ -706,10 +704,8 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
   }
 
   Widget _buildBasicInformationCard() {
-    final currencyProvider = Provider.of<CurrencyProvider>(context);
-    final selectedCurrency = currencyProvider.selectedCurrency;
     final selectedCurrencyObject = CurrencyDatabase.getCurrencyByCode(
-      selectedCurrency,
+      _selectedCurrency,
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -751,11 +747,15 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
               flex: 1,
               child: _buildM3DropdownField(
                 label: 'Currency',
-                value: selectedCurrency,
+                value: _selectedCurrency,
                 items: CurrencyDatabase.getCurrencies()
                     .map((c) => c.code)
                     .toList(),
-                onChanged: (value) => currencyProvider.setCurrency(value!),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCurrency = value!;
+                  });
+                },
               ),
             ),
           ],
@@ -1185,9 +1185,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
         ),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: Theme.of(context).brightness == Brightness.dark
-            ? lightColor.withAlpha(20)
-            : const Color(0xFFECF4FF),
+        fillColor: lightColor.withAlpha(50),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(4),
           borderSide: BorderSide(color: darkColor.withAlpha(77), width: 1),
@@ -1247,9 +1245,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
           );
         }),
         filled: true,
-        fillColor: Theme.of(context).brightness == Brightness.dark
-            ? lightColor.withAlpha(20)
-            : const Color(0xFFECF4FF),
+        fillColor: lightColor.withAlpha(50),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(4),
           borderSide: BorderSide(color: darkColor.withAlpha(77), width: 1),
@@ -1296,9 +1292,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
         decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? lightColor.withAlpha(20)
-              : const Color(0xFFECF4FF),
+          color: lightColor.withAlpha(50),
           borderRadius: BorderRadius.circular(4),
           border: Border.all(color: darkColor.withAlpha(77), width: 1),
         ),
@@ -1376,7 +1370,10 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => Container(
-          height: MediaQuery.of(context).size.height * 0.7,
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.65,
+            minHeight: MediaQuery.of(context).size.height * 0.4,
+          ),
           decoration: BoxDecoration(
             color: backgroundColor,
             borderRadius: const BorderRadius.only(
@@ -1428,7 +1425,7 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Select a Material 3 color for your payable',
+                            'Select a preset color or choose custom',
                             style: Theme.of(
                               context,
                             ).textTheme.bodyMedium?.copyWith(color: darkColor),
@@ -1439,70 +1436,182 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
                   ],
                 ),
               ),
-              // Color grid
+              // Preset colors
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: Material3ColorSystem.categoryColors.map((
-                          color,
-                        ) {
-                          final isSelected = color == _selectedColor;
-                          return GestureDetector(
-                            onTap: () {
-                              setModalState(() {
-                                _selectedColor = color;
-                              });
-                              setState(() {
-                                _selectedColor = color;
-                              });
-                            },
-                            child: Container(
-                              width: 56,
-                              height: 56,
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: isSelected
-                                      ? darkColor
-                                      : darkColor.withAlpha(51),
-                                  width: isSelected ? 3 : 1,
-                                ),
-                                boxShadow: isSelected
-                                    ? [
-                                        BoxShadow(
-                                          color: color.withAlpha(100),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                              child: isSelected
-                                  ? Icon(
-                                      Icons.check_rounded,
-                                      color: Colors.white,
-                                      size: 24,
-                                    )
-                                  : null,
+                      Text(
+                        'Preset Colors',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: highContrastDarkBlue,
+                              fontWeight: FontWeight.w600,
                             ),
-                          );
-                        }).toList(),
                       ),
                       const SizedBox(height: 16),
                       Center(
-                        child: Text(
-                          '${Material3ColorSystem.categoryColors.length} Material 3 colors available',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: darkColor.withAlpha(153),
-                                fontStyle: FontStyle.italic,
+                        child: Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          alignment: WrapAlignment.center,
+                          children: [
+                            // Red
+                            _buildColorOption(
+                              const Color(0xFFEF4444),
+                              setModalState,
+                            ),
+                            // Orange
+                            _buildColorOption(
+                              const Color(0xFFF59E0B),
+                              setModalState,
+                            ),
+                            // Yellow
+                            _buildColorOption(
+                              const Color(0xFFEAB308),
+                              setModalState,
+                            ),
+                            // Green
+                            _buildColorOption(
+                              const Color(0xFF22C55E),
+                              setModalState,
+                            ),
+                            // Teal
+                            _buildColorOption(
+                              const Color(0xFF14B8A6),
+                              setModalState,
+                            ),
+                            // Cyan
+                            _buildColorOption(
+                              const Color(0xFF06B6D4),
+                              setModalState,
+                            ),
+                            // Blue
+                            _buildColorOption(
+                              const Color(0xFF3B82F6),
+                              setModalState,
+                            ),
+                            // Indigo
+                            _buildColorOption(
+                              const Color(0xFF6366F1),
+                              setModalState,
+                            ),
+                            // Purple
+                            _buildColorOption(
+                              const Color(0xFF8B5CF6),
+                              setModalState,
+                            ),
+                            // Pink
+                            _buildColorOption(
+                              const Color(0xFFEC4899),
+                              setModalState,
+                            ),
+                            // Rose
+                            _buildColorOption(
+                              const Color(0xFFF43F5E),
+                              setModalState,
+                            ),
+                            // Gray
+                            _buildColorOption(
+                              const Color(0xFF6B7280),
+                              setModalState,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      // Custom color option
+                      InkWell(
+                        onTap: () async {
+                          Navigator.pop(context);
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ColorPickerScreen(
+                                initialColor: _selectedColor,
+                                onColorSelected: (color) {
+                                  setState(() {
+                                    _selectedColor = color;
+                                  });
+                                },
+                                currentTitle: _titleController.text.isEmpty
+                                    ? 'New Payable'
+                                    : _titleController.text,
+                                currentIcon: _selectedIcon,
+                                currentAmount: _amountController.text.isEmpty
+                                    ? '€ 0.00'
+                                    : '€ ${_amountController.text}',
+                                currentDescription:
+                                    _descriptionController.text.isNotEmpty
+                                    ? _descriptionController.text
+                                    : _selectedCategory,
+                                currentDueDate: _getBillingInfo(),
                               ),
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: lightColor.withAlpha(50),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: darkColor.withAlpha(51),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: highContrastBlue.withAlpha(41),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.colorize_rounded,
+                                  color: highContrastBlue,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Custom Color',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            color: highContrastDarkBlue,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Choose any color you want',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            color: darkColor.withAlpha(153),
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                color: darkColor.withAlpha(153),
+                                size: 16,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -1561,6 +1670,44 @@ class _AddSubsScreenState extends State<AddSubsScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildColorOption(Color color, StateSetter setModalState) {
+    final isSelected = _selectedColor == color;
+    return GestureDetector(
+      onTap: () {
+        setModalState(() {
+          _selectedColor = color;
+        });
+        setState(() {
+          _selectedColor = color;
+        });
+      },
+      child: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isSelected ? darkColor : darkColor.withAlpha(51),
+            width: isSelected ? 3 : 1,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: color.withAlpha(100),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: isSelected
+            ? Icon(Icons.check_rounded, color: Colors.white, size: 24)
+            : null,
       ),
     );
   }

@@ -11,7 +11,7 @@ import 'package:payables/utils/snackbar_service.dart';
 import 'package:payables/utils/dashboard_refresh_provider.dart';
 import 'package:payables/utils/material3_color_system.dart';
 import 'package:provider/provider.dart';
-import 'dart:math' as math;
+// import 'dart:math' as math;
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -24,7 +24,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver {
   final ScrollController _scrollController = ScrollController();
   bool _isCategoryHidden = false;
-  bool _isInsightsHidden = false;
+  // Insights removed
   bool _isPausedFinishedHidden = false;
   bool _isEditMode = false;
   bool _isLoading = true;
@@ -270,8 +270,30 @@ class _DashboardScreenState extends State<DashboardScreen>
 
         // Only include default categories if they have subscriptions or custom settings
         if (count > 0 || existingCategories.containsKey(categoryName)) {
-          // Check if we have existing custom settings for this category
-          if (existingCategories.containsKey(categoryName)) {
+          // Check if we have customizations from preferences database
+          final customization = categoryCustomizations[categoryName];
+          if (customization != null) {
+            // Use saved customizations
+            updatedCategories.add({
+              'name': categoryName,
+              'icon': IconData(
+                customization['icon_code_point'] ?? category['icon'].codePoint,
+                fontFamily: 'MaterialIcons',
+              ),
+              'count': count,
+              'color': customization['color_value'] != null
+                  ? Color(customization['color_value'])
+                  : category['color'],
+              'originalColor': customization['color_value'] != null
+                  ? Color(customization['color_value'])
+                  : category['originalColor'],
+              'originalBackgroundColor':
+                  customization['background_color_value'] != null
+                  ? Color(customization['background_color_value'])
+                  : category['originalBackgroundColor'],
+            });
+          } else if (existingCategories.containsKey(categoryName)) {
+            // Check if we have existing custom settings for this category
             final existingCategory = existingCategories[categoryName]!;
             updatedCategories.add({
               'name': categoryName,
@@ -399,23 +421,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
-  double _getMonthlyAmount(Subscription subscription) {
-    switch (subscription.billingCycle.toLowerCase()) {
-      case 'daily':
-        return subscription.amount * 30;
-      case 'weekly':
-        return subscription.amount * 4.33;
-      case 'monthly':
-        return subscription.amount;
-      case 'yearly':
-        return subscription.amount / 12;
-      default:
-        return subscription.amount;
-    }
-  }
-
-  // Helper methods for animated title positioning like settings screen
-  // Cache constants to avoid repeated calculations
   static const double _expandedHeight = 200.0;
   static const double _collapsedThreshold = _expandedHeight - kToolbarHeight;
 
@@ -697,47 +702,14 @@ class _DashboardScreenState extends State<DashboardScreen>
                   const SizedBox(height: 32),
                 ],
 
-                // M3 Paused/Finished Payables Section
-                if (!_isPausedFinishedHidden &&
-                    (_pausedSubscriptions.isNotEmpty ||
-                        _finishedSubscriptions.isNotEmpty)) ...[
-                  Text(
-                    'Paused/Finished Payables',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w400,
-                      color: _highContrastDarkBlue,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
+                // M3 Paused/Finished Payables Section (always show, even if empty)
+                if (!_isPausedFinishedHidden) ...[
+                  const SizedBox(height: 8),
                   _buildM3PausedFinishedSection(),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
                 ],
 
-                // M3 Insights Section
-                if (!_isInsightsHidden) ...[
-                  Text(
-                        'Insights',
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(
-                              fontWeight: FontWeight.w400,
-                              color: _highContrastDarkBlue,
-                            ),
-                      )
-                      .animate()
-                      .fadeIn(
-                        duration: const Duration(milliseconds: 600),
-                        curve: Curves.easeOutCubic,
-                      )
-                      .slideX(
-                        duration: const Duration(milliseconds: 500),
-                        curve: Curves.easeOutCubic,
-                        begin: -0.2,
-                        end: 0.0,
-                      ),
-                  const SizedBox(height: 20),
-                  _buildM3InsightsSection(),
-                ],
-
+                // Insights section removed
                 SizedBox(height: 32 + MediaQuery.of(context).padding.bottom),
               ]),
             ),
@@ -935,33 +907,40 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Widget _buildM3CategorySection() {
     if (_isEditMode) {
-      return ReorderableListView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: _categories.length,
-        onReorder: (int oldIndex, int newIndex) {
-          setState(() {
-            if (newIndex > oldIndex) {
-              newIndex -= 1;
-            }
-            final Map<String, dynamic> item = _categories.removeAt(oldIndex);
-            _categories.insert(newIndex, item);
-          });
-        },
-        itemBuilder: (context, index) {
-          final category = _categories[index];
-          return _buildM3CategoryItem(
-            category['icon'],
-            category['name'],
-            category['count'],
-            category['color'],
-            index: index,
-            isLast: index == _categories.length - 1,
-            key: ValueKey(category['name']),
-            originalColor: category['originalColor'],
-            originalBackgroundColor: category['originalBackgroundColor'],
-          );
-        },
+      return Container(
+        constraints: BoxConstraints(
+          maxHeight:
+              MediaQuery.of(context).size.height *
+              0.6, // Limit height to 60% of screen
+        ),
+        child: ReorderableListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _categories.length,
+          onReorder: (int oldIndex, int newIndex) {
+            setState(() {
+              if (newIndex > oldIndex) {
+                newIndex -= 1;
+              }
+              final Map<String, dynamic> item = _categories.removeAt(oldIndex);
+              _categories.insert(newIndex, item);
+            });
+          },
+          itemBuilder: (context, index) {
+            final category = _categories[index];
+            return _buildM3CategoryItem(
+              category['icon'],
+              category['name'],
+              category['count'],
+              category['color'],
+              index: index,
+              isLast: index == _categories.length - 1,
+              key: ValueKey(category['name']),
+              originalColor: category['originalColor'],
+              originalBackgroundColor: category['originalBackgroundColor'],
+            );
+          },
+        ),
       );
     }
 
@@ -1001,10 +980,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Material3ColorSystem.getCategoryColor(index);
   }
 
-  Color _getCategoryBackgroundColor(int index) {
-    return Material3ColorSystem.getCategoryBackgroundColor(index);
-  }
-
   Widget _buildM3CategoryItem(
     IconData icon,
     String name,
@@ -1017,13 +992,11 @@ class _DashboardScreenState extends State<DashboardScreen>
     Color? originalBackgroundColor,
   }) {
     final categoryColor = originalColor ?? _getCategoryColor(index);
-    final categoryBackgroundColor =
-        originalBackgroundColor ?? _getCategoryBackgroundColor(index);
 
-    // In dark mode, use consistent background like overview cards
+    // In dark mode, use consistent background like overview cards; in light mode use requested default #F1EBF3
     final cardBackgroundColor = Theme.of(context).brightness == Brightness.dark
-        ? _lightColor.withAlpha(150) // Same as overview cards
-        : categoryBackgroundColor.withAlpha(120); // Colorful in light mode
+        ? _lightColor.withAlpha(150)
+        : const Color(0xFFF1EBF3);
 
     // Determine border radius based on position
     BorderRadius borderRadius;
@@ -1105,7 +1078,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ),
                   ),
                 ),
-                if (count > 0) ...[
+                if (count > 0 && !_isEditMode) ...[
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -1179,595 +1152,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  Widget _buildM3InsightsSection() {
-    if (_isLoading) {
-      return Card(
-        elevation: 0,
-        color: _lightColor.withAlpha(150),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: const Padding(
-          padding: EdgeInsets.all(32.0),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
-
-    return Card(
-          elevation: 0,
-          margin: EdgeInsets.zero,
-          color: _lightColor.withAlpha(150),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // M3 Expressive Header
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Spending Insights',
-                            style: Theme.of(context).textTheme.headlineSmall
-                                ?.copyWith(
-                                  color: _highContrastDarkBlue,
-                                  fontWeight: FontWeight.w500,
-                                  letterSpacing: -0.5,
-                                ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Monthly breakdown by category',
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(
-                                  color: _darkColor.withAlpha(179),
-                                  fontWeight: FontWeight.w400,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: _userSelectedColor.withAlpha(100),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: _userSelectedColor.withAlpha(120),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: IconButton(
-                        onPressed: () => _handleInsightsFilter(),
-                        icon: Icon(
-                          Icons.tune_rounded,
-                          size: 20,
-                          color: _darkColor,
-                        ),
-                        style: IconButton.styleFrom(
-                          padding: const EdgeInsets.all(12),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 32),
-                // M3 Expressive Chart Content
-                RepaintBoundary(child: _buildM3ExpressiveChart()),
-                if (_subscriptions.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  _buildM3ExpressiveAxisLabels(),
-                ],
-              ],
-            ),
-          ),
-        )
-        .animate()
-        .fadeIn(
-          duration: const Duration(milliseconds: 800),
-          curve: Curves.easeOutCubic,
-        )
-        .slideY(
-          duration: const Duration(milliseconds: 700),
-          curve: Curves.easeOutCubic,
-          begin: 0.3,
-          end: 0.0,
-        );
-  }
-
-  Widget _buildM3ExpressiveChart() {
-    if (_subscriptions.isEmpty) {
-      return Container(
-        constraints: const BoxConstraints(minHeight: 160, maxHeight: 180),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Material3ColorSystem.getPrimaryColor(
-                Theme.of(context).brightness,
-              ).withAlpha(25),
-              Material3ColorSystem.getSecondaryColor(
-                Theme.of(context).brightness,
-              ).withAlpha(20),
-              Material3ColorSystem.getTertiaryColor(
-                Theme.of(context).brightness,
-              ).withAlpha(15),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(
-            color: Material3ColorSystem.getPrimaryColor(
-              Theme.of(context).brightness,
-            ).withAlpha(40),
-            width: 2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Material3ColorSystem.getPrimaryColor(
-                Theme.of(context).brightness,
-              ).withAlpha(15),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            // Enhanced background pattern
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
-                  color: Colors.transparent,
-                ),
-                child: CustomPaint(
-                  painter: _EnhancedInsightsPatternPainter(
-                    color: Material3ColorSystem.getPrimaryColor(
-                      Theme.of(context).brightness,
-                    ).withAlpha(12),
-                  ),
-                ),
-              ),
-            ),
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Enhanced icon with glow effect
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Material3ColorSystem.getPrimaryColor(
-                            Theme.of(context).brightness,
-                          ).withAlpha(50),
-                          Material3ColorSystem.getSecondaryColor(
-                            Theme.of(context).brightness,
-                          ).withAlpha(40),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Material3ColorSystem.getPrimaryColor(
-                            Theme.of(context).brightness,
-                          ).withAlpha(30),
-                          blurRadius: 12,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.analytics_outlined,
-                      size: 28,
-                      color: Material3ColorSystem.getPrimaryColor(
-                        Theme.of(context).brightness,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  // Enhanced title with better typography
-                  Text(
-                    'No Insights Yet',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: _highContrastDarkBlue,
-                      fontWeight: FontWeight
-                          .w500, // Material 3: medium weight for titles
-                      letterSpacing: -0.2,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 4),
-                  // Enhanced subtitle
-                  Text(
-                    'Add subscriptions to see spending patterns',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: _darkColor.withAlpha(179),
-                      fontWeight: FontWeight
-                          .w400, // Material 3: regular weight for body text
-                      height: 1.2,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Calculate category spending (only active subscriptions)
-    Map<String, double> categorySpending = {};
-    for (final subscription in _subscriptions) {
-      // Only include active subscriptions in the chart
-      if (subscription.status == 'active') {
-        final category = subscription.category;
-        final monthlyAmount = _getMonthlyAmount(subscription);
-        categorySpending[category] =
-            (categorySpending[category] ?? 0) + monthlyAmount;
-      }
-    }
-
-    // Find max spending for scaling
-    double maxSpending = 0;
-    for (final spending in categorySpending.values) {
-      if (spending > maxSpending) {
-        maxSpending = spending;
-      }
-    }
-
-    if (maxSpending == 0) maxSpending = 100;
-
-    // Build chart bars
-    List<Widget> chartBars = [];
-    for (int i = 0; i < _categories.length; i++) {
-      final categoryName = _categories[i]['name'].toString();
-      final spending = categorySpending[categoryName] ?? 0.0;
-
-      if (spending > 0) {
-        chartBars.add(
-          _buildM3ExpressiveChartBar(
-            categoryName,
-            spending,
-            maxSpending,
-            i,
-            categoryColor: _categories[i]['originalColor'],
-            categoryBackgroundColor: _categories[i]['originalBackgroundColor'],
-          ),
-        );
-      }
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: _backgroundColor.withAlpha(80),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _lightColor.withAlpha(100), width: 1),
-      ),
-      child: Column(
-        children: chartBars.isEmpty
-            ? [
-                const SizedBox(height: 40),
-                Icon(
-                  Icons.bar_chart_rounded,
-                  size: 48,
-                  color: _darkColor.withAlpha(102),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No category data available',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: _darkColor.withAlpha(153),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 40),
-              ]
-            : [
-                for (int i = 0; i < chartBars.length; i++) ...[
-                  chartBars[i],
-                  if (i < chartBars.length - 1) const SizedBox(height: 20),
-                ],
-              ],
-      ),
-    );
-  }
-
-  Widget _buildM3ExpressiveChartBar(
-    String categoryName,
-    double spending,
-    double maxSpending,
-    int index, {
-    Color? categoryColor,
-    Color? categoryBackgroundColor,
-  }) {
-    final finalCategoryColor = categoryColor ?? _getCategoryColor(index);
-    final finalCategoryBackgroundColor =
-        categoryBackgroundColor ?? _getCategoryBackgroundColor(index);
-    final barWidth = spending / maxSpending;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Category label and amount
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        finalCategoryColor.withAlpha(120),
-                        finalCategoryColor.withAlpha(80),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: finalCategoryColor.withAlpha(40),
-                        blurRadius: 6,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    _categories[index]['icon'] as IconData,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Text(
-                  categoryName,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: _highContrastDarkBlue,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-              ],
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    finalCategoryColor.withAlpha(100),
-                    finalCategoryColor.withAlpha(60),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: finalCategoryColor.withAlpha(80),
-                  width: 1,
-                ),
-              ),
-              child: Text(
-                '€${spending.toStringAsFixed(2)}',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: finalCategoryColor,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        // Expressive progress bar
-        Container(
-          height: 12,
-          decoration: BoxDecoration(
-            color: finalCategoryBackgroundColor.withAlpha(60),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Stack(
-            children: [
-              Container(
-                width: double.infinity,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: finalCategoryBackgroundColor.withAlpha(80),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              ),
-              FractionallySizedBox(
-                alignment: Alignment.centerLeft,
-                widthFactor: barWidth,
-                child: Container(
-                  height: 12,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        finalCategoryColor,
-                        finalCategoryColor.withAlpha(200),
-                      ],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
-                    borderRadius: BorderRadius.circular(6),
-                    boxShadow: [
-                      BoxShadow(
-                        color: finalCategoryColor.withAlpha(60),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        // Percentage indicator
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '${(barWidth * 100).toStringAsFixed(1)}% of total',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: _darkColor.withAlpha(153),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            Text(
-              '${(spending / _getTotalSpending() * 100).toStringAsFixed(1)}% of budget',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: finalCategoryColor.withAlpha(179),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildM3ExpressiveAxisLabels() {
-    final totalSpending = _getTotalSpending();
-    final maxCategorySpending = _getMaxCategorySpending();
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [_lightColor.withAlpha(100), _backgroundColor.withAlpha(80)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _lightColor.withAlpha(120), width: 1),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildAxisLabelItem(
-            icon: Icons.euro_rounded,
-            label: 'Total Monthly',
-            value: '€${totalSpending.toStringAsFixed(2)}',
-            color: _highContrastBlue,
-          ),
-          Container(width: 1, height: 40, color: _darkColor.withAlpha(51)),
-          _buildAxisLabelItem(
-            icon: Icons.trending_up_rounded,
-            label: 'Highest Category',
-            value: '€${maxCategorySpending.toStringAsFixed(2)}',
-            color: _darkColor,
-          ),
-          Container(width: 1, height: 40, color: _darkColor.withAlpha(51)),
-          _buildAxisLabelItem(
-            icon: Icons.category_rounded,
-            label: 'Categories',
-            value: _getActiveCategoriesCount().toString(),
-            color: _userSelectedColor,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAxisLabelItem({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withAlpha(41),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: color, size: 16),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: _highContrastDarkBlue,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: _darkColor.withAlpha(153),
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-
-  double _getTotalSpending() {
-    double total = 0;
-    for (final subscription in _subscriptions) {
-      // Only include active subscriptions in the total calculation
-      if (subscription.status == 'active') {
-        total += _getMonthlyAmount(subscription);
-      }
-    }
-    return total;
-  }
-
-  double _getMaxCategorySpending() {
-    Map<String, double> categorySpending = {};
-    for (final subscription in _subscriptions) {
-      // Only include active subscriptions in category spending calculations
-      if (subscription.status == 'active') {
-        final category = subscription.category;
-        final monthlyAmount = _getMonthlyAmount(subscription);
-        categorySpending[category] =
-            (categorySpending[category] ?? 0) + monthlyAmount;
-      }
-    }
-
-    double maxSpending = 0;
-    for (final spending in categorySpending.values) {
-      if (spending > maxSpending) {
-        maxSpending = spending;
-      }
-    }
-    return maxSpending;
-  }
-
-  int _getActiveCategoriesCount() {
-    Map<String, double> categorySpending = {};
-    for (final subscription in _subscriptions) {
-      // Only include active subscriptions in category calculations
-      if (subscription.status == 'active') {
-        final category = subscription.category;
-        final monthlyAmount = _getMonthlyAmount(subscription);
-        categorySpending[category] =
-            (categorySpending[category] ?? 0) + monthlyAmount;
-      }
-    }
-
-    return categorySpending.values.where((spending) => spending > 0).length;
-  }
-
   Widget _buildM3PausedFinishedSection() {
     if (_isLoading) {
       return Card(
@@ -1783,37 +1167,33 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     return Column(
       children: [
-        // Paused Subscriptions
-        if (_pausedSubscriptions.isNotEmpty) ...[
-          _buildPausedFinishedCard(
-            icon: Icons.pause_circle_filled_rounded,
-            title: 'Paused',
-            subtitle: 'Temporarily suspended payables',
-            count: _pausedSubscriptions.length,
-            color: Material3ColorSystem.getTertiaryColor(
-              Theme.of(context).brightness,
-            ), // Tertiary for paused
-            subscriptions: _pausedSubscriptions,
-            isFirst: true,
-            isLast: _finishedSubscriptions.isEmpty,
-          ),
-          if (_finishedSubscriptions.isNotEmpty) const SizedBox(height: 2),
-        ],
-        // Finished Subscriptions
-        if (_finishedSubscriptions.isNotEmpty) ...[
-          _buildPausedFinishedCard(
-            icon: Icons.check_circle_rounded,
-            title: 'Finished',
-            subtitle: 'Completed or expired payables',
-            count: _finishedSubscriptions.length,
-            color: Material3ColorSystem.getSecondaryColor(
-              Theme.of(context).brightness,
-            ), // Secondary for finished
-            subscriptions: _finishedSubscriptions,
-            isFirst: _pausedSubscriptions.isEmpty,
-            isLast: true,
-          ),
-        ],
+        // Always show Paused card (even when empty)
+        _buildPausedFinishedCard(
+          icon: Icons.pause_circle_filled_rounded,
+          title: 'Paused',
+          subtitle: 'Temporarily suspended payables',
+          count: _pausedSubscriptions.length,
+          color: Material3ColorSystem.getTertiaryColor(
+            Theme.of(context).brightness,
+          ), // Tertiary for paused
+          subscriptions: _pausedSubscriptions,
+          isFirst: true,
+          isLast: false,
+        ),
+        const SizedBox(height: 2),
+        // Always show Finished card (even when empty)
+        _buildPausedFinishedCard(
+          icon: Icons.check_circle_rounded,
+          title: 'Finished',
+          subtitle: 'Completed or expired payables',
+          count: _finishedSubscriptions.length,
+          color: Material3ColorSystem.getSecondaryColor(
+            Theme.of(context).brightness,
+          ), // Secondary for finished
+          subscriptions: _finishedSubscriptions,
+          isFirst: false,
+          isLast: true,
+        ),
       ],
     );
   }
@@ -2512,7 +1892,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                               selectedIcon = icon;
                             });
                           }, selectedColor);
-                        }),
+                        }, selectedBackgroundColor),
                       ),
                       const SizedBox(height: 32),
                       // Color selection
@@ -2874,7 +2254,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                               selectedIcon = icon;
                             });
                           }, selectedColor);
-                        }),
+                        }, selectedBackgroundColor),
                       ),
                       const SizedBox(height: 32),
                       // Color selection
@@ -3014,15 +2394,9 @@ class _DashboardScreenState extends State<DashboardScreen>
 
                           Navigator.pop(context);
 
-                          // Update all subscriptions in this category with the new color and name
+                          // Update category name for all subscriptions if it changed
                           try {
-                            // First update the color
-                            await SubscriptionDatabase.updateCategoryColor(
-                              oldCategoryName,
-                              selectedColor.toARGB32(),
-                            );
-
-                            // If the category name changed, also update the category name for all subscriptions
+                            // If the category name changed, update the category name for all subscriptions
                             if (oldCategoryName != newCategoryName) {
                               await SubscriptionDatabase.updateCategoryForSubscriptions(
                                 oldCategoryName,
@@ -3034,9 +2408,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                             await CategoryPreferencesDatabase.saveCategoryCustomization(
                               categoryName: newCategoryName,
                               iconCodePoint: selectedIcon.codePoint,
-                              colorValue: selectedColor.value,
-                              backgroundColorValue:
-                                  selectedBackgroundColor.value,
+                              colorValue: selectedColor.toARGB32(),
+                              backgroundColorValue: selectedBackgroundColor
+                                  .toARGB32(),
                             );
                           } catch (e) {
                             // Show error message
@@ -3367,7 +2741,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  void _handleInsightsFilter() {}
+  // Insights removed
 
   Widget _buildEditSectionNoIcon(String title, Widget content) {
     return Column(
@@ -3389,14 +2763,15 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget _buildIconSelector(
     IconData selectedIcon,
     Color selectedColor,
-    VoidCallback onTap,
-  ) {
+    VoidCallback onTap, [
+    Color? selectedBackgroundColor,
+  ]) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: _lightColor.withAlpha(100),
+          color: selectedBackgroundColor ?? _lightColor.withAlpha(100),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: selectedColor.withAlpha(51), width: 1),
         ),
@@ -3415,12 +2790,24 @@ class _DashboardScreenState extends State<DashboardScreen>
               child: Text(
                 'Tap to change icon',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: _darkColor,
+                  color: selectedBackgroundColor != null
+                      ? (selectedBackgroundColor.computeLuminance() > 0.5
+                            ? Colors.black87
+                            : Colors.white)
+                      : _darkColor,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: _darkColor, size: 20),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: selectedBackgroundColor != null
+                  ? (selectedBackgroundColor.computeLuminance() > 0.5
+                        ? Colors.black87
+                        : Colors.white)
+                  : _darkColor,
+              size: 20,
+            ),
           ],
         ),
       ),
@@ -4845,16 +4232,6 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         ),
         const SizedBox(height: 16),
-        // Info text
-        Center(
-          child: Text(
-            '${colorPairs.length} Material 3 colors available',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: _darkColor.withAlpha(153),
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -4950,7 +4327,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                   // Stacked Cards for Panel Options
                   _buildHidePanelStackedCards(
                     localCategoryHidden: _isCategoryHidden,
-                    localInsightsHidden: _isInsightsHidden,
+                    // Insights removed
+                    localInsightsHidden: true,
                     localPausedFinishedHidden: _isPausedFinishedHidden,
                     onCategoryChanged: (value) {
                       setState(() {
@@ -4958,12 +4336,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       });
                       setModalState(() {});
                     },
-                    onInsightsChanged: (value) {
-                      setState(() {
-                        _isInsightsHidden = value;
-                      });
-                      setModalState(() {});
-                    },
+                    onInsightsChanged: (value) {},
                     onPausedFinishedChanged: (value) {
                       setState(() {
                         _isPausedFinishedHidden = value;
@@ -4998,14 +4371,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         'color': _darkColor,
         'onChanged': onCategoryChanged,
       },
-      {
-        'title': 'Insights',
-        'subtitle': 'Hide spending insights section',
-        'icon': Icons.insights_rounded,
-        'isHidden': localInsightsHidden,
-        'color': _highContrastBlue,
-        'onChanged': onInsightsChanged,
-      },
+      // Insights option removed
       {
         'title': 'Paused/Finished',
         'subtitle': 'Hide paused and finished payables section',
@@ -5126,76 +4492,4 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
     );
   }
-}
-
-class _EnhancedInsightsPatternPainter extends CustomPainter {
-  final Color color;
-
-  _EnhancedInsightsPatternPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    // Draw enhanced grid pattern with curves
-    final gridSize = 25.0;
-
-    // Vertical lines with slight curve
-    for (double x = 0; x < size.width; x += gridSize) {
-      final path = Path();
-      path.moveTo(x, 0);
-      path.quadraticBezierTo(x + 2, size.height / 2, x, size.height);
-      canvas.drawPath(path, paint);
-    }
-
-    // Horizontal lines with slight curve
-    for (double y = 0; y < size.height; y += gridSize) {
-      final path = Path();
-      path.moveTo(0, y);
-      path.quadraticBezierTo(size.width / 2, y + 2, size.width, y);
-      canvas.drawPath(path, paint);
-    }
-
-    // Draw enhanced dots at intersections with glow effect
-    final dotPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    final glowPaint = Paint()
-      ..color = color.withAlpha(30)
-      ..style = PaintingStyle.fill;
-
-    for (double x = gridSize; x < size.width; x += gridSize) {
-      for (double y = gridSize; y < size.height; y += gridSize) {
-        // Draw glow effect
-        canvas.drawCircle(Offset(x, y), 3.0, glowPaint);
-        // Draw main dot
-        canvas.drawCircle(Offset(x, y), 1.5, dotPaint);
-      }
-    }
-
-    // Add subtle wave pattern
-    final wavePaint = Paint()
-      ..color = color.withAlpha(20)
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke;
-
-    for (int i = 0; i < 3; i++) {
-      final path = Path();
-      final y = size.height * 0.3 + (i * 20);
-      path.moveTo(0, y);
-
-      for (double x = 0; x < size.width; x += 10) {
-        path.lineTo(x, y + math.sin(x * 0.02) * 8);
-      }
-
-      canvas.drawPath(path, wavePaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

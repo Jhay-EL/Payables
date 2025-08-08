@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../services/notification_service.dart';
 import '../data/notification_preferences.dart';
 import '../utils/snackbar_service.dart';
+import '../utils/material3_color_system.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -24,33 +25,30 @@ class _NotificationSettingsScreenState
   bool _budgetAlerts = true;
   bool _renewalNotifications = true;
 
-  // Dynamic color system that adapts to dark/light mode
+  // Material 3 expressive color system
   Color get backgroundColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF121212)
-        : const Color(0xFFF2F7FF);
+    return Material3ColorSystem.getSurfaceColor(brightness);
   }
 
   Color get lightColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF1E1E1E)
-        : const Color(0xFFD7EAFF);
+    return Material3ColorSystem.getSurfaceVariantColor(brightness);
   }
 
   Color get darkColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF43474e)
-        : const Color(0xFF43474e);
+    return Material3ColorSystem.getOnSurfaceVariantColor(brightness);
+  }
+
+  Color get highContrastBlue {
+    final brightness = Theme.of(context).brightness;
+    return Material3ColorSystem.getPrimaryColor(brightness);
   }
 
   Color get highContrastDarkBlue {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFFE3F2FD)
-        : const Color(0xFF191c20);
+    return Material3ColorSystem.getOnSurfaceColor(brightness);
   }
 
   @override
@@ -112,7 +110,11 @@ class _NotificationSettingsScreenState
       backgroundColor: backgroundColor,
       body: _isLoading
           ? Center(
-              child: CircularProgressIndicator(color: const Color(0xFF6750A4)),
+              child: CircularProgressIndicator(
+                color: Material3ColorSystem.getPrimaryColor(
+                  Theme.of(context).brightness,
+                ),
+              ),
             )
           : CustomScrollView(
               slivers: [
@@ -123,7 +125,9 @@ class _NotificationSettingsScreenState
                   pinned: true,
                   snap: false,
                   elevation: 0,
-                  surfaceTintColor: lightColor,
+                  surfaceTintColor: Material3ColorSystem.getSurfaceTintColor(
+                    Theme.of(context).brightness,
+                  ),
                   backgroundColor: backgroundColor,
                   leading: Padding(
                     padding: const EdgeInsets.only(left: 16.0),
@@ -248,8 +252,8 @@ class _NotificationSettingsScreenState
                 }
               },
               borderRadius: BorderRadius.circular(24),
-              splashColor: const Color(0xFF6750A4).withAlpha(31),
-              highlightColor: const Color(0xFF6750A4).withAlpha(20),
+              splashColor: highContrastBlue.withAlpha(31),
+              highlightColor: highContrastBlue.withAlpha(20),
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Row(
@@ -257,14 +261,14 @@ class _NotificationSettingsScreenState
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6750A4).withAlpha(41),
+                        color: highContrastBlue.withAlpha(41),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Icon(
                         _notificationsEnabled
                             ? Icons.notifications_active_rounded
                             : Icons.notifications_off_rounded,
-                        color: const Color(0xFF6750A4),
+                        color: highContrastBlue,
                         size: 24,
                       ),
                     ),
@@ -317,8 +321,8 @@ class _NotificationSettingsScreenState
                           }
                         }
                       },
-                      activeColor: const Color(0xFF6750A4),
-                      activeTrackColor: const Color(0xFF6750A4).withAlpha(120),
+                      activeColor: highContrastBlue,
+                      activeTrackColor: highContrastBlue.withAlpha(120),
                       inactiveThumbColor: darkColor,
                       inactiveTrackColor: lightColor,
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,

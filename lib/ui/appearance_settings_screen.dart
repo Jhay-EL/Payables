@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:payables/utils/theme_provider.dart';
+import '../utils/material3_color_system.dart';
 
 class AppearanceSettingsScreen extends StatefulWidget {
   const AppearanceSettingsScreen({super.key});
@@ -15,47 +16,35 @@ class _AppearanceSettingsScreenState extends State<AppearanceSettingsScreen> {
   final ScrollController _scrollController = ScrollController();
   double _scrollOffset = 0.0;
 
-  // Dynamic color system that adapts to dark/light mode
+  // Material 3 expressive color system
   Color get backgroundColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF121212)
-        : const Color(0xFFF2F7FF);
+    return Material3ColorSystem.getSurfaceColor(brightness);
   }
 
   Color get lightColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF1E1E1E)
-        : const Color(0xFFD7EAFF);
+    return Material3ColorSystem.getSurfaceVariantColor(brightness);
   }
 
   Color get darkColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF43474e)
-        : const Color(0xFF43474e);
+    return Material3ColorSystem.getOnSurfaceVariantColor(brightness);
   }
 
   Color get userSelectedColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF3D5A80)
-        : const Color(0xFFAAD6FF);
+    return Material3ColorSystem.getPrimaryContainerColor(brightness);
   }
 
   Color get highContrastBlue {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF4FC3F7)
-        : const Color(0xFF00AFEC);
+    return Material3ColorSystem.getPrimaryColor(brightness);
   }
 
   Color get highContrastDarkBlue {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFFE3F2FD)
-        : const Color(0xFF191c20);
+    return Material3ColorSystem.getOnSurfaceColor(brightness);
   }
 
   @override
@@ -129,7 +118,9 @@ class _AppearanceSettingsScreenState extends State<AppearanceSettingsScreen> {
             pinned: true,
             snap: false,
             elevation: 0,
-            surfaceTintColor: lightColor,
+            surfaceTintColor: Material3ColorSystem.getSurfaceTintColor(
+              Theme.of(context).brightness,
+            ),
             backgroundColor: backgroundColor,
             leading: Padding(
               padding: const EdgeInsets.only(left: 16.0),

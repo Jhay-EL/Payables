@@ -27,55 +27,43 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
   late TextEditingController _notesController;
   late Color _selectedColor;
 
-  // Dynamic color system that adapts to dark/light mode
+  // Material 3 expressive color system
   Color get backgroundColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF121212)
-        : const Color(0xFFF2F7FF);
+    return Material3ColorSystem.getSurfaceColor(brightness);
   }
 
   Color get cardColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF1E1E1E)
-        : const Color(0xFFE2EFFF);
+    return Material3ColorSystem.getSurfaceVariantColor(
+      brightness,
+    ).withAlpha(150);
   }
 
   Color get textColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? Colors.white
-        : const Color(0xFF333333);
+    return Material3ColorSystem.getOnSurfaceColor(brightness);
   }
 
   Color get secondaryTextColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? Colors.white70
-        : const Color(0xFF666666);
+    return Material3ColorSystem.getOnSurfaceVariantColor(brightness);
   }
 
   // Menu-specific colors
   Color get highContrastDarkBlue {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFFE3F2FD)
-        : const Color(0xFF191c20);
+    return Material3ColorSystem.getOnSurfaceColor(brightness);
   }
 
   Color get highContrastBlue {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF4FC3F7)
-        : const Color(0xFF00AFEC);
+    return Material3ColorSystem.getPrimaryColor(brightness);
   }
 
   Color get lightColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF1E1E1E)
-        : const Color(0xFFD7EAFF);
+    return Material3ColorSystem.getSurfaceVariantColor(brightness);
   }
 
   @override
@@ -261,6 +249,9 @@ class _SubscriptionDetailsScreenState extends State<SubscriptionDetailsScreen> {
       backgroundColor: backgroundColor,
       appBar: AppBar(
         backgroundColor: backgroundColor,
+        surfaceTintColor: Material3ColorSystem.getSurfaceTintColor(
+          Theme.of(context).brightness,
+        ),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),

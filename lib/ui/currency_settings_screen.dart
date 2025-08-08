@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:payables/models/currency.dart';
 import 'package:payables/data/currency_database.dart';
 import 'package:payables/data/currency_provider.dart';
+import '../utils/material3_color_system.dart';
 
 class CurrencySettingsScreen extends StatefulWidget {
   const CurrencySettingsScreen({super.key});
@@ -19,47 +20,35 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
   final TextEditingController searchController = TextEditingController();
   bool _isSearchVisible = false;
 
-  // Dynamic color system that adapts to dark/light mode
+  // Material 3 expressive color system
   Color get backgroundColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF121212)
-        : const Color(0xFFF2F7FF);
+    return Material3ColorSystem.getSurfaceColor(brightness);
   }
 
   Color get lightColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF1E1E1E)
-        : const Color(0xFFD7EAFF);
+    return Material3ColorSystem.getSurfaceVariantColor(brightness);
   }
 
   Color get darkColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF43474e)
-        : const Color(0xFF43474e);
+    return Material3ColorSystem.getOnSurfaceVariantColor(brightness);
   }
 
   Color get userSelectedColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF3D5A80)
-        : const Color(0xFFAAD6FF);
+    return Material3ColorSystem.getPrimaryContainerColor(brightness);
   }
 
   Color get highContrastBlue {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF4FC3F7)
-        : const Color(0xFF00AFEC);
+    return Material3ColorSystem.getPrimaryColor(brightness);
   }
 
   Color get highContrastDarkBlue {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFFE3F2FD)
-        : const Color(0xFF191c20);
+    return Material3ColorSystem.getOnSurfaceColor(brightness);
   }
 
   @override
@@ -146,7 +135,9 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
             pinned: true,
             snap: false,
             elevation: 0,
-            surfaceTintColor: lightColor,
+            surfaceTintColor: Material3ColorSystem.getSurfaceTintColor(
+              Theme.of(context).brightness,
+            ),
             backgroundColor: backgroundColor,
             leading: Padding(
               padding: const EdgeInsets.only(left: 16.0),

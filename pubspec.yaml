@@ -47,6 +47,7 @@ dependencies:
   flutter_local_notifications: ^19.3.1
   timezone: ^0.10.1
   logger: ^2.0.2+1
+  liquid_glass_renderer: ^0.1.1-dev.10
 
 dev_dependencies:
   flutter_test:

@@ -12,6 +12,7 @@ import '../data/currency_provider.dart';
 import '../data/custom_icon_database.dart';
 import '../data/notification_preferences.dart';
 import '../utils/dashboard_refresh_provider.dart';
+import '../utils/material3_color_system.dart';
 import 'package:provider/provider.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -25,47 +26,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final ScrollController _scrollController = ScrollController();
   double _scrollOffset = 0.0;
 
-  // Dynamic color system that adapts to dark/light mode (from dashboard)
+  // Use Material3 color system
   Color get backgroundColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF121212)
-        : const Color(0xFFF2F7FF);
+    return Material3ColorSystem.getSurfaceColor(brightness);
   }
 
   Color get lightColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF1E1E1E)
-        : const Color(0xFFD7EAFF);
+    return Material3ColorSystem.getSurfaceVariantColor(brightness);
   }
 
   Color get darkColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF43474e)
-        : const Color(0xFF43474e);
+    return Material3ColorSystem.getOnSurfaceVariantColor(brightness);
   }
 
   Color get userSelectedColor {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF3D5A80)
-        : const Color(0xFFAAD6FF);
+    return Material3ColorSystem.getPrimaryContainerColor(brightness);
   }
 
   Color get highContrastBlue {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFF4FC3F7)
-        : const Color(0xFF00AFEC);
+    return Material3ColorSystem.getTertiaryColor(brightness);
   }
 
   Color get highContrastDarkBlue {
     final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? const Color(0xFFE3F2FD)
-        : const Color(0xFF191c20);
+    return Material3ColorSystem.getOnSurfaceColor(brightness);
   }
 
   @override
@@ -105,7 +94,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             pinned: true,
             snap: false,
             elevation: 0,
-            surfaceTintColor: lightColor,
+            surfaceTintColor: Material3ColorSystem.getSurfaceTintColor(
+              Theme.of(context).brightness,
+            ),
             backgroundColor: backgroundColor,
             leading: IconButton(
               icon: Icon(
@@ -155,9 +146,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     duration: const Duration(
                                       milliseconds: 2000,
                                     ),
-                                    color: highContrastDarkBlue.withValues(
-                                      alpha: 0.3,
-                                    ),
+                                    color: Material3ColorSystem.getPrimaryColor(
+                                      Theme.of(context).brightness,
+                                    ).withValues(alpha: 0.3),
                                     size: 2.0,
                                   ),
                         ),
@@ -187,7 +178,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.notifications_rounded,
                     title: 'Notifications',
                     description: 'Enable/Disable app notifications',
-                    iconColor: const Color(0xFF6750A4),
+                    iconColor: Material3ColorSystem.getPrimaryColor(
+                      Theme.of(context).brightness,
+                    ),
                     onTap: () => _handleNotificationsTap(context),
                     isFirst: true,
                   ),
@@ -195,14 +188,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.palette_rounded,
                     title: 'Appearance',
                     description: 'Change app color appearance',
-                    iconColor: const Color(0xFF006A6B),
+                    iconColor: Material3ColorSystem.getCategoryColor(1),
                     onTap: () => _handleAppearanceTap(context),
                   ),
                   _buildM3SettingsItem(
                     icon: Icons.attach_money_rounded,
                     title: 'Currency',
                     description: 'Change default app currency',
-                    iconColor: const Color(0xFF8B5000),
+                    iconColor: Material3ColorSystem.getCategoryColor(2),
                     onTap: () => _handleCurrencyTap(context),
                   ),
                   _buildM3SettingsItem(
@@ -210,7 +203,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: 'Widget',
                     description:
                         'Select what payables will display on home screen',
-                    iconColor: const Color(0xFF006E1C),
+                    iconColor: Material3ColorSystem.getCategoryColor(3),
                     onTap: () => _handleWidgetTap(context),
                     isLast: true,
                   ),
@@ -231,7 +224,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.download_rounded,
                     title: 'Backup',
                     description: 'Backup all your subscription in .excel file',
-                    iconColor: const Color(0xFF8E4EC6),
+                    iconColor: Material3ColorSystem.getCategoryColor(4),
                     onTap: () => _handleBackupTap(context),
                     isFirst: true,
                   ),
@@ -239,7 +232,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.restore_rounded,
                     title: 'Restore',
                     description: 'Restore all your subscription',
-                    iconColor: const Color(0xFF984061),
+                    iconColor: Material3ColorSystem.getCategoryColor(5),
                     onTap: () => _handleRestoreTap(context),
                     isLast: true,
                   ),
@@ -260,7 +253,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.info_rounded,
                     title: 'About Payables',
                     description: 'Information and privacy policy',
-                    iconColor: const Color(0xFF006B5D),
+                    iconColor: Material3ColorSystem.getCategoryColor(6),
                     onTap: () => _handleAboutTap(context),
                     isFirst: true,
                   ),
@@ -268,7 +261,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.delete_rounded,
                     title: 'Erase data',
                     description: 'Remove all data from the app',
-                    iconColor: const Color(0xFFEF4444),
+                    iconColor: Material3ColorSystem.getErrorColor(
+                      Theme.of(context).brightness,
+                    ),
                     onTap: () => _handleEraseDataTap(context),
                     isDestructive: true,
                     isLast: true,
@@ -520,12 +515,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF006B5D).withAlpha(41),
+                        color: Material3ColorSystem.getCategoryColor(
+                          6,
+                        ).withAlpha(41),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Icon(
                         Icons.backup_rounded,
-                        color: const Color(0xFF006B5D),
+                        color: Material3ColorSystem.getCategoryColor(6),
                         size: 24,
                       ),
                     ),
@@ -693,12 +690,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF8E4EC6).withAlpha(41),
+                        color: Material3ColorSystem.getCategoryColor(
+                          4,
+                        ).withAlpha(41),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Icon(
                         Icons.restore_rounded,
-                        color: const Color(0xFF8E4EC6),
+                        color: Material3ColorSystem.getCategoryColor(4),
                         size: 24,
                       ),
                     ),
@@ -794,10 +793,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444).withAlpha(31),
+                        color: Material3ColorSystem.getErrorColor(
+                          Theme.of(context).brightness,
+                        ).withAlpha(31),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: const Color(0xFFEF4444).withAlpha(80),
+                          color: Material3ColorSystem.getErrorColor(
+                            Theme.of(context).brightness,
+                          ).withAlpha(80),
                           width: 1,
                         ),
                       ),
@@ -805,7 +808,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         children: [
                           Icon(
                             Icons.warning_amber_rounded,
-                            color: const Color(0xFFEF4444),
+                            color: Material3ColorSystem.getErrorColor(
+                              Theme.of(context).brightness,
+                            ),
                             size: 20,
                           ),
                           const SizedBox(width: 12),
@@ -814,7 +819,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               'Restoring data will replace your current subscriptions. Consider backing up first.',
                               style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(
-                                    color: const Color(0xFFEF4444),
+                                    color: Material3ColorSystem.getErrorColor(
+                                      Theme.of(context).brightness,
+                                    ),
                                     fontWeight: FontWeight.w500,
                                   ),
                             ),
@@ -1063,12 +1070,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444).withAlpha(41),
+                  color: Material3ColorSystem.getErrorColor(
+                    Theme.of(context).brightness,
+                  ).withAlpha(41),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(
                   Icons.delete_forever_rounded,
-                  color: const Color(0xFFEF4444),
+                  color: Material3ColorSystem.getErrorColor(
+                    Theme.of(context).brightness,
+                  ),
                   size: 24,
                 ),
               ),
@@ -1111,7 +1122,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     Icon(
                       Icons.warning_rounded,
-                      color: const Color(0xFFEF4444),
+                      color: Material3ColorSystem.getErrorColor(
+                        Theme.of(context).brightness,
+                      ),
                       size: 20,
                     ),
                     const SizedBox(width: 12),
@@ -1119,7 +1132,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Text(
                         'This action cannot be undone.',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFFEF4444),
+                          color: Material3ColorSystem.getErrorColor(
+                            Theme.of(context).brightness,
+                          ),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -1140,7 +1155,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 await _eraseAllData(context);
               },
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFEF4444),
+                backgroundColor: Material3ColorSystem.getErrorColor(
+                  Theme.of(context).brightness,
+                ),
               ),
               child: const Text(
                 'Erase All Data',
@@ -1176,7 +1193,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   CircularProgressIndicator(
-                    color: const Color(0xFFEF4444),
+                    color: Material3ColorSystem.getErrorColor(
+                      Theme.of(context).brightness,
+                    ),
                     strokeWidth: 3,
                   ),
                   const SizedBox(height: 16),
@@ -1236,7 +1255,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
-            backgroundColor: const Color(0xFF10B981),
+            backgroundColor: Material3ColorSystem.getCategoryColor(3),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
@@ -1266,7 +1285,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: Material3ColorSystem.getErrorColor(
+              Theme.of(context).brightness,
+            ),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
