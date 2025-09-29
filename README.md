@@ -24,7 +24,6 @@ Payables helps you manage all your recurring expenses in one place, giving you a
 
 ## 📸 App Screenshots
 <div align="center">
-  <sub>*Add your app screenshots here! Replace the placeholder links.*</sub>
   <br>
   <br>
   <img src="https://placehold.co/250x500/1e1e1e/c9c9c9?text=Screenshot%201" alt="App Screenshot 1" width="250" style="border-radius: 15px; margin: 10px;">
