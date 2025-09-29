@@ -4,7 +4,7 @@
 
 # Payables
 
-[cite_start]**Manage your subscriptions and recurring bills with ease[cite: 3].**
+**Manage your subscriptions and recurring bills with ease.**
 
 </div>
 
@@ -17,8 +17,8 @@
 
 ---
 
-### [cite_start]**Tired of losing track of subscriptions or being surprised by an upcoming bill[cite: 2]?**
-[cite_start]Payables helps you manage all your recurring expenses in one place, giving you a clear view of where your money is going[cite: 3]. [cite_start]With a clean, modern interface and powerful customization options, managing your finances has never been easier or looked better[cite: 4].
+### **Tired of losing track of subscriptions or being surprised by an upcoming bill?**
+Payables helps you manage all your recurring expenses in one place, giving you a clear view of where your money is going. With a clean, modern interface and powerful customization options, managing your finances has never been easier or looked better.
 
 <br>
 
@@ -38,11 +38,11 @@
 
 | Feature | Description |
 | :--- | :--- |
-| **💸 Effortless Management** | [cite_start]Create, edit, and delete payables with a clean UI[cite: 7]. [cite_start]Track amount, billing cycle, and start/end dates[cite: 8]. [cite_start]Get smart due date calculations (e.g., "Due Tomorrow")[cite: 9]. |
-| **📊 Powerful Dashboard** | [cite_start]Get an at-a-glance overview of total payables with filtered views for items due "This Week" and "This Month"[cite: 11]. Stay organized and informed. |
-| **🗂️ Smart Organization** | [cite_start]Group your expenses with fully customizable categories, each with its own name, color, and icon[cite: 12]. [cite_start]Manage a payable's lifecycle with `Paused` and `Finished` states[cite: 13]. |
-| **🎨 Rich Customization** | [cite_start]Personalize each payable with a unique background color and a custom icon from your gallery[cite: 16]. [cite_start]Full support for **Light, Dark, and System** themes[cite: 17]. |
-| **⚙️ Utilities & Data** | [cite_start]Full **multi-currency support** [cite: 21][cite_start], built-in search [cite: 22][cite_start], and local **Backup/Restore** features[cite: 23]. [cite_start]All data is saved securely on your device using a Room database[cite: 24]. |
+| **💸 Effortless Management** | Create, edit, and delete payables with a clean UI. Track amount, billing cycle, and start/end dates. Get smart due date calculations (e.g., "Due Tomorrow"). |
+| **📊 Powerful Dashboard** | Get an at-a-glance overview of total payables with filtered views for items due "This Week" and "This Month". Stay organized and informed. |
+| **🗂️ Smart Organization** | Group your expenses with fully customizable categories, each with its own name, color, and icon. Manage a payable's lifecycle with `Paused` and `Finished` states. |
+| **🎨 Rich Customization** | Personalize each payable with a unique background color and a custom icon from your gallery. Full support for **Light, Dark, and System** themes. |
+| **⚙️ Utilities & Data** | Full **multi-currency support**, built-in search, and local **Backup/Restore** features. All data is saved securely on your device using a Room database. |
 
 <br>
 
@@ -84,5 +84,5 @@ To get a local copy up and running, follow these simple steps.
 Distributed under the MIT License. See `LICENSE.txt` for more information.
 
 <div align="center">
-  <sub>Made with ❤️ by Jhay-EL</sub>
+  <sub>Developed by Jhay-EL</sub>
 </div>
