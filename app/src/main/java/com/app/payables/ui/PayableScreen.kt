@@ -427,7 +427,7 @@ private fun SortOptionsSheet(
             )
             Spacer(modifier = Modifier.height(LocalAppDimensions.current.spacing.md))
             Column {
-                SortOption.values().forEach { option ->
+                SortOption.entries.forEach { option ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -460,11 +460,11 @@ private fun SortOptionsSheet(
             SingleChoiceSegmentedButtonRow(
                 modifier = Modifier.fillMaxWidth()
             ) {
-                SortDirection.values().forEachIndexed { index, direction ->
+                SortDirection.entries.forEachIndexed { index, direction ->
                     SegmentedButton(
                         selected = selectedDirection == direction,
                         onClick = { onSelectDirection(direction) },
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = SortDirection.values().size)
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = SortDirection.entries.size)
                     ) {
                         Text(direction.name)
                     }
