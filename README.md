@@ -26,9 +26,9 @@ Payables helps you manage all your recurring expenses in one place, giving you a
 <div align="center">
   <br>
   <br>
-  <img src="https://placehold.co/250x500/1e1e1e/c9c9c9?text=Screenshot%201" alt="App Screenshot 1" width="250" style="border-radius: 15px; margin: 10px;">
-  <img src="https://placehold.co/250x500/1e1e1e/c9c9c9?text=Screenshot%202" alt="App Screenshot 2" width="250" style="border-radius: 15px; margin: 10px;">
-  <img src="https://placehold.co/250x500/1e1e1e/c9c9c9?text=Screenshot%203" alt="App Screenshot 3" width="250" style="border-radius: 15px; margin: 10px;">
+  <img src="app/src/main/res/Screenshot/sc_dashboard.png" alt="Dashboard Screenshot" width="250">
+  <img src="app/src/main/res/Screenshot/sc_payableScreen.png" alt="Payable Screen Screenshot" width="250">
+  <img src="app/src/main/res/Screenshot/sc_payable.png" alt="Payable View Screenshot" width="250">
 </div>
 
 <br>
