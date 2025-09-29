@@ -61,7 +61,9 @@ data class Payable(
             isFinished = isFinished,
             billingStartDate = billingDate.format(dateFormatter),
             billingCycle = billingCycle,
-            endDate = endDateFormatted
+            endDate = endDateFormatted,
+            createdAt = createdAt,
+            billingDateMillis = billingDateMillis
         )
     }
     

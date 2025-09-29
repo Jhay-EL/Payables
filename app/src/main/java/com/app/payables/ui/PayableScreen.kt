@@ -2,6 +2,7 @@ package com.app.payables.ui
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,9 +45,14 @@ fun PayableScreen(
     var showTopBarMenu by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
-    
+    var showSortSheet by remember { mutableStateOf(false) }
+
+    // State for sorting
+    var sortOption by remember { mutableStateOf(SortOption.DueDate) }
+    var sortDirection by remember { mutableStateOf(SortDirection.Ascending) }
+
     // Filter payables based on search query
-    val filteredPayables = remember(payables, searchQuery) {
+    val searchFilteredPayables = remember(payables, searchQuery) {
         if (searchQuery.isBlank()) {
             payables
         } else {
@@ -54,6 +60,21 @@ fun PayableScreen(
                 payable.name.contains(searchQuery, ignoreCase = true) ||
                 payable.planType.contains(searchQuery, ignoreCase = true)
             }
+        }
+    }
+
+    // Apply sorting to the search-filtered list
+    val sortedPayables = remember(searchFilteredPayables, sortOption, sortDirection) {
+        val sortedList = when (sortOption) {
+            SortOption.Name -> searchFilteredPayables.sortedBy { it.name }
+            SortOption.Amount -> searchFilteredPayables.sortedBy { it.price.toDoubleOrNull() ?: 0.0 }
+            SortOption.DueDate -> searchFilteredPayables.sortedBy { it.billingDateMillis }
+            SortOption.DateAdded -> searchFilteredPayables.sortedBy { it.createdAt }
+        }
+        if (sortDirection == SortDirection.Descending) {
+            sortedList.reversed()
+        } else {
+            sortedList
         }
     }
 
@@ -131,7 +152,7 @@ fun PayableScreen(
                                 },
                                 onClick = { 
                                     showTopBarMenu = false
-                                    // TODO: Handle sort action
+                                    showSortSheet = true
                                 }
                             )
                         }
@@ -261,7 +282,7 @@ fun PayableScreen(
             Spacer(modifier = Modifier.height(LocalAppDimensions.current.spacing.lg))
 
             // Payables List - Stacked Card Design
-            if (filteredPayables.isEmpty() && searchQuery.isNotBlank()) {
+            if (sortedPayables.isEmpty() && searchQuery.isNotBlank()) {
                 // Empty search results state
                 Box(
                     modifier = Modifier
@@ -291,7 +312,7 @@ fun PayableScreen(
                         )
                     }
                 }
-            } else if (filteredPayables.isEmpty() && payables.isEmpty()) {
+            } else if (sortedPayables.isEmpty() && payables.isEmpty()) {
                 // Empty state when no payables exist
                 Box(
                     modifier = Modifier
@@ -341,7 +362,7 @@ fun PayableScreen(
                     }
                 }
             } else {
-                filteredPayables.forEachIndexed { index, payable ->
+                sortedPayables.forEachIndexed { index, payable ->
                     PayableCard(
                         title = payable.name,
                         subtitle = payable.planType,
@@ -357,7 +378,7 @@ fun PayableScreen(
                         backgroundColor = payable.backgroundColor,
                         customIconUri = payable.customIconUri,
                         isFirst = index == 0,
-                        isLast = index == filteredPayables.lastIndex,
+                        isLast = index == sortedPayables.lastIndex,
                         onClick = { onPayableClick(payable) }
                     )
                 }
@@ -366,6 +387,89 @@ fun PayableScreen(
             // Bottom spacing for navigation bar
             val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
             Spacer(Modifier.height(bottomInset + LocalAppDimensions.current.spacing.navBarContentBottomMargin))
+        }
+    }
+    if (showSortSheet) {
+        SortOptionsSheet(
+            onDismiss = { showSortSheet = false },
+            selectedOption = sortOption,
+            onSelectOption = { sortOption = it },
+            selectedDirection = sortDirection,
+            onSelectDirection = { sortDirection = it }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SortOptionsSheet(
+    onDismiss: () -> Unit,
+    selectedOption: SortOption,
+    onSelectOption: (SortOption) -> Unit,
+    selectedDirection: SortDirection,
+    onSelectDirection: (SortDirection) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = LocalAppDimensions.current.spacing.md)
+                .padding(bottom = LocalAppDimensions.current.spacing.lg)
+        ) {
+            Text(
+                "Sort by",
+                style = MaterialTheme.typography.headlineSmall
+            )
+            Spacer(modifier = Modifier.height(LocalAppDimensions.current.spacing.md))
+            Column {
+                SortOption.values().forEach { option ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelectOption(option) }
+                            .padding(vertical = LocalAppDimensions.current.spacing.sm),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (selectedOption == option),
+                            onClick = { onSelectOption(option) }
+                        )
+                        Text(
+                            text = when (option) {
+                                SortOption.DueDate -> "Due Date"
+                                SortOption.DateAdded -> "Date Added"
+                                else -> option.name
+                            },
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(start = LocalAppDimensions.current.spacing.md)
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(LocalAppDimensions.current.spacing.lg))
+            Text(
+                "Direction",
+                style = MaterialTheme.typography.headlineSmall
+            )
+            Spacer(modifier = Modifier.height(LocalAppDimensions.current.spacing.md))
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                SortDirection.values().forEachIndexed { index, direction ->
+                    SegmentedButton(
+                        selected = selectedDirection == direction,
+                        onClick = { onSelectDirection(direction) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = SortDirection.values().size)
+                    ) {
+                        Text(direction.name)
+                    }
+                }
+            }
         }
     }
 }
@@ -620,8 +724,22 @@ data class PayableItemData(
     val isFinished: Boolean = false, // Whether the payable is finished
     val billingStartDate: String = "", // Original billing start date for editing
     val billingCycle: String = "Monthly", // Billing cycle (Monthly, Weekly, Quarterly, Yearly)
-    val endDate: String? = null
+    val endDate: String? = null,
+    val createdAt: Long = 0L,
+    val billingDateMillis: Long = 0L
 )
+
+enum class SortOption {
+    Name,
+    Amount,
+    DueDate,
+    DateAdded
+}
+
+enum class SortDirection {
+    Ascending,
+    Descending
+}
 
 @Preview(showBackground = true)
 @Composable
