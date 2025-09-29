@@ -49,7 +49,6 @@ import com.app.payables.PayablesApplication
 import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import android.app.Activity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -492,9 +491,6 @@ fun DashboardScreen(
                     }
                 }
                 
-                // Ensure we have data before rendering to prevent empty state flash
-                if (sourcePayables.isNotEmpty() || selectedPayableFilter == PayableFilter.All) {
-
                 // Filter payables based on selected filter
                 val filteredPayables = remember(sourcePayables, selectedPayableFilter) {
                     val currentFilter = selectedPayableFilter // Store in local variable for smart casting
@@ -513,29 +509,19 @@ fun DashboardScreen(
                     }
                 }
                 
-                    PayableScreen(
-                        onBack = { 
-                            showPayablesFullScreen = false
-                            selectedPayableFilter = PayableFilter.All
-                        },
-                        onNavigateToAddPayable = { showAddPayableFullScreen = true },
-                        onPayableClick = { payable ->
-                            selectedPayable = payable
-                            showViewPayableFullScreen = true
-                        },
-                        payables = filteredPayables,
-                        monthlyAmount = calculateTotalAmount(filteredPayables),
-                        screenTitle = selectedPayableFilter.displayTitle
-                    )
-                } else {
-                    // Show loading state to prevent empty state flash during transitions
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                }
+                PayableScreen(
+                    onBack = { 
+                        showPayablesFullScreen = false
+                    },
+                    onNavigateToAddPayable = { showAddPayableFullScreen = true },
+                    onPayableClick = { payable ->
+                        selectedPayable = payable
+                        showViewPayableFullScreen = true
+                    },
+                    payables = filteredPayables,
+                    monthlyAmount = calculateTotalAmount(filteredPayables),
+                    screenTitle = selectedPayableFilter.displayTitle
+                )
             }
             EditScreenState.ViewPayable -> {
                 selectedPayable?.let { payable ->
@@ -849,7 +835,7 @@ fun OverviewCard(
                 modifier = Modifier
                     .size(44.dp)
                     .background(
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        MaterialTheme.colorScheme.secondaryContainer,
                         RoundedCornerShape(16.dp)
                     ),
                 contentAlignment = Alignment.Center
@@ -858,7 +844,7 @@ fun OverviewCard(
                     imageVector = icon,
                     contentDescription = "$title overview",
                     modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
 
@@ -886,7 +872,7 @@ fun OverviewCard(
                 Box(
                     modifier = Modifier
                         .background(
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            MaterialTheme.colorScheme.secondaryContainer,
                             RoundedCornerShape(16.dp)
                         )
                         .padding(horizontal = 12.dp, vertical = 6.dp)
@@ -894,7 +880,7 @@ fun OverviewCard(
                     Text(
                         text = count,
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 }
             }
