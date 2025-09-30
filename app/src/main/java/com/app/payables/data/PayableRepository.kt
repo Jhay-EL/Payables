@@ -190,10 +190,6 @@ class PayableRepository(private val payableDao: PayableDao) {
         return payableDao.getPayablesCountByCategory(category)
     }
 
-    suspend fun getAllPaymentMethods(): List<String> {
-        return payableDao.getAllPaymentMethods()
-    }
-
     fun getNormalizedMonthlyCost(): Flow<Double> {
         return getActivePayables().map { payables ->
             payables.sumOf {

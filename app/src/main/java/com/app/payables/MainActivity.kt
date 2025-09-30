@@ -38,7 +38,6 @@ import com.app.payables.theme.AppTransitions
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
-import com.app.payables.ui.AddPayableScreen
 import com.app.payables.ui.InsightsScreen
 
 class MainActivity : ComponentActivity() {
