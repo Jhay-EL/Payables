@@ -63,7 +63,8 @@ data class Payable(
             billingCycle = billingCycle,
             endDate = endDateFormatted,
             createdAt = createdAt,
-            billingDateMillis = billingDateMillis
+            billingDateMillis = billingDateMillis,
+            nextDueDateMillis = dueDate.toEpochDay() * (24 * 60 * 60 * 1000)
         )
     }
     

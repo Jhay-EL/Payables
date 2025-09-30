@@ -68,7 +68,7 @@ fun PayableScreen(
         val sortedList = when (sortOption) {
             SortOption.Name -> searchFilteredPayables.sortedBy { it.name }
             SortOption.Amount -> searchFilteredPayables.sortedBy { it.price.toDoubleOrNull() ?: 0.0 }
-            SortOption.DueDate -> searchFilteredPayables.sortedBy { it.billingDateMillis }
+            SortOption.DueDate -> searchFilteredPayables.sortedBy { it.nextDueDateMillis }
             SortOption.DateAdded -> searchFilteredPayables.sortedBy { it.createdAt }
         }
         if (sortDirection == SortDirection.Descending) {
@@ -726,7 +726,8 @@ data class PayableItemData(
     val billingCycle: String = "Monthly", // Billing cycle (Monthly, Weekly, Quarterly, Yearly)
     val endDate: String? = null,
     val createdAt: Long = 0L,
-    val billingDateMillis: Long = 0L
+    val billingDateMillis: Long = 0L,
+    val nextDueDateMillis: Long = 0L
 )
 
 enum class SortOption {
