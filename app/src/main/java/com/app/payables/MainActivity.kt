@@ -39,6 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import com.app.payables.ui.AddPayableScreen
+import com.app.payables.ui.InsightsScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -103,7 +104,8 @@ class MainActivity : ComponentActivity() {
                                     onOpenSettings = { navigateTo(AppRoute.Settings) },
                                     onOpenAddCategory = {
                                         backStack.add(AppRoute.AddCategory)
-                                    }
+                                    },
+                                    onOpenInsights = { navigateTo(AppRoute.Insights) }
                                 )
                             AppRoute.Settings ->
                                 SettingsScreen(
@@ -189,6 +191,10 @@ class MainActivity : ComponentActivity() {
                                 CustomIconsScreen(
                                     onBack = { back() }
                                 )
+                            AppRoute.Insights ->
+                                InsightsScreen(
+                                    onBack = { back() }
+                                )
                             }
                         }
                     }
@@ -226,8 +232,9 @@ private fun routeDepth(route: AppRoute): Int = when (route) {
     AppRoute.Restore -> 2
     AppRoute.About -> 2
     AppRoute.EraseData -> 2
+    AppRoute.Insights -> 1
 }
 
-private enum class AppRoute { Dashboard, Settings, Notifications, Appearance, Currency, Widget, Backup, Restore, About, EraseData, CustomColor, AddCategory, CustomIcons }
+private enum class AppRoute { Dashboard, Settings, Notifications, Appearance, Currency, Widget, Backup, Restore, About, EraseData, CustomColor, AddCategory, CustomIcons, Insights }
 
 private enum class CustomColorTarget { Background, Text }

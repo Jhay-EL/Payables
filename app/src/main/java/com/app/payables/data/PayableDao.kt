@@ -71,6 +71,9 @@ interface PayableDao {
     @Query("SELECT DISTINCT category FROM payables WHERE category != 'Not set' ORDER BY category ASC")
     suspend fun getAllUsedCategories(): List<String>
     
+    @Query("SELECT DISTINCT paymentMethod FROM payables WHERE paymentMethod != 'Not set' ORDER BY paymentMethod ASC")
+    suspend fun getAllPaymentMethods(): List<String>
+    
     @Query("""
         SELECT * FROM payables 
         WHERE (title LIKE '%' || :query || '%' OR description LIKE '%' || :query || '%') 

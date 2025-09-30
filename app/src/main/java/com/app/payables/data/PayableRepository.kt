@@ -189,4 +189,63 @@ class PayableRepository(private val payableDao: PayableDao) {
     suspend fun getPayablesCountByCategory(category: String): Int {
         return payableDao.getPayablesCountByCategory(category)
     }
+
+    suspend fun getAllPaymentMethods(): List<String> {
+        return payableDao.getAllPaymentMethods()
+    }
+
+    fun getNormalizedMonthlyCost(): Flow<Double> {
+        return getActivePayables().map { payables ->
+            payables.sumOf {
+                val amount = it.price.toDoubleOrNull() ?: 0.0
+                when (it.billingCycle) {
+                    "Weekly" -> amount * 4.345
+                    "Monthly" -> amount
+                    "Quarterly" -> amount / 3
+                    "Yearly" -> amount / 12
+                    else -> 0.0
+                }
+            }
+        }
+    }
+
+    fun getSpendingPerCategory(): Flow<Map<String, Double>> {
+        return getActivePayables().map { payables ->
+            payables.groupBy { it.category }
+                .mapValues { (_, payables) ->
+                    payables.sumOf {
+                        val amount = it.price.toDoubleOrNull() ?: 0.0
+                        when (it.billingCycle) {
+                            "Weekly" -> amount * 4.345
+                            "Monthly" -> amount
+                            "Quarterly" -> amount / 3
+                            "Yearly" -> amount / 12
+                            else -> 0.0
+                        }
+                    }
+                }
+        }
+    }
+
+    fun getUpcomingPayments(limit: Int = 5): Flow<List<PayableItemData>> {
+        return getActivePayables().map { payables ->
+            payables.sortedBy { it.nextDueDateMillis }
+                .take(limit)
+        }
+    }
+
+    fun getTopFiveMostExpensive(): Flow<List<PayableItemData>> {
+        return getActivePayables().map { payables ->
+            payables.sortedByDescending {
+                val amount = it.price.toDoubleOrNull() ?: 0.0
+                when (it.billingCycle) {
+                    "Weekly" -> amount * 4.345
+                    "Monthly" -> amount
+                    "Quarterly" -> amount / 3
+                    "Yearly" -> amount / 12
+                    else -> 0.0
+                }
+            }.take(5)
+        }
+    }
 }

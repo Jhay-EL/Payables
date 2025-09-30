@@ -46,17 +46,33 @@ fun PayableScreen(
     var showSearch by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var showSortSheet by remember { mutableStateOf(false) }
+    var showFilterSheet by remember { mutableStateOf(false) }
 
     // State for sorting
     var sortOption by remember { mutableStateOf(SortOption.DueDate) }
     var sortDirection by remember { mutableStateOf(SortDirection.Ascending) }
 
+    // State for filtering
+    var filterState by remember { mutableStateOf(FilterState()) }
+
+    // Apply filters to the initial list
+    val filteredPayables = remember(payables, filterState) {
+        payables.filter { payable ->
+            val selectedMethods = filterState.paymentMethods.filterValues { it }.keys
+
+            val cycleMatch = filterState.selectedBillingCycle == null || payable.billingCycle == filterState.selectedBillingCycle
+            val methodMatch = selectedMethods.isEmpty() || payable.paymentMethod in selectedMethods
+
+            cycleMatch && methodMatch
+        }
+    }
+
     // Filter payables based on search query
-    val searchFilteredPayables = remember(payables, searchQuery) {
+    val searchFilteredPayables = remember(filteredPayables, searchQuery) {
         if (searchQuery.isBlank()) {
-            payables
+            filteredPayables
         } else {
-            payables.filter { payable ->
+            filteredPayables.filter { payable ->
                 payable.name.contains(searchQuery, ignoreCase = true) ||
                 payable.planType.contains(searchQuery, ignoreCase = true)
             }
@@ -140,7 +156,7 @@ fun PayableScreen(
                                 },
                                 onClick = { 
                                     showTopBarMenu = false
-                                    // TODO: Handle filter action
+                                    showFilterSheet = true
                                 }
                             )
                             DropdownMenuItem(
@@ -398,6 +414,94 @@ fun PayableScreen(
             onSelectDirection = { sortDirection = it }
         )
     }
+
+    if (showFilterSheet) {
+        FilterOptionsSheet(
+            onDismiss = { showFilterSheet = false },
+            filterState = filterState,
+            onFilterStateChange = { filterState = it },
+            paymentMethods = payables.map { it.paymentMethod }.distinct()
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FilterOptionsSheet(
+    onDismiss: () -> Unit,
+    filterState: FilterState,
+    onFilterStateChange: (FilterState) -> Unit,
+    paymentMethods: List<String>
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = LocalAppDimensions.current.spacing.md)
+                .padding(bottom = LocalAppDimensions.current.spacing.lg)
+        ) {
+            Spacer(modifier = Modifier.height(LocalAppDimensions.current.spacing.sm))
+            Text(
+                "Filter by",
+                style = MaterialTheme.typography.headlineSmall
+            )
+            Spacer(modifier = Modifier.height(LocalAppDimensions.current.spacing.lg))
+            Text(
+                "Billing Cycle",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(modifier = Modifier.height(LocalAppDimensions.current.spacing.sm))
+            Column {
+                listOf("Weekly", "Monthly", "Quarterly", "Yearly").forEach { cycle ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onFilterStateChange(filterState.copy(selectedBillingCycle = cycle)) }
+                            .padding(vertical = LocalAppDimensions.current.spacing.sm),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (filterState.selectedBillingCycle == cycle),
+                            onClick = { onFilterStateChange(filterState.copy(selectedBillingCycle = cycle)) }
+                        )
+                        Text(
+                            text = cycle,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(start = LocalAppDimensions.current.spacing.md)
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(LocalAppDimensions.current.spacing.lg))
+            Text(
+                "Payment Method",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(modifier = Modifier.height(LocalAppDimensions.current.spacing.sm))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(LocalAppDimensions.current.spacing.sm)
+            ) {
+                paymentMethods.forEach { method ->
+                    val selected = filterState.paymentMethods[method] ?: false
+                    FilterChip(
+                        selected = selected,
+                        onClick = {
+                            val updatedMethods = filterState.paymentMethods.toMutableMap()
+                            updatedMethods[method] = !selected
+                            onFilterStateChange(filterState.copy(paymentMethods = updatedMethods))
+                        },
+                        label = { Text(method) }
+                    )
+                }
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -495,7 +599,8 @@ private fun PayableCard(
     // Calculate text colors based on background brightness
     val isBackgroundBright = isColorBright(backgroundColor)
     val textColor = if (isBackgroundBright) Color.Black else Color.White
-    val secondaryTextColor = if (isBackgroundBright) Color.Black.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.7f)
+    val secondaryTextColor = if (isBackgroundBright) Color.Black.copy(alpha = 0.7f) else
+        Color.White.copy(alpha = 0.7f)
     val iconTint = if (isBackgroundBright) Color.Black else Color.White
     
     // Stacked card corner radius logic
@@ -741,6 +846,11 @@ enum class SortDirection {
     Ascending,
     Descending
 }
+
+data class FilterState(
+    val selectedBillingCycle: String? = null,
+    val paymentMethods: Map<String, Boolean> = emptyMap()
+)
 
 @Preview(showBackground = true)
 @Composable

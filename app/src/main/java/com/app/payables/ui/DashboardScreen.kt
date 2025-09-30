@@ -55,7 +55,8 @@ import kotlinx.coroutines.launch
 fun DashboardScreen(
     modifier: Modifier = Modifier,
     onOpenSettings: () -> Unit = {},
-    onOpenAddCategory: () -> Unit = {}
+    onOpenAddCategory: () -> Unit = {},
+    onOpenInsights: () -> Unit = {}
 ) {
     // Get repositories from Application
     val context = LocalContext.current
@@ -366,6 +367,13 @@ fun DashboardScreen(
                                     }
                                 )
                             }
+                        }
+
+                        // Insights Preview Card
+                        item {
+                            InsightsPreviewCard(
+                                onClick = onOpenInsights
+                            )
                         }
 
                         // Paused/Finished Section
@@ -1611,6 +1619,81 @@ private fun DashboardScreenContent() {
             
             item {
                 PausedFinishedSection()
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun InsightsPreviewCard(
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val dashboardTheme = LocalDashboardTheme.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                top = LocalAppDimensions.current.spacing.section,
+                start = LocalAppDimensions.current.spacing.md,
+                end = LocalAppDimensions.current.spacing.md
+            )
+    ) {
+        Text(
+            text = "Insights",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(bottom = LocalAppDimensions.current.spacing.cardToHeader)
+        )
+
+        Card(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .pressableCard(interactionSource = interactionSource),
+            shape = RoundedCornerShape(dashboardTheme.groupTopCornerRadius),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            interactionSource = interactionSource
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(LocalAppDimensions.current.spacing.card),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(LocalAppDimensions.current.spacing.md)
+                ) {
+                    Icon(
+                        Icons.Default.Insights,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column {
+                        Text(
+                            text = "Spending Insights",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            text = "Tap to view a breakdown of your spending",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = "View Insights",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
