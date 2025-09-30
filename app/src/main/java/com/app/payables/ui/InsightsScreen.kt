@@ -36,14 +36,20 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.width
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
+import com.app.payables.theme.AppTheme
+import kotlinx.coroutines.launch
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Brush
+import com.app.payables.data.SpendingTimeframe
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.material.icons.filled.MoreVert
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,12 +61,39 @@ fun InsightsScreen(
     val context = LocalContext.current
     val payableRepository = (context.applicationContext as PayablesApplication).payableRepository
     val categoryRepository = (context.applicationContext as PayablesApplication).categoryRepository
+
+    var spendingTimeframe by remember { mutableStateOf(SpendingTimeframe.Monthly) }
+
     val monthlyCost by payableRepository.getNormalizedMonthlyCost().collectAsState(initial = 0.0)
-    val spendingPerCategory by payableRepository.getSpendingPerCategory().collectAsState(initial = emptyMap())
+    val spendingPerCategory by payableRepository.getSpendingPerCategory(spendingTimeframe).collectAsState(initial = emptyMap())
     val categories by categoryRepository.getAllCategories().collectAsState(initial = emptyList())
     val upcomingPayments by payableRepository.getUpcomingPayments().collectAsState(initial = emptyList())
     val topFiveMostExpensive by payableRepository.getTopFiveMostExpensive().collectAsState(initial = emptyList())
 
+    InsightsScreenContent(
+        onBack = onBack,
+        summaryTitle = summaryTitle,
+        monthlyCost = monthlyCost,
+        spendingPerCategory = spendingPerCategory,
+        categories = categories,
+        upcomingPayments = upcomingPayments,
+        topFiveMostExpensive = topFiveMostExpensive,
+        onTimeframeSelected = { spendingTimeframe = it }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun InsightsScreenContent(
+    onBack: () -> Unit,
+    summaryTitle: String,
+    monthlyCost: Double,
+    spendingPerCategory: Map<String, Double>,
+    categories: List<CategoryData>,
+    upcomingPayments: List<PayableItemData>,
+    topFiveMostExpensive: List<PayableItemData>,
+    onTimeframeSelected: (SpendingTimeframe) -> Unit
+) {
     val dims = LocalAppDimensions.current
 
     var titleInitialY by remember { mutableStateOf<Int?>(null) }
@@ -123,7 +156,8 @@ fun InsightsScreen(
             item {
                 SpendingBreakdownCard(
                     spendingPerCategory = spendingPerCategory,
-                    categories = categories
+                    categories = categories,
+                    onTimeframeSelected = onTimeframeSelected
                 )
             }
 
@@ -151,7 +185,68 @@ fun InsightsScreen(
 @Composable
 private fun InsightsScreenPreview() {
     AppTheme {
-        InsightsScreen()
+        InsightsScreenContent(
+            onBack = {},
+            summaryTitle = "Normalized Monthly Cost",
+            monthlyCost = 123.45,
+            spendingPerCategory = mapOf(
+                "Entertainment" to 50.0,
+                "Utilities" to 73.45
+            ),
+            categories = listOf(
+                CategoryData("Entertainment", "2", Color(0xFFE91E63), Icons.Default.Movie),
+                CategoryData("Utilities", "1", Color(0xFF4CAF50), Icons.Default.Lightbulb)
+            ),
+            upcomingPayments = listOf(
+                PayableItemData(
+                    id = "1",
+                    name = "Netflix",
+                    planType = "Premium",
+                    price = "19.99",
+                    currency = "USD",
+                    dueDate = "in 3 days",
+                    icon = Icons.Default.Movie,
+                    backgroundColor = Color(0xFFE50914),
+                    billingCycle = "Monthly"
+                ),
+                PayableItemData(
+                    id = "2",
+                    name = "Spotify",
+                    planType = "Family",
+                    price = "14.99",
+                    currency = "USD",
+                    dueDate = "in 5 days",
+                    icon = Icons.Default.MusicNote,
+                    backgroundColor = Color(0xFF1DB954),
+                    billingCycle = "Monthly"
+                )
+            ),
+            topFiveMostExpensive = listOf(
+                PayableItemData(
+                    id = "1",
+                    name = "Adobe Creative Cloud",
+                    planType = "All Apps",
+                    price = "52.99",
+                    currency = "USD",
+                    dueDate = "in 10 days",
+                    icon = Icons.Default.Brush,
+                    backgroundColor = Color(0xFFFF0000),
+                    billingCycle = "Monthly"
+                ),
+                PayableItemData(
+                    id = "2",
+                    name = "Netflix",
+                    planType = "Premium",
+                    price = "19.99",
+                    currency = "USD",
+                    dueDate = "in 3 days",
+                    icon = Icons.Default.Movie,
+                    backgroundColor = Color(0xFFE50914),
+                    billingCycle = "Monthly"
+                )
+            ),
+            onTimeframeSelected = {}
+        )
     }
 }
 
@@ -341,19 +436,47 @@ private fun UpcomingPaymentItem(
 @Composable
 private fun SpendingBreakdownCard(
     spendingPerCategory: Map<String, Double>,
-    categories: List<CategoryData>
+    categories: List<CategoryData>,
+    onTimeframeSelected: (SpendingTimeframe) -> Unit
 ) {
     val dims = LocalAppDimensions.current
+    var showMenu by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = dims.spacing.section)
     ) {
-        Text(
-            text = "Spending Breakdown",
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(bottom = dims.spacing.md)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Spending Breakdown",
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    SpendingTimeframe.entries.forEach { timeframeOption ->
+                        DropdownMenuItem(
+                            text = { Text(timeframeOption.name) },
+                            onClick = {
+                                onTimeframeSelected(timeframeOption)
+                                showMenu = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(dims.spacing.md))
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(dims.spacing.md),
@@ -361,40 +484,60 @@ private fun SpendingBreakdownCard(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
             )
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(dims.spacing.card),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                DonutChart(
-                    spendingPerCategory = spendingPerCategory,
-                    categories = categories,
-                    modifier = Modifier.size(120.dp)
-                )
-                Spacer(modifier = Modifier.width(dims.spacing.lg))
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(dims.spacing.sm)
+            if (spendingPerCategory.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(250.dp)
+                        .padding(dims.spacing.card),
+                    contentAlignment = Alignment.Center
                 ) {
-                    spendingPerCategory.keys.forEach { categoryName ->
-                        val category = categories.find { it.name == categoryName }
-                        if (category != null) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(dims.spacing.sm)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(12.dp)
-                                        .background(
-                                            category.color,
-                                            shape = RoundedCornerShape(4.dp)
-                                        )
-                                )
-                                Text(
-                                    text = category.name,
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
+                    CircularProgressIndicator()
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(dims.spacing.card)
+                ) {
+                    ColumnChart(
+                        spendingPerCategory = spendingPerCategory,
+                        categories = categories,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp)
+                    )
+                    Spacer(modifier = Modifier.height(dims.spacing.lg))
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(dims.spacing.sm)
+                    ) {
+                        spendingPerCategory.keys.forEach { categoryName ->
+                            val category = categories.find { it.name == categoryName }
+                            if (category != null) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(12.dp)
+                                            .background(
+                                                category.color,
+                                                shape = RoundedCornerShape(4.dp)
+                                            )
+                                    )
+                                    Spacer(modifier = Modifier.width(dims.spacing.sm))
+                                    Text(
+                                        text = category.name,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Text(
+                                        text = String.format(Locale.US, "€%.2f", spendingPerCategory[categoryName]),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
                             }
                         }
                     }
@@ -405,49 +548,75 @@ private fun SpendingBreakdownCard(
 }
 
 @Composable
-private fun DonutChart(
+private fun ColumnChart(
     spendingPerCategory: Map<String, Double>,
     categories: List<CategoryData>,
     modifier: Modifier = Modifier
 ) {
-    val totalSpending = spendingPerCategory.values.sum()
-    val proportions = spendingPerCategory.values.map { (it / totalSpending).toFloat() }
-    val animatedProgress = remember { Animatable(0f) }
-
-    LaunchedEffect(Unit) {
-        animatedProgress.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = 1000)
-        )
+    val maxSpending = spendingPerCategory.values.maxOrNull() ?: 0.0
+    val yAxisLabelCount = 5
+    val yAxisLabels = List(yAxisLabelCount) { i ->
+        val value = maxSpending * (i.toFloat() / (yAxisLabelCount - 1))
+        String.format(Locale.US, "€%.0f", value)
     }
 
-    Box(
-        modifier = modifier,
-        contentAlignment = Alignment.Center
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            var startAngle = -90f
-            proportions.forEachIndexed { index, proportion ->
-                val sweepAngle = 360 * proportion * animatedProgress.value
-                val category = categories.find { it.name == spendingPerCategory.keys.elementAt(index) }
-                drawArc(
-                    color = category?.color ?: Color.Gray,
-                    startAngle = startAngle,
-                    sweepAngle = sweepAngle,
-                    useCenter = false,
-                    style = Stroke(width = 30f, cap = StrokeCap.Round)
+    val animatables = spendingPerCategory.keys.associateWith {
+        remember(it) { Animatable(0f) }
+    }
+
+    LaunchedEffect(spendingPerCategory) {
+        spendingPerCategory.forEach { (categoryName, spending) ->
+            val proportion = if (maxSpending > 0) (spending / maxSpending).toFloat() else 0f
+            launch {
+                animatables[categoryName]?.animateTo(
+                    targetValue = proportion,
+                    animationSpec = tween(durationMillis = 800)
                 )
-                startAngle += sweepAngle
             }
         }
-                Text(
-                    text = String.format(Locale.US, "€%.2f", totalSpending),
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+    }
+
+    Row(modifier = modifier.fillMaxWidth()) {
+        YAxis(
+            labels = yAxisLabels,
+            modifier = Modifier.padding(end = 8.dp)
+        )
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val barCount = spendingPerCategory.size
+            val barWidth = size.width / (barCount * 2)
+            val spacing = barWidth
+
+            spendingPerCategory.keys.forEachIndexed { index, categoryName ->
+                val category = categories.find { it.name == categoryName }
+                if (category != null) {
+                    val barHeight = size.height * (animatables[categoryName]?.value ?: 0f)
+                    val x = (index * (barWidth + spacing)) + spacing / 2
+                    drawRoundRect(
+                        color = category.color,
+                        topLeft = androidx.compose.ui.geometry.Offset(x, size.height - barHeight),
+                        size = androidx.compose.ui.geometry.Size(barWidth, barHeight),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(x = 12f, y = 12f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun YAxis(
+    labels: List<String>,
+    modifier: Modifier = Modifier,
+    style: TextStyle = MaterialTheme.typography.bodySmall
+) {
+    Column(
+        modifier = modifier.fillMaxHeight(),
+        verticalArrangement = Arrangement.SpaceBetween,
+        horizontalAlignment = Alignment.End
+    ) {
+        labels.reversed().forEach { label ->
+            Text(text = label, style = style)
+        }
     }
 }
 

@@ -7,6 +7,13 @@ import androidx.compose.ui.graphics.Color
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
+enum class SpendingTimeframe {
+    Daily,
+    Weekly,
+    Monthly,
+    Yearly
+}
+
 class PayableRepository(private val payableDao: PayableDao) {
     
     // Get all payables as Flow of PayableItemData for UI
@@ -205,18 +212,24 @@ class PayableRepository(private val payableDao: PayableDao) {
         }
     }
 
-    fun getSpendingPerCategory(): Flow<Map<String, Double>> {
+    fun getSpendingPerCategory(timeframe: SpendingTimeframe): Flow<Map<String, Double>> {
         return getActivePayables().map { payables ->
             payables.groupBy { it.category }
                 .mapValues { (_, payables) ->
                     payables.sumOf {
                         val amount = it.price.toDoubleOrNull() ?: 0.0
-                        when (it.billingCycle) {
-                            "Weekly" -> amount * 4.345
-                            "Monthly" -> amount
-                            "Quarterly" -> amount / 3
-                            "Yearly" -> amount / 12
-                            else -> 0.0
+                        val dailyAmount = when (it.billingCycle) {
+                            "Weekly" -> amount / 7
+                            "Monthly" -> amount / 30.4375
+                            "Quarterly" -> amount / 91.3125
+                            "Yearly" -> amount / 365.25
+                            else -> amount
+                        }
+                        when (timeframe) {
+                            SpendingTimeframe.Daily -> dailyAmount
+                            SpendingTimeframe.Weekly -> dailyAmount * 7
+                            SpendingTimeframe.Monthly -> dailyAmount * 30.4375
+                            SpendingTimeframe.Yearly -> dailyAmount * 365.25
                         }
                     }
                 }
