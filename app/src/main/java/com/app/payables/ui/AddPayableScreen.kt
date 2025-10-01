@@ -131,7 +131,6 @@ fun AddPayableScreen(
     var screenState by remember { mutableStateOf(AddPayableScreenState.Main) }
     var editingPaymentMethod by remember { mutableStateOf<CustomPaymentMethod?>(null) }
     var isTitleFocused by remember { mutableStateOf(false) }
-    var isWebsiteFocused by remember { mutableStateOf(false) }
 
     val canSave = title.text.isNotBlank()
     val saveableStateHolder = rememberSaveableStateHolder()
@@ -146,29 +145,20 @@ fun AddPayableScreen(
         ?: remember { mutableStateOf(emptyList()) }
     
     val wasTitleFocused = remember { mutableStateOf(false) }
-    val wasWebsiteFocused = remember { mutableStateOf(false) }
-
-    LaunchedEffect(isTitleFocused, isWebsiteFocused) {
-        val titleFocusLost = wasTitleFocused.value && !isTitleFocused
-        val websiteFocusLost = wasWebsiteFocused.value && !isWebsiteFocused
-
-        if (titleFocusLost || websiteFocusLost) {
-            val domainSource = website.text.ifBlank { title.text }
-            if (domainSource.isNotBlank()) {
-                coroutineScope.launch {
-                    try {
-                        val domain = domainSource.trim().lowercase().replace(" ", "")
-                        val logoUrl = BrandfetchService.fetchBestLogoUrl(domain)
-                        selectedIcon = logoUrl?.toUri()
-                    } catch (_: Exception) {
-                        selectedIcon = null
-                    }
+    LaunchedEffect(isTitleFocused) {
+        if (wasTitleFocused.value && !isTitleFocused) {
+            // Focus lost
+            if (title.text.isNotBlank()) {
+                try {
+                    val domain = title.text.trim().lowercase().replace(" ", "") + ".com"
+                    val symbolUrl = BrandfetchService.getLogoUrl(domain, "symbol")
+                    selectedIcon = symbolUrl.toUri()
+                } catch (_: Exception) {
+                    selectedIcon = null
                 }
             }
         }
-
         wasTitleFocused.value = isTitleFocused
-        wasWebsiteFocused.value = isWebsiteFocused
     }
     
     // Create category options list with "Not set" as first option
@@ -361,7 +351,6 @@ fun AddPayableScreen(
                     },
                     website = website,
                     onWebsiteChange = { website = it },
-                    onWebsiteFocusChange = { isWebsiteFocused = it },
                     notes = notes,
                     onNotesChange = { notes = it }
                 )
@@ -562,7 +551,6 @@ private fun MainAddPayableContent(
     onEditCustomPayment: ((CustomPaymentMethod) -> Unit)? = null,
     website: TextFieldValue,
     onWebsiteChange: (TextFieldValue) -> Unit,
-    onWebsiteFocusChange: (Boolean) -> Unit,
     notes: TextFieldValue,
     onNotesChange: (TextFieldValue) -> Unit
 ) {
@@ -820,9 +808,7 @@ private fun MainAddPayableContent(
             OutlinedTextField(
                 value = website,
                 onValueChange = onWebsiteChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onFocusChanged { focusState -> onWebsiteFocusChange(focusState.isFocused) },
+                modifier = Modifier.fillMaxWidth(),
                 leadingIcon = { Icon(Icons.Filled.Link, contentDescription = null) },
                 placeholder = { Text("Website (Optional)") },
                 singleLine = true
@@ -899,9 +885,16 @@ private fun CustomizationOptionCard(
                     contentAlignment = Alignment.Center
                 ) {
                     if (selectedIconUri != null) {
+                        var imageModel by remember(selectedIconUri) { mutableStateOf<Any?>(selectedIconUri) }
                         AsyncImage(
-                            model = selectedIconUri.toString(),
+                            model = imageModel,
                             contentDescription = "Selected Icon",
+                            onError = {
+                                val currentModel = imageModel.toString()
+                                if (currentModel.contains("/symbol")) {
+                                    imageModel = currentModel.replace("/symbol", "/logo")
+                                }
+                            },
                             modifier = Modifier.size(24.dp)
                         )
                     } else {
@@ -1002,10 +995,17 @@ private fun HeaderCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // Icon aligned to center of content
                 if (customIcon != null) {
+                    var imageModel by remember(customIcon) { mutableStateOf<Any?>(customIcon) }
                     // Custom icon without background container - uses full space
                     AsyncImage(
-                        model = customIcon.toString(),
+                        model = imageModel,
                         contentDescription = "Brand Logo",
+                        onError = {
+                            val currentModel = imageModel.toString()
+                            if (currentModel.contains("/symbol")) {
+                                imageModel = currentModel.replace("/symbol", "/logo")
+                            }
+                        },
                         modifier = Modifier.size(60.dp)
                     )
                 } else {

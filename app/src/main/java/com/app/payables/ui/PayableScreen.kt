@@ -23,6 +23,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.DpOffset
+import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.app.payables.theme.*
 import kotlin.math.pow
@@ -645,10 +646,16 @@ private fun PayableCard(
             ) {
                 // Service Icon (no container)
                 if (customIconUri != null) {
-                    // Custom icon from URI
+                    var imageModel by remember(customIconUri) { mutableStateOf<Any?>(customIconUri.toUri()) }
                     AsyncImage(
-                        model = customIconUri,
+                        model = imageModel,
                         contentDescription = "$title logo",
+                        onError = {
+                            val currentModel = imageModel.toString()
+                            if (currentModel.contains("/symbol")) {
+                                imageModel = currentModel.replace("/symbol", "/logo")
+                            }
+                        },
                         modifier = Modifier.size(48.dp)
                     )
                 } else {
