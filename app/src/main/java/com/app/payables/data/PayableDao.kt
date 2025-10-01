@@ -8,6 +8,9 @@ interface PayableDao {
     
     @Query("SELECT * FROM payables ORDER BY billingDateMillis ASC")
     fun getAllPayables(): Flow<List<Payable>>
+
+    @Query("SELECT * FROM payables ORDER BY billingDateMillis ASC")
+    suspend fun getAllPayablesList(): List<Payable>
     
     @Query("SELECT * FROM payables WHERE id = :id")
     suspend fun getPayableById(id: String): Payable?

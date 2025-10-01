@@ -12,6 +12,18 @@ class CategoryRepository(private val categoryDao: CategoryDao) {
             categories.map { it.toCategoryData() }
         }
     }
+
+    suspend fun getAllCategoriesList(): List<Category> {
+        return categoryDao.getAllCategoriesList()
+    }
+
+    suspend fun getCategoryById(id: String): Category? {
+        return categoryDao.getCategoryById(id)
+    }
+    
+    suspend fun insertCategory(category: com.app.payables.data.Category) {
+        categoryDao.insertCategory(category)
+    }
     
     // Insert a new category
     suspend fun insertCategory(categoryData: CategoryData, isDefault: Boolean = false) {
@@ -22,6 +34,10 @@ class CategoryRepository(private val categoryDao: CategoryDao) {
     // Update an existing category
     suspend fun updateCategory(categoryData: CategoryData) {
         val category = Category.fromCategoryData(categoryData, false)
+        categoryDao.updateCategory(category)
+    }
+
+    suspend fun updateCategory(category: Category) {
         categoryDao.updateCategory(category)
     }
     

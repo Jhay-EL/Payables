@@ -9,6 +9,9 @@ interface CustomPaymentMethodDao {
     @Query("SELECT * FROM custom_payment_methods ORDER BY name ASC")
     fun getAllCustomPaymentMethods(): Flow<List<CustomPaymentMethod>>
 
+    @Query("SELECT * FROM custom_payment_methods ORDER BY name ASC")
+    suspend fun getAllCustomPaymentMethodsList(): List<CustomPaymentMethod>
+
     @Query("SELECT * FROM custom_payment_methods WHERE id = :id")
     suspend fun getCustomPaymentMethodById(id: String): CustomPaymentMethod?
 

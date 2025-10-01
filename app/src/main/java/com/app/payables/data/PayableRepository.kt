@@ -22,6 +22,14 @@ class PayableRepository(private val payableDao: PayableDao) {
             payables.map { it.toPayableItemData() }
         }
     }
+
+    suspend fun getAllPayablesList(): List<Payable> {
+        return payableDao.getAllPayablesList()
+    }
+
+    suspend fun getPayableById(id: String): Payable? {
+        return payableDao.getPayableById(id)
+    }
     
     // Get only active (non-paused, non-finished) payables
     fun getActivePayables(): Flow<List<PayableItemData>> {
@@ -111,6 +119,11 @@ class PayableRepository(private val payableDao: PayableDao) {
             val currentCount = getPayablesCountByCategory(category)
             repo.updateCategoryCount(category, currentCount.toString())
         }
+    }
+
+    // Insert a new payable
+    suspend fun insertPayable(payable: Payable) {
+        payableDao.insertPayable(payable)
     }
     
     // Update an existing payable

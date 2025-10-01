@@ -18,7 +18,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import com.app.payables.PayablesApplication
+import com.app.payables.data.BackupData
 import com.app.payables.theme.AppTheme
 import com.app.payables.theme.LocalAppDimensions
 import com.app.payables.theme.LocalDashboardTheme
@@ -27,16 +30,30 @@ import com.app.payables.theme.fadeUpTransform
 import com.app.payables.theme.pressableCard
 import com.app.payables.theme.rememberFadeToTopBarProgress
 import com.app.payables.theme.windowYReporter
+import com.google.gson.Gson
+import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import android.os.Environment
+import android.widget.Toast
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BackupScreen(
     onBack: () -> Unit = {},
-    onExcelExport: () -> Unit = {},
-    onJsonExport: () -> Unit = {},
-    onPdfExport: () -> Unit = {}
 ) {
     val dims = LocalAppDimensions.current
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    val application = context.applicationContext as PayablesApplication
+    val payableRepository = application.payableRepository
+    val categoryRepository = application.categoryRepository
+    val customPaymentMethodRepository = application.customPaymentMethodRepository
+
     var titleInitialY by remember { mutableStateOf<Int?>(null) }
     var titleWindowY by remember { mutableIntStateOf(Int.MAX_VALUE) }
     val fadeProgress = rememberFadeToTopBarProgress(titleInitialY, titleWindowY)
@@ -107,25 +124,51 @@ fun BackupScreen(
 
             SectionHeader()
 
-            ExportOptionCard(
-                title = "Excel Export",
-                subtitle = "Download an .xlsx file",
-                icon = {
-                    Icon(Icons.Filled.GridOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                },
-                onClick = onExcelExport,
-                isFirst = true,
-                isLast = false
-            )
+            val onJsonExport = {
+                coroutineScope.launch {
+                    val payables = payableRepository.getAllPayablesList()
+                    val categories = categoryRepository.getAllCategoriesList()
+                    val customPaymentMethods = customPaymentMethodRepository.getAllCustomPaymentMethodsList()
+
+                    val backupData = BackupData(payables, categories, customPaymentMethods)
+                    val json = Gson().toJson(backupData)
+
+                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                    val filename = "payables_backup_$timestamp.json"
+                    val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                    val file = File(downloadsDir, filename)
+
+                    try {
+                        FileOutputStream(file).use {
+                            it.write(json.toByteArray())
+                        }
+                        Toast.makeText(context, "Backup saved to Downloads", Toast.LENGTH_SHORT).show()
+                    } catch (_: Exception) {
+                        Toast.makeText(context, "Failed to save backup", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+
             ExportOptionCard(
                 title = "JSON Export",
                 subtitle = "Download a .json file",
                 icon = {
                     Icon(Icons.Filled.Code, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
                 },
-                onClick = onJsonExport,
-                isFirst = false,
+                onClick = { onJsonExport() },
+                isFirst = true,
                 isLast = false
+            )
+            ExportOptionCard(
+                title = "Excel Export",
+                subtitle = "Download an .xlsx file",
+                icon = {
+                    Icon(Icons.Filled.GridOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                },
+                onClick = { },
+                isFirst = false,
+                isLast = false,
+                enabled = false
             )
             ExportOptionCard(
                 title = "PDF Export",
@@ -133,9 +176,10 @@ fun BackupScreen(
                 icon = {
                     Icon(Icons.Filled.PictureAsPdf, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
                 },
-                onClick = onPdfExport,
+                onClick = { },
                 isFirst = false,
-                isLast = true
+                isLast = true,
+                enabled = false
             )
         }
     }
@@ -159,7 +203,8 @@ private fun ExportOptionCard(
     icon: @Composable () -> Unit,
     onClick: () -> Unit,
     isFirst: Boolean,
-    isLast: Boolean
+    isLast: Boolean,
+    enabled: Boolean = true,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val corners = when {
@@ -170,6 +215,7 @@ private fun ExportOptionCard(
 
     Card(
         onClick = onClick,
+        enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 2.dp)

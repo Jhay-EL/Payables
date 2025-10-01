@@ -8,6 +8,14 @@ class CustomPaymentMethodRepository(private val customPaymentMethodDao: CustomPa
         return customPaymentMethodDao.getAllCustomPaymentMethods()
     }
 
+    suspend fun getAllCustomPaymentMethodsList(): List<CustomPaymentMethod> {
+        return customPaymentMethodDao.getAllCustomPaymentMethodsList()
+    }
+
+    suspend fun getCustomPaymentMethodById(id: String): CustomPaymentMethod? {
+        return customPaymentMethodDao.getCustomPaymentMethodById(id)
+    }
+
     // Insert a new custom payment method
     suspend fun insertCustomPaymentMethod(customPaymentMethod: CustomPaymentMethod) {
         customPaymentMethodDao.insertCustomPaymentMethod(customPaymentMethod)

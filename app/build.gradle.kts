@@ -68,6 +68,9 @@ dependencies {
     // WorkManager for background tasks
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
+    // Gson for JSON serialization
+    implementation("com.google.code.gson:gson:2.10.1")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 

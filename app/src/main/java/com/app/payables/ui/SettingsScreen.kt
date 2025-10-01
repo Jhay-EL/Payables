@@ -161,7 +161,7 @@ fun SettingsScreen(
                 SettingsItemStack {
                     SettingsCard(
                         title = "Backup",
-                        subtitle = "Backup all your subscription\nin .excel file",
+                        subtitle = "Backup all your subscription",
                         leading = { BadgeIcon(background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)) { Icon(Icons.Filled.CloudUpload, null, tint = MaterialTheme.colorScheme.primary) } },
                         trailing = {},
                         isFirst = true,
