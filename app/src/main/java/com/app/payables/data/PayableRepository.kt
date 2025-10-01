@@ -145,6 +145,12 @@ class PayableRepository(private val payableDao: PayableDao) {
             }
         }
     }
+
+    suspend fun deleteActivePayables() = payableDao.deleteActivePayables()
+    suspend fun deleteFinishedPayables() = payableDao.deleteFinishedPayables()
+    suspend fun deletePausedPayables() = payableDao.deletePausedPayables()
+    suspend fun resetAllPaymentMethods() = payableDao.resetAllPaymentMethods()
+    suspend fun deleteAllPayables() = payableDao.deleteAllPayables()
     
     // Pause a payable by ID
     suspend fun pausePayable(id: String) {

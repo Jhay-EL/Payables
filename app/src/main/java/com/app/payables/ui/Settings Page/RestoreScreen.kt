@@ -154,7 +154,7 @@ fun RestoreScreen(
                                             if (existing != null) {
                                                 conflictChannel.send(category)
                                             } else {
-                                                categoryRepository.insertCategory(category)
+                                                categoryRepository.insertCategory(category.toCategoryData())
                                             }
                                         }
                                         for (paymentMethod in backupData.customPaymentMethods) {

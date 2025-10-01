@@ -18,8 +18,11 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.style.TextOverflow
+import com.app.payables.PayablesApplication
+import com.app.payables.data.ImportedIconsStore
 import com.app.payables.theme.AppTheme
 import com.app.payables.theme.LocalAppDimensions
 import com.app.payables.theme.LocalDashboardTheme
@@ -28,20 +31,26 @@ import com.app.payables.theme.fadeUpTransform
 import com.app.payables.theme.pressableCard
 import com.app.payables.theme.rememberFadeToTopBarProgress
 import com.app.payables.theme.windowYReporter
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EraseDataScreen(
     onBack: () -> Unit = {},
-    onRemoveActive: () -> Unit = {},
-    onRemoveFinished: () -> Unit = {},
-    onRemovePaused: () -> Unit = {},
-    onRemovePaymentMethods: () -> Unit = {},
-    onRemoveCustomCategories: () -> Unit = {},
-    onRemoveCustomIcons: () -> Unit = {},
-    onRemoveAll: () -> Unit = {},
 ) {
     val dims = LocalAppDimensions.current
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val application = context.applicationContext as PayablesApplication
+    val payableRepository = application.payableRepository
+    val categoryRepository = application.categoryRepository
+    val customPaymentMethodRepository = application.customPaymentMethodRepository
+
+    var showDialog by remember { mutableStateOf(false) }
+    var dialogTitle by remember { mutableStateOf("") }
+    var dialogText by remember { mutableStateOf("") }
+    var onConfirm by remember { mutableStateOf({}) }
+
     var titleInitialY by remember { mutableStateOf<Int?>(null) }
     var titleWindowY by remember { mutableIntStateOf(Int.MAX_VALUE) }
     val fadeProgress = rememberFadeToTopBarProgress(titleInitialY, titleWindowY)
@@ -109,53 +118,141 @@ fun EraseDataScreen(
                     subtitle = "Delete all payables currently marked as Active.",
                     isFirst = true,
                     isLast = false,
-                    onClick = onRemoveActive
+                    onClick = {
+                        dialogTitle = "Remove Active Payables"
+                        dialogText = "Are you sure you want to remove all active payables? This action cannot be undone."
+                        onConfirm = {
+                            coroutineScope.launch {
+                                payableRepository.deleteActivePayables()
+                            }
+                        }
+                        showDialog = true
+                    }
                 )
                 EraseOptionCard(
                     title = "Remove Finished Payables",
                     subtitle = "Delete all payables marked as Finished/Completed.",
                     isFirst = false,
                     isLast = false,
-                    onClick = onRemoveFinished
+                    onClick = {
+                        dialogTitle = "Remove Finished Payables"
+                        dialogText = "Are you sure you want to remove all finished payables? This action cannot be undone."
+                        onConfirm = {
+                            coroutineScope.launch {
+                                payableRepository.deleteFinishedPayables()
+                            }
+                        }
+                        showDialog = true
+                    }
                 )
                 EraseOptionCard(
                     title = "Remove Paused Payables",
                     subtitle = "Delete all payables currently paused.",
                     isFirst = false,
                     isLast = false,
-                    onClick = onRemovePaused
+                    onClick = {
+                        dialogTitle = "Remove Paused Payables"
+                        dialogText = "Are you sure you want to remove all paused payables? This action cannot be undone."
+                        onConfirm = {
+                            coroutineScope.launch {
+                                payableRepository.deletePausedPayables()
+                            }
+                        }
+                        showDialog = true
+                    }
                 )
                 EraseOptionCard(
                     title = "Remove payment methods",
                     subtitle = "Delete all saved cards, banks, and other payment methods.",
                     isFirst = false,
                     isLast = false,
-                    onClick = onRemovePaymentMethods
+                    onClick = {
+                        dialogTitle = "Remove Payment Methods"
+                        dialogText = "Are you sure you want to remove all saved payment methods? This action cannot be undone."
+                        onConfirm = {
+                            coroutineScope.launch {
+                                payableRepository.resetAllPaymentMethods()
+                                customPaymentMethodRepository.deleteAllCustomPaymentMethods()
+                            }
+                        }
+                        showDialog = true
+                    }
                 )
                 EraseOptionCard(
                     title = "Remove custom categories",
                     subtitle = "Delete categories you created manually.",
                     isFirst = false,
                     isLast = false,
-                    onClick = onRemoveCustomCategories
+                    onClick = {
+                        dialogTitle = "Remove Custom Categories"
+                        dialogText = "Are you sure you want to remove all custom categories? This action cannot be undone."
+                        onConfirm = {
+                            coroutineScope.launch {
+                                categoryRepository.deleteAllCustomCategories()
+                            }
+                        }
+                        showDialog = true
+                    }
                 )
                 EraseOptionCard(
                     title = "Remove custom icons",
                     subtitle = "Delete any custom icons you've added.",
                     isFirst = false,
                     isLast = false,
-                    onClick = onRemoveCustomIcons
+                    onClick = {
+                        dialogTitle = "Remove Custom Icons"
+                        dialogText = "Are you sure you want to remove all custom icons? This action cannot be undone."
+                        onConfirm = {
+                            coroutineScope.launch {
+                                ImportedIconsStore.clearAllIcons(context)
+                            }
+                        }
+                        showDialog = true
+                    }
                 )
                 EraseOptionCard(
                     title = "Remove All Data",
                     subtitle = "Delete EVERYTHING: payables, methods, categories, icons (irreversible).",
                     isFirst = false,
                     isLast = true,
-                    onClick = onRemoveAll,
+                    onClick = {
+                        dialogTitle = "Remove All Data"
+                        dialogText = "Are you absolutely sure you want to remove ALL data from this app? This action cannot be undone."
+                        onConfirm = {
+                            coroutineScope.launch {
+                                payableRepository.deleteAllPayables()
+                                customPaymentMethodRepository.deleteAllCustomPaymentMethods()
+                                categoryRepository.deleteAllCustomCategories()
+                                ImportedIconsStore.clearAllIcons(context)
+                            }
+                        }
+                        showDialog = true
+                    },
                     emphasize = true
                 )
             }
         }
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text(text = dialogTitle) },
+            text = { Text(text = dialogText) },
+            confirmButton = {
+                TextButton(onClick = {
+                    onConfirm()
+                    showDialog = false
+                }) {
+                    Text("Confirm")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

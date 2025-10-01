@@ -38,6 +38,11 @@ object ImportedIconsStore {
         current.forEach { array.put(it) }
         prefs.edit { putString(KEY_URIS, array.toString()) }
     }
+
+    fun clearAllIcons(context: Context) {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        prefs.edit { clear() }
+    }
 }
 
 

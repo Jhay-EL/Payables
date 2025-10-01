@@ -20,11 +20,7 @@ class CategoryRepository(private val categoryDao: CategoryDao) {
     suspend fun getCategoryById(id: String): Category? {
         return categoryDao.getCategoryById(id)
     }
-    
-    suspend fun insertCategory(category: com.app.payables.data.Category) {
-        categoryDao.insertCategory(category)
-    }
-    
+
     // Insert a new category
     suspend fun insertCategory(categoryData: CategoryData, isDefault: Boolean = false) {
         val category = Category.fromCategoryData(categoryData, isDefault)
@@ -39,6 +35,10 @@ class CategoryRepository(private val categoryDao: CategoryDao) {
 
     suspend fun updateCategory(category: Category) {
         categoryDao.updateCategory(category)
+    }
+
+    suspend fun deleteAllCustomCategories() {
+        categoryDao.deleteAllNonDefaultCategories()
     }
     
     // Delete a category by ID

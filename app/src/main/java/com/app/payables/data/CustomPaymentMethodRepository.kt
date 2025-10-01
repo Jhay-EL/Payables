@@ -30,4 +30,8 @@ class CustomPaymentMethodRepository(private val customPaymentMethodDao: CustomPa
     suspend fun deleteCustomPaymentMethod(customPaymentMethod: CustomPaymentMethod) {
         customPaymentMethodDao.deleteCustomPaymentMethod(customPaymentMethod)
     }
+
+    suspend fun deleteAllCustomPaymentMethods() {
+        customPaymentMethodDao.deleteAllCustomPaymentMethods()
+    }
 }

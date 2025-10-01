@@ -44,6 +44,18 @@ interface PayableDao {
     
     @Query("DELETE FROM payables")
     suspend fun deleteAllPayables()
+
+    @Query("DELETE FROM payables WHERE isFinished = 0 AND isPaused = 0")
+    suspend fun deleteActivePayables()
+
+    @Query("DELETE FROM payables WHERE isFinished = 1")
+    suspend fun deleteFinishedPayables()
+
+    @Query("DELETE FROM payables WHERE isPaused = 1")
+    suspend fun deletePausedPayables()
+
+    @Query("UPDATE payables SET paymentMethod = 'Not set'")
+    suspend fun resetAllPaymentMethods()
     
     @Query("SELECT COUNT(*) FROM payables")
     suspend fun getPayablesCount(): Int
