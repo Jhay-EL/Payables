@@ -71,6 +71,7 @@ fun DashboardScreen(
     var showHideSheet by remember { mutableStateOf(false) }
     var hideCategories by remember { mutableStateOf(false) }
     var hidePausedFinished by remember { mutableStateOf(false) }
+    var hideInsights by remember { mutableStateOf(false) }
     var isEditingCategories by remember { mutableStateOf(false) }
     var editingCategoryIndex by remember { mutableIntStateOf(-1) }
     var showEditCategoryFullScreen by remember { mutableStateOf(false) }
@@ -143,11 +144,6 @@ fun DashboardScreen(
         } 
     }
     
-    // Ensure default categories are available on first load
-    LaunchedEffect(Unit) {
-        repository.ensureDefaultCategories()
-    }
-
     // Simplified screen state to prevent overlapping renders
     val currentEditScreen by remember {
         derivedStateOf {
@@ -370,10 +366,12 @@ fun DashboardScreen(
                         }
 
                         // Insights Preview Card
-                        item {
-                            InsightsPreviewCard(
-                                onClick = onOpenInsights
-                            )
+                        if (!hideInsights) {
+                            item {
+                                InsightsPreviewCard(
+                                    onClick = onOpenInsights
+                                )
+                            }
                         }
 
                         // Paused/Finished Section
@@ -632,7 +630,9 @@ fun DashboardScreen(
                 hideCategories = hideCategories,
                 onToggleCategories = { hideCategories = it },
                 hidePausedFinished = hidePausedFinished,
-                onTogglePausedFinished = { hidePausedFinished = it }
+                onTogglePausedFinished = { hidePausedFinished = it },
+                hideInsights = hideInsights,
+                onToggleInsights = { hideInsights = it }
             )
         }
     }
@@ -1087,6 +1087,8 @@ private fun HidePanelSheetContent(
     onToggleCategories: (Boolean) -> Unit,
     hidePausedFinished: Boolean,
     onTogglePausedFinished: (Boolean) -> Unit,
+    hideInsights: Boolean,
+    onToggleInsights: (Boolean) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -1120,6 +1122,14 @@ private fun HidePanelSheetContent(
             subtitle = "Hide the Paused/Finished section",
             isChecked = hidePausedFinished,
             onCheckedChange = onTogglePausedFinished,
+            isFirst = false,
+            isLast = false
+        )
+        HideOptionCard(
+            title = "Hide Insights",
+            subtitle = "Hide the Spending Insights section",
+            isChecked = hideInsights,
+            onCheckedChange = onToggleInsights,
             isFirst = false,
             isLast = true
         )
@@ -1269,7 +1279,7 @@ fun CategoryCard(
                 modifier = Modifier
                     .size(44.dp)
                     .background(
-                        category.color.copy(alpha = 0.6f),
+                        category.color.copy(alpha = 0.18f),
                         RoundedCornerShape(16.dp)
                     ),
                 contentAlignment = Alignment.Center
@@ -1311,7 +1321,7 @@ fun CategoryCard(
                     Box(
                         modifier = Modifier
                             .background(
-                                category.color.copy(alpha = 0.5f),
+                                category.color.copy(alpha = 0.18f),
                                 RoundedCornerShape(16.dp)
                             )
                             .padding(horizontal = 12.dp, vertical = 6.dp),
@@ -1663,7 +1673,10 @@ fun InsightsPreviewCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(LocalAppDimensions.current.spacing.card),
+                    .padding(
+                        horizontal = LocalAppDimensions.current.spacing.card,
+                        vertical = LocalAppDimensions.current.spacing.lg
+                    ),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -1672,7 +1685,7 @@ fun InsightsPreviewCard(
                     horizontalArrangement = Arrangement.spacedBy(LocalAppDimensions.current.spacing.md)
                 ) {
                     Icon(
-                        Icons.Default.Insights,
+                        Icons.Default.BarChart,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp)

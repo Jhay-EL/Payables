@@ -216,16 +216,22 @@ class PayableRepository(private val payableDao: PayableDao) {
         return payableDao.getPayablesCountByCategory(category)
     }
 
-    fun getNormalizedMonthlyCost(): Flow<Double> {
+    fun getAverageCost(timeframe: SpendingTimeframe): Flow<Double> {
         return getActivePayables().map { payables ->
             payables.sumOf {
                 val amount = it.price.toDoubleOrNull() ?: 0.0
-                when (it.billingCycle) {
-                    "Weekly" -> amount * 4.345
-                    "Monthly" -> amount
-                    "Quarterly" -> amount / 3
-                    "Yearly" -> amount / 12
-                    else -> 0.0
+                val dailyAmount = when (it.billingCycle) {
+                    "Weekly" -> amount / 7
+                    "Monthly" -> amount / 30.4375
+                    "Quarterly" -> amount / 91.3125
+                    "Yearly" -> amount / 365.25
+                    else -> amount
+                }
+                when (timeframe) {
+                    SpendingTimeframe.Daily -> dailyAmount
+                    SpendingTimeframe.Weekly -> dailyAmount * 7
+                    SpendingTimeframe.Monthly -> dailyAmount * 30.4375
+                    SpendingTimeframe.Yearly -> dailyAmount * 365.25
                 }
             }
         }

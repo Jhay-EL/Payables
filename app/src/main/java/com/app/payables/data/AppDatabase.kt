@@ -89,48 +89,12 @@ abstract class AppDatabase : RoomDatabase() {
         private suspend fun populateDatabase(categoryDao: CategoryDao) {
             // Create default categories that will always be present
             val defaultCategories = listOf(
-                Category(
-                    id = "default_entertainment",
-                    name = "Entertainment",
-                    colorValue = Color(0xFFFF6B6B).value.toLong(),
-                    iconName = "PlayArrow",
-                    count = "0",
-                    isDefault = true
-                ),
-                Category(
-                    id = "default_cloud_software",
-                    name = "Cloud & Software",
-                    colorValue = Color(0xFF4ECDC4).value.toLong(),
-                    iconName = "Cloud",
-                    count = "0",
-                    isDefault = true
-                ),
-                Category(
-                    id = "default_utilities_household",
-                    name = "Utilities & Household",
-                    colorValue = Color(0xFF45B7D1).value.toLong(),
-                    iconName = "Home",
-                    count = "0",
-                    isDefault = true
-                ),
-                Category(
-                    id = "default_mobile_connectivity",
-                    name = "Mobile & Connectivity",
-                    colorValue = Color(0xFF96CEB4).value.toLong(),
-                    iconName = "Phone",
-                    count = "0",
-                    isDefault = true
-                ),
-                Category(
-                    id = "default_insurance_finance",
-                    name = "Insurance & Finance",
-                    colorValue = Color(0xFFFFEAA7).value.toLong(),
-                    iconName = "AccountBalance",
-                    count = "0",
-                    isDefault = true
-                )
+                Category(id = "default_entertainment", name = "Entertainment", colorValue = Color(0xFFff6859).value.toLong(), iconName = "PlayArrow", count = "0", isDefault = true),
+                Category(id = "default_retail_ecommerce", name = "Retail and E-commerce", colorValue = Color(0xFFffcf44).value.toLong(), iconName = "ShoppingCart", count = "0", isDefault = true),
+                Category(id = "default_food_drink", name = "Food & Drink", colorValue = Color(0xFF72deff).value.toLong(), iconName = "Restaurant", count = "0", isDefault = true),
+                Category(id = "default_software_productivity", name = "Software & Productivity", colorValue = Color(0xFFb15dff).value.toLong(), iconName = "Work", count = "0", isDefault = true),
+                Category(id = "default_health_wellness", name = "Health & Wellness", colorValue = Color(0xFF1eb980).value.toLong(), iconName = "FitnessCenter", count = "0", isDefault = true)
             )
-
             categoryDao.insertCategories(defaultCategories)
         }
     }

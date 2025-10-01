@@ -28,8 +28,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.animation.core.Animatable
@@ -50,12 +48,13 @@ import androidx.compose.material.icons.filled.Brush
 import com.app.payables.data.SpendingTimeframe
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InsightsScreen(
     onBack: () -> Unit = {},
-    summaryTitle: String = "Normalized Monthly Cost",
 ) {
 
     val context = LocalContext.current
@@ -63,36 +62,41 @@ fun InsightsScreen(
     val categoryRepository = (context.applicationContext as PayablesApplication).categoryRepository
 
     var spendingTimeframe by remember { mutableStateOf(SpendingTimeframe.Monthly) }
+    var avgCostTimeframe by remember { mutableStateOf(SpendingTimeframe.Monthly) }
 
-    val monthlyCost by payableRepository.getNormalizedMonthlyCost().collectAsState(initial = 0.0)
-    val spendingPerCategory by payableRepository.getSpendingPerCategory(spendingTimeframe).collectAsState(initial = emptyMap())
+    val avgCost by payableRepository.getAverageCost(avgCostTimeframe).collectAsState(initial = 0.0)
+    val spendingPerCategory by payableRepository.getSpendingPerCategory(spendingTimeframe).collectAsState(initial = null)
     val categories by categoryRepository.getAllCategories().collectAsState(initial = emptyList())
-    val upcomingPayments by payableRepository.getUpcomingPayments().collectAsState(initial = emptyList())
-    val topFiveMostExpensive by payableRepository.getTopFiveMostExpensive().collectAsState(initial = emptyList())
+    val upcomingPayments by payableRepository.getUpcomingPayments().collectAsState(initial = null)
+    val topFiveMostExpensive by payableRepository.getTopFiveMostExpensive().collectAsState(initial = null)
 
     InsightsScreenContent(
         onBack = onBack,
-        summaryTitle = summaryTitle,
-        monthlyCost = monthlyCost,
+        summaryTitle = "Average ${avgCostTimeframe.name} Cost",
+        avgCost = avgCost,
+        avgCostTimeframe = avgCostTimeframe,
         spendingPerCategory = spendingPerCategory,
         categories = categories,
         upcomingPayments = upcomingPayments,
         topFiveMostExpensive = topFiveMostExpensive,
-        onTimeframeSelected = { spendingTimeframe = it }
+        onTimeframeSelected = { spendingTimeframe = it },
+        onAvgCostTimeframeSelected = { avgCostTimeframe = it }
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun InsightsScreenContent(
     onBack: () -> Unit,
     summaryTitle: String,
-    monthlyCost: Double,
-    spendingPerCategory: Map<String, Double>,
+    avgCost: Double,
+    avgCostTimeframe: SpendingTimeframe,
+    spendingPerCategory: Map<String, Double>?,
     categories: List<CategoryData>,
-    upcomingPayments: List<PayableItemData>,
-    topFiveMostExpensive: List<PayableItemData>,
-    onTimeframeSelected: (SpendingTimeframe) -> Unit
+    upcomingPayments: List<PayableItemData>?,
+    topFiveMostExpensive: List<PayableItemData>?,
+    onTimeframeSelected: (SpendingTimeframe) -> Unit,
+    onAvgCostTimeframeSelected: (SpendingTimeframe) -> Unit,
 ) {
     val dims = LocalAppDimensions.current
 
@@ -148,9 +152,25 @@ fun InsightsScreenContent(
             item {
                 SummaryCard(
                     title = summaryTitle,
-                    amount = monthlyCost,
-                    icon = Icons.Default.AccountBalanceWallet
+                    amount = avgCost,
                 )
+            }
+
+            item {
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = dims.spacing.md),
+                    horizontalArrangement = Arrangement.spacedBy(dims.spacing.sm)
+                ) {
+                    SpendingTimeframe.entries.forEach { timeframe ->
+                        FilterChip(
+                            selected = avgCostTimeframe == timeframe,
+                            onClick = { onAvgCostTimeframeSelected(timeframe) },
+                            label = { Text(timeframe.name) }
+                        )
+                    }
+                }
             }
 
             item {
@@ -187,8 +207,9 @@ private fun InsightsScreenPreview() {
     AppTheme {
         InsightsScreenContent(
             onBack = {},
-            summaryTitle = "Normalized Monthly Cost",
-            monthlyCost = 123.45,
+            summaryTitle = "Average Monthly Cost",
+            avgCost = 123.45,
+            avgCostTimeframe = SpendingTimeframe.Monthly,
             spendingPerCategory = mapOf(
                 "Entertainment" to 50.0,
                 "Utilities" to 73.45
@@ -245,14 +266,15 @@ private fun InsightsScreenPreview() {
                     billingCycle = "Monthly"
                 )
             ),
-            onTimeframeSelected = {}
+            onTimeframeSelected = {},
+            onAvgCostTimeframeSelected = {}
         )
     }
 }
 
 @Composable
 private fun TopFiveCard(
-    topFivePayables: List<PayableItemData>
+    topFivePayables: List<PayableItemData>?
 ) {
     val dims = LocalAppDimensions.current
     Column(
@@ -272,16 +294,45 @@ private fun TopFiveCard(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
             )
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(dims.spacing.card)
-            ) {
-                topFivePayables.forEachIndexed { index, payable ->
-                    TopFiveItem(
-                        payable = payable,
-                        rank = index + 1
-                    )
+            when {
+                topFivePayables == null -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(250.dp)
+                            .padding(dims.spacing.card),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+                topFivePayables.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(250.dp)
+                            .padding(dims.spacing.card),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No data available.",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+                else -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(dims.spacing.card)
+                    ) {
+                        topFivePayables.forEachIndexed { index, payable ->
+                            TopFiveItem(
+                                payable = payable,
+                                rank = index + 1
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -305,13 +356,6 @@ private fun TopFiveItem(
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.width(32.dp)
         )
-        Icon(
-            imageVector = payable.icon,
-            contentDescription = null,
-            modifier = Modifier.size(24.dp),
-            tint = payable.backgroundColor
-        )
-        Spacer(modifier = Modifier.width(dims.spacing.md))
         Column(
             modifier = Modifier.weight(1f)
         ) {
@@ -339,7 +383,7 @@ private fun TopFiveItem(
 
 @Composable
 private fun UpcomingPaymentsCard(
-    upcomingPayments: List<PayableItemData>
+    upcomingPayments: List<PayableItemData>?
 ) {
     val dims = LocalAppDimensions.current
     Column(
@@ -359,16 +403,45 @@ private fun UpcomingPaymentsCard(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
             )
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(dims.spacing.card)
-            ) {
-                upcomingPayments.forEachIndexed { index, payable ->
-                    UpcomingPaymentItem(
-                        payable = payable,
-                        isLast = index == upcomingPayments.lastIndex
-                    )
+            when {
+                upcomingPayments == null -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp)
+                            .padding(dims.spacing.card),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+                upcomingPayments.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp)
+                            .padding(dims.spacing.card),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No upcoming payments.",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+                else -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(dims.spacing.card)
+                    ) {
+                        upcomingPayments.forEachIndexed { index, payable ->
+                            UpcomingPaymentItem(
+                                payable = payable,
+                                isLast = index == upcomingPayments.lastIndex
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -435,7 +508,7 @@ private fun UpcomingPaymentItem(
 
 @Composable
 private fun SpendingBreakdownCard(
-    spendingPerCategory: Map<String, Double>,
+    spendingPerCategory: Map<String, Double>?,
     categories: List<CategoryData>,
     onTimeframeSelected: (SpendingTimeframe) -> Unit
 ) {
@@ -484,59 +557,76 @@ private fun SpendingBreakdownCard(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
             )
         ) {
-            if (spendingPerCategory.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(250.dp)
-                        .padding(dims.spacing.card),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(dims.spacing.card)
-                ) {
-                    ColumnChart(
-                        spendingPerCategory = spendingPerCategory,
-                        categories = categories,
+            when {
+                spendingPerCategory == null -> {
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(150.dp)
-                    )
-                    Spacer(modifier = Modifier.height(dims.spacing.lg))
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(dims.spacing.sm)
+                            .height(250.dp)
+                            .padding(dims.spacing.card),
+                        contentAlignment = Alignment.Center
                     ) {
-                        spendingPerCategory.keys.forEach { categoryName ->
-                            val category = categories.find { it.name == categoryName }
-                            if (category != null) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(12.dp)
-                                            .background(
-                                                category.color,
-                                                shape = RoundedCornerShape(4.dp)
-                                            )
-                                    )
-                                    Spacer(modifier = Modifier.width(dims.spacing.sm))
-                                    Text(
-                                        text = category.name,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    Text(
-                                        text = String.format(Locale.US, "€%.2f", spendingPerCategory[categoryName]),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = FontWeight.Medium
-                                    )
+                        CircularProgressIndicator()
+                    }
+                }
+                spendingPerCategory.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(250.dp)
+                            .padding(dims.spacing.card),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No spending data available.",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+                else -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(dims.spacing.card)
+                    ) {
+                        ColumnChart(
+                            spendingPerCategory = spendingPerCategory,
+                            categories = categories,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(150.dp)
+                        )
+                        Spacer(modifier = Modifier.height(dims.spacing.lg))
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(dims.spacing.sm)
+                        ) {
+                            spendingPerCategory.keys.forEach { categoryName ->
+                                val category = categories.find { it.name == categoryName }
+                                if (category != null) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(12.dp)
+                                                .background(
+                                                    category.color,
+                                                    shape = RoundedCornerShape(4.dp)
+                                                )
+                                        )
+                                        Spacer(modifier = Modifier.width(dims.spacing.sm))
+                                        Text(
+                                            text = category.name,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Text(
+                                            text = String.format(Locale.US, "€%.2f", spendingPerCategory[categoryName]),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -620,46 +710,27 @@ private fun YAxis(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun SummaryCard(
     title: String,
     amount: Double,
-    icon: ImageVector
 ) {
     val dims = LocalAppDimensions.current
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(dims.spacing.md),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-        )
+    Column(
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(dims.spacing.card),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    text = String.format(Locale.US, "€%.2f", amount),
-                    style = MaterialTheme.typography.displaySmall.copy(
-                        fontWeight = FontWeight.Medium
-                    ),
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(32.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall
+        )
+        Spacer(modifier = Modifier.height(dims.spacing.xs))
+        Text(
+            text = String.format(Locale.US, "€%.2f", amount),
+            style = MaterialTheme.typography.displaySmall.copy(
+                fontWeight = FontWeight.Medium
+            ),
+            color = MaterialTheme.colorScheme.primary
+        )
     }
 }
