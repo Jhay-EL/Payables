@@ -23,9 +23,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.DpOffset
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.net.toUri
-import android.widget.ImageView
+import coil.compose.AsyncImage
 import com.app.payables.theme.*
 import kotlin.math.pow
 
@@ -648,14 +646,9 @@ private fun PayableCard(
                 // Service Icon (no container)
                 if (customIconUri != null) {
                     // Custom icon from URI
-                    AndroidView(
-                        factory = { context ->
-                            ImageView(context).apply {
-                                scaleType = ImageView.ScaleType.FIT_CENTER
-                                setImageURI(customIconUri.toUri())
-                            }
-                        },
-                        update = { it.setImageURI(customIconUri.toUri()) },
+                    AsyncImage(
+                        model = customIconUri,
+                        contentDescription = "$title logo",
                         modifier = Modifier.size(48.dp)
                     )
                 } else {

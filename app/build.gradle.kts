@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
     id("kotlin-kapt")
+    id("org.jetbrains.kotlin.plugin.serialization") version "1.8.10"
 }
 
 android {
@@ -70,6 +71,15 @@ dependencies {
 
     // Gson for JSON serialization
     implementation("com.google.code.gson:gson:2.10.1")
+
+    // Ktor for networking
+    implementation("io.ktor:ktor-client-core:2.3.2")
+    implementation("io.ktor:ktor-client-cio:2.3.2")
+    implementation("io.ktor:ktor-client-content-negotiation:2.3.2")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.2")
+
+    // Coil for image loading
+    implementation("io.coil-kt:coil-compose:2.4.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

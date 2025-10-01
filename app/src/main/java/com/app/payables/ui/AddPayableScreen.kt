@@ -17,6 +17,7 @@ import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.input.KeyboardType
@@ -28,9 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.viewinterop.AndroidView
 import android.net.Uri
-import android.widget.ImageView
 import androidx.core.net.toUri
 import com.app.payables.data.CurrencyList
 import com.app.payables.data.Currency
@@ -50,6 +49,8 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.pow
+import com.app.payables.work.BrandfetchService
+import coil.compose.AsyncImage
 
 // Screen state for transitions
 private enum class AddPayableScreenState {
@@ -129,6 +130,8 @@ fun AddPayableScreen(
     var tempColor by remember { mutableStateOf(editingPayable?.backgroundColor ?: Color(0xFF2196F3)) }
     var screenState by remember { mutableStateOf(AddPayableScreenState.Main) }
     var editingPaymentMethod by remember { mutableStateOf<CustomPaymentMethod?>(null) }
+    var isTitleFocused by remember { mutableStateOf(false) }
+    var isWebsiteFocused by remember { mutableStateOf(false) }
 
     val canSave = title.text.isNotBlank()
     val saveableStateHolder = rememberSaveableStateHolder()
@@ -141,6 +144,32 @@ fun AddPayableScreen(
     // Load custom payment methods from database
     val customPaymentMethods by customPaymentMethodRepository?.getAllCustomPaymentMethods()?.collectAsState(initial = emptyList())
         ?: remember { mutableStateOf(emptyList()) }
+    
+    val wasTitleFocused = remember { mutableStateOf(false) }
+    val wasWebsiteFocused = remember { mutableStateOf(false) }
+
+    LaunchedEffect(isTitleFocused, isWebsiteFocused) {
+        val titleFocusLost = wasTitleFocused.value && !isTitleFocused
+        val websiteFocusLost = wasWebsiteFocused.value && !isWebsiteFocused
+
+        if (titleFocusLost || websiteFocusLost) {
+            val domainSource = website.text.ifBlank { title.text }
+            if (domainSource.isNotBlank()) {
+                coroutineScope.launch {
+                    try {
+                        val domain = domainSource.trim().lowercase().replace(" ", "")
+                        val logoUrl = BrandfetchService.fetchBestLogoUrl(domain)
+                        selectedIcon = logoUrl?.toUri()
+                    } catch (_: Exception) {
+                        selectedIcon = null
+                    }
+                }
+            }
+        }
+
+        wasTitleFocused.value = isTitleFocused
+        wasWebsiteFocused.value = isWebsiteFocused
+    }
     
     // Create category options list with "Not set" as first option
     val categoryOptions = remember(categories) {
@@ -259,6 +288,7 @@ fun AddPayableScreen(
                     onTitleYUpdate = { y -> if (titleInitialY == null) titleInitialY = y; titleWindowY = y },
                     title = title,
                     onTitleChange = { title = it },
+                    onTitleFocusChange = { isTitleFocused = it },
                     amount = amount,
                     onAmountChange = { newValue ->
                         val filtered = newValue.text.filter { it.isDigit() || it == '.' }
@@ -331,6 +361,7 @@ fun AddPayableScreen(
                     },
                     website = website,
                     onWebsiteChange = { website = it },
+                    onWebsiteFocusChange = { isWebsiteFocused = it },
                     notes = notes,
                     onNotesChange = { notes = it }
                 )
@@ -487,6 +518,7 @@ private fun MainAddPayableContent(
     onTitleYUpdate: (Int) -> Unit,
     title: TextFieldValue,
     onTitleChange: (TextFieldValue) -> Unit,
+    onTitleFocusChange: (Boolean) -> Unit,
     amount: TextFieldValue,
     onAmountChange: (TextFieldValue) -> Unit,
     description: TextFieldValue,
@@ -530,6 +562,7 @@ private fun MainAddPayableContent(
     onEditCustomPayment: ((CustomPaymentMethod) -> Unit)? = null,
     website: TextFieldValue,
     onWebsiteChange: (TextFieldValue) -> Unit,
+    onWebsiteFocusChange: (Boolean) -> Unit,
     notes: TextFieldValue,
     onNotesChange: (TextFieldValue) -> Unit
 ) {
@@ -580,7 +613,9 @@ private fun MainAddPayableContent(
             OutlinedTextField(
                 value = title,
                 onValueChange = onTitleChange,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { focusState -> onTitleFocusChange(focusState.isFocused) },
                 label = { Text("Title") },
                 leadingIcon = { Icon(Icons.Filled.TextFields, contentDescription = null) },
                 singleLine = true
@@ -785,7 +820,9 @@ private fun MainAddPayableContent(
             OutlinedTextField(
                 value = website,
                 onValueChange = onWebsiteChange,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { focusState -> onWebsiteFocusChange(focusState.isFocused) },
                 leadingIcon = { Icon(Icons.Filled.Link, contentDescription = null) },
                 placeholder = { Text("Website (Optional)") },
                 singleLine = true
@@ -862,14 +899,9 @@ private fun CustomizationOptionCard(
                     contentAlignment = Alignment.Center
                 ) {
                     if (selectedIconUri != null) {
-                        AndroidView(
-                            factory = { ctx ->
-                                ImageView(ctx).apply {
-                                    scaleType = ImageView.ScaleType.FIT_CENTER
-                                    setImageURI(selectedIconUri)
-                                }
-                            },
-                            update = { it.setImageURI(selectedIconUri) },
+                        AsyncImage(
+                            model = selectedIconUri.toString(),
+                            contentDescription = "Selected Icon",
                             modifier = Modifier.size(24.dp)
                         )
                     } else {
@@ -971,14 +1003,9 @@ private fun HeaderCard(
                 // Icon aligned to center of content
                 if (customIcon != null) {
                     // Custom icon without background container - uses full space
-                    AndroidView(
-                        factory = { ctx ->
-                            ImageView(ctx).apply {
-                                scaleType = ImageView.ScaleType.FIT_CENTER
-                                setImageURI(customIcon)
-                            }
-                        },
-                        update = { it.setImageURI(customIcon) },
+                    AsyncImage(
+                        model = customIcon.toString(),
+                        contentDescription = "Brand Logo",
                         modifier = Modifier.size(60.dp)
                     )
                 } else {

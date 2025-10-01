@@ -19,7 +19,7 @@ class PayableStatusWorker(
             try {
                 payableRepository.finishPastDuePayables()
                 Result.success()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 Result.failure()
             }
         }

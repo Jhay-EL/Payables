@@ -25,9 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
-import android.widget.ImageView
+import coil.compose.AsyncImage
 import com.app.payables.data.CustomPaymentMethodRepository
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -199,14 +198,9 @@ fun ViewPayableScreen(
                             // Service Icon (no container)
                             if (payable.customIconUri != null) {
                                 // Custom icon from URI
-                                AndroidView(
-                                    factory = { context ->
-                                        ImageView(context).apply {
-                                            scaleType = ImageView.ScaleType.FIT_CENTER
-                                            setImageURI(payable.customIconUri.toUri())
-                                        }
-                                    },
-                                    update = { it.setImageURI(payable.customIconUri.toUri()) },
+                                AsyncImage(
+                                    model = payable.customIconUri,
+                                    contentDescription = "${payable.name} logo",
                                     modifier = Modifier.size(80.dp)
                                 )
                             } else {
