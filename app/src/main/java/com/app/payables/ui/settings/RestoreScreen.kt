@@ -152,7 +152,11 @@ fun RestoreScreen(
                                         for (category in backupData.categories) {
                                             val existing = categoryRepository.getCategoryById(category.id)
                                             if (existing != null) {
-                                                conflictChannel.send(category)
+                                                if (existing.isDefault) {
+                                                    categoryRepository.updateCategory(category)
+                                                } else {
+                                                    conflictChannel.send(category)
+                                                }
                                             } else {
                                                 categoryRepository.insertCategory(category.toCategoryData())
                                             }
