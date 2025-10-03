@@ -35,9 +35,6 @@ import com.app.payables.data.CurrencyList
 import com.app.payables.data.Currency
 import com.app.payables.data.CustomPaymentMethod
 import com.app.payables.data.CustomPaymentMethodRepository
-import com.app.payables.ui.CustomIconsScreen
-import com.app.payables.ui.CustomColorScreen
-import com.app.payables.ui.CustomPaymentScreen
 import com.app.payables.theme.*
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -48,7 +45,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
-import kotlin.math.pow
 import com.app.payables.work.BrandfetchService
 import coil.compose.AsyncImage
 import androidx.compose.foundation.isSystemInDarkTheme

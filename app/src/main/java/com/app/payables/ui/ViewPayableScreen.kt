@@ -197,7 +197,7 @@ fun ViewPayableScreen(
                         ) {
                             // Service Icon (no container)
                             if (payable.customIconUri != null) {
-                                var imageModel by remember(payable.customIconUri) { mutableStateOf<Any?>(payable.customIconUri?.toUri()) }
+                                var imageModel by remember(payable.customIconUri) { mutableStateOf<Any?>(payable.customIconUri.toUri()) }
                                 // Custom icon from URI
                                 AsyncImage(
                                     model = imageModel,
