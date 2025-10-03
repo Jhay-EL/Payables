@@ -1,4 +1,4 @@
-package com.app.payables.service
+package com.app.payables.work
 
 import android.content.Context
 import androidx.work.CoroutineWorker

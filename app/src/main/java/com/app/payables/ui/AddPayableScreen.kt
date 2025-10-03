@@ -35,9 +35,9 @@ import com.app.payables.data.CurrencyList
 import com.app.payables.data.Currency
 import com.app.payables.data.CustomPaymentMethod
 import com.app.payables.data.CustomPaymentMethodRepository
-import com.app.payables.service.CustomIconsScreen
-import com.app.payables.service.CustomColorScreen
-import com.app.payables.service.CustomPaymentScreen
+import com.app.payables.ui.CustomIconsScreen
+import com.app.payables.ui.CustomColorScreen
+import com.app.payables.ui.CustomPaymentScreen
 import com.app.payables.theme.*
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -51,6 +51,8 @@ import kotlinx.coroutines.launch
 import kotlin.math.pow
 import com.app.payables.work.BrandfetchService
 import coil.compose.AsyncImage
+import androidx.compose.foundation.isSystemInDarkTheme
+import com.app.payables.util.isColorBright
 
 // Screen state for transitions
 private enum class AddPayableScreenState {
@@ -68,6 +70,9 @@ fun AddPayableScreen(
     editingPayable: PayableItemData? = null // Optional payable for editing
 ) {
     val dims = LocalAppDimensions.current
+
+    val isDarkTheme = isSystemInDarkTheme()
+    val defaultHeaderColor = if (isDarkTheme) Color(0xFF26272e) else Color(0xFFf0eff7)
 
     var titleInitialY by remember { mutableStateOf<Int?>(null) }
     var titleWindowY by remember { mutableIntStateOf(Int.MAX_VALUE) }
@@ -126,8 +131,8 @@ fun AddPayableScreen(
     var website by remember { mutableStateOf(TextFieldValue(editingPayable?.website ?: "")) }
     var notes by remember { mutableStateOf(TextFieldValue(editingPayable?.notes ?: "")) }
     var selectedIcon by remember { mutableStateOf(editingPayable?.customIconUri?.toUri()) }
-    var selectedColor by remember { mutableStateOf(editingPayable?.backgroundColor ?: Color(0xFF2196F3)) }
-    var tempColor by remember { mutableStateOf(editingPayable?.backgroundColor ?: Color(0xFF2196F3)) }
+    var selectedColor by remember { mutableStateOf(editingPayable?.backgroundColor ?: defaultHeaderColor) }
+    var tempColor by remember { mutableStateOf(editingPayable?.backgroundColor ?: defaultHeaderColor) }
     var screenState by remember { mutableStateOf(AddPayableScreenState.Main) }
     var editingPaymentMethod by remember { mutableStateOf<CustomPaymentMethod?>(null) }
     var isTitleFocused by remember { mutableStateOf(false) }
@@ -892,7 +897,9 @@ private fun CustomizationOptionCard(
                             onError = {
                                 val currentModel = imageModel.toString()
                                 if (currentModel.contains("/symbol")) {
-                                    imageModel = currentModel.replace("/symbol", "/logo")
+                                    imageModel = currentModel.replace("/symbol", "/icon")
+                                } else if (currentModel.contains("/icon")) {
+                                    imageModel = currentModel.replace("/icon", "/logo")
                                 }
                             },
                             modifier = Modifier.size(24.dp)
@@ -933,29 +940,6 @@ private fun CustomizationOptionCard(
             }
         }
     }
-}
-
-// Helper function to determine if a color is bright or dark
-private fun isColorBright(color: Color): Boolean {
-    // Calculate relative luminance using the standard formula
-    // Convert to linear RGB first
-    fun linearize(component: Float): Float {
-        return if (component <= 0.04045f) {
-            component / 12.92f
-        } else {
-            (((component + 0.055f) / 1.055f).toDouble().pow(2.4)).toFloat()
-        }
-    }
-    
-    val r = linearize(color.red)
-    val g = linearize(color.green)
-    val b = linearize(color.blue)
-    
-    // Calculate luminance
-    val luminance = 0.2126f * r + 0.7152f * g + 0.0722f * b
-    
-    // Return true if luminance is greater than 0.5 (bright), false otherwise (dark)
-    return luminance > 0.5f
 }
 
 @Composable
@@ -1003,7 +987,9 @@ private fun HeaderCard(
                         onError = {
                             val currentModel = imageModel.toString()
                             if (currentModel.contains("/symbol")) {
-                                imageModel = currentModel.replace("/symbol", "/logo")
+                                imageModel = currentModel.replace("/symbol", "/icon")
+                            } else if (currentModel.contains("/icon")) {
+                                imageModel = currentModel.replace("/icon", "/logo")
                             }
                         },
                         modifier = Modifier.size(60.dp)

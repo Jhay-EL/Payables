@@ -1,4 +1,4 @@
-package com.app.payables.service
+package com.app.payables.ui
 
 import android.content.ContentResolver
 import android.content.Intent

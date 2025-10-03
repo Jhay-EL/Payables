@@ -6,7 +6,7 @@ import com.app.payables.data.CategoryRepository
 import com.app.payables.data.PayableRepository
 import com.app.payables.data.CustomPaymentMethodRepository
 import androidx.work.*
-import com.app.payables.service.PayableStatusWorker
+import com.app.payables.work.PayableStatusWorker
 import java.util.concurrent.TimeUnit
 
 class PayablesApplication : Application() {
@@ -29,14 +29,14 @@ class PayablesApplication : Application() {
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
 
-        val repeatingRequest = PeriodicWorkRequestBuilder<PayableStatusWorker>(1, TimeUnit.DAYS)
+        val workRequest = PeriodicWorkRequestBuilder<PayableStatusWorker>(1, TimeUnit.DAYS)
             .setConstraints(constraints)
             .build()
 
-        WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "payable-status-worker",
             ExistingPeriodicWorkPolicy.KEEP,
-            repeatingRequest
+            workRequest
         )
     }
 }

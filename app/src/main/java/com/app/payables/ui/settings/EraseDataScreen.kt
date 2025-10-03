@@ -1,4 +1,4 @@
-package com.app.payables.ui
+package com.app.payables.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*

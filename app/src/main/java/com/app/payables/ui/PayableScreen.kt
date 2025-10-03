@@ -653,7 +653,9 @@ private fun PayableCard(
                         onError = {
                             val currentModel = imageModel.toString()
                             if (currentModel.contains("/symbol")) {
-                                imageModel = currentModel.replace("/symbol", "/logo")
+                                imageModel = currentModel.replace("/symbol", "/icon")
+                            } else if (currentModel.contains("/icon")) {
+                                imageModel = currentModel.replace("/icon", "/logo")
                             }
                         },
                         modifier = Modifier.size(48.dp)
