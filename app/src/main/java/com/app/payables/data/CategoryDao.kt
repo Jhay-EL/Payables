@@ -11,6 +11,9 @@ interface CategoryDao {
 
     @Query("SELECT * FROM categories ORDER BY isDefault DESC, name ASC")
     suspend fun getAllCategoriesList(): List<Category>
+
+    @Query("SELECT * FROM categories WHERE isDefault = 0 ORDER BY name ASC")
+    suspend fun getNonDefaultCategoriesList(): List<Category>
     
     @Query("SELECT * FROM categories WHERE id = :id")
     suspend fun getCategoryById(id: String): Category?

@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -641,6 +642,7 @@ private fun PayableCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
+                modifier = Modifier.weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(dims.spacing.md),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -677,12 +679,16 @@ private fun PayableCard(
                         style = MaterialTheme.typography.headlineSmall.copy(
                             fontWeight = FontWeight.Medium
                         ),
-                        color = textColor
+                        color = textColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = secondaryTextColor
+                        color = secondaryTextColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(dims.spacing.sm))
                     Row(

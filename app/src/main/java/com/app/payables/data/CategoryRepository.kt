@@ -13,8 +13,8 @@ class CategoryRepository(private val categoryDao: CategoryDao) {
         }
     }
 
-    suspend fun getAllCategoriesList(): List<Category> {
-        return categoryDao.getAllCategoriesList()
+    suspend fun getNonDefaultCategoriesList(): List<Category> {
+        return categoryDao.getNonDefaultCategoriesList()
     }
 
     suspend fun getCategoryById(id: String): Category? {

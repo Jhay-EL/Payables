@@ -127,7 +127,7 @@ fun BackupScreen(
             val onJsonExport = {
                 coroutineScope.launch {
                     val payables = payableRepository.getAllPayablesList()
-                    val categories = categoryRepository.getAllCategoriesList()
+                    val categories = categoryRepository.getNonDefaultCategoriesList()
                     val customPaymentMethods = customPaymentMethodRepository.getAllCustomPaymentMethodsList()
 
                     val backupData = BackupData(payables, categories, customPaymentMethods)
