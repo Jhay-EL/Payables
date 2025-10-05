@@ -422,7 +422,6 @@ fun ViewPayableScreen(
                         
                         // Payment dates list
                         val paymentDates = calculatePaymentDates(payable)
-                        val totalPaymentsText = getTotalPaymentsText(payable, paymentDates.size)
                         var isPaymentDatesExpanded by remember { mutableStateOf(false) }
                         
                         // Clickable header with arrow
@@ -433,10 +432,15 @@ fun ViewPayableScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "List of payment date: ($totalPaymentsText)",
+                                text = "Payment list:",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                 modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = paymentDates.size.toString(),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                             )
                             Icon(
                                 imageVector = if (isPaymentDatesExpanded) Icons.Default.KeyboardArrowDown else Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -683,23 +687,6 @@ private fun formatNextBillingDate(payable: PayableItemData): String {
         // Fallback to current relative format if calculation fails
         return payable.dueDate
     }
-}
-
-// Helper function to get appropriate text for total payments based on billing cycle
-private fun getTotalPaymentsText(payable: PayableItemData, totalPayments: Int): String {
-    val billingCycleLower = payable.billingCycle.lowercase()
-    val unit = when (billingCycleLower) {
-        "weekly" -> if (totalPayments == 1) "week" else "weeks"
-        "monthly" -> if (totalPayments == 1) "month" else "months"
-        "quarterly" -> if (totalPayments == 1) "quarter" else "quarters"
-        "yearly" -> if (totalPayments == 1) "year" else "years"
-        else -> {
-            // Debug: Log unexpected billing cycle
-            println("DEBUG: Unexpected billing cycle in total payments text: '${payable.billingCycle}' -> '$billingCycleLower'")
-            if (totalPayments == 1) "month" else "months" // Default to months
-        }
-    }
-    return "$totalPayments $unit paid"
 }
 
 @Preview(showBackground = true)

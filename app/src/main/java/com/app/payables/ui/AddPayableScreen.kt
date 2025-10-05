@@ -585,7 +585,7 @@ private fun MainAddPayableContent(
 
             // Header card similar to screenshot
             val selectedCurrencyData = currencies.find { it.code == selectedCurrency }
-            val currencySymbol = selectedCurrencyData?.symbol ?: "$"
+            val currencySymbol = selectedCurrencyData?.symbol ?: "€"
             HeaderCard(
                 title = title.text.ifBlank { if (isEditMode) "Edit Payable" else "New Payable" },
                 amountLabel = "$currencySymbol ${amount.text.ifEmpty { "0.00" }}",
@@ -617,7 +617,7 @@ private fun MainAddPayableContent(
                     onValueChange = onAmountChange,
                     modifier = Modifier.weight(2f),
                     label = { Text("Amount") },
-                    leadingIcon = { Icon(Icons.Filled.Euro, contentDescription = null) },
+                    leadingIcon = { Text(currencySymbol) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
@@ -1114,12 +1114,9 @@ private fun CurrencyDropdownField(
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val selectedCurrencyData = currencies.find { it.code == selectedCurrency }
-    val displayValue = selectedCurrencyData?.let { "${it.symbol} ${it.code}" } ?: selectedCurrency
-    
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = onExpandedChange, modifier = modifier) {
         OutlinedTextField(
-            value = displayValue,
+            value = selectedCurrency,
             onValueChange = {},
             readOnly = true,
             modifier = Modifier.menuAnchor().fillMaxWidth(),
@@ -1135,22 +1132,7 @@ private fun CurrencyDropdownField(
         ) {
             currencies.forEach { currency ->
                 DropdownMenuItem(
-                    text = { 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = currency.symbol,
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.width(24.dp)
-                            )
-                            Text(
-                                text = currency.code,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-                    }, 
+                    text = { Text(currency.code) }, 
                     onClick = { 
                         onSelect(currency.code)
                         onExpandedChange(false) 

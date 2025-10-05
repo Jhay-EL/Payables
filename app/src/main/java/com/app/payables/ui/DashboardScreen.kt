@@ -1296,7 +1296,7 @@ fun CategoryCard(
                 text = category.name,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .weight(1f)
@@ -1391,7 +1391,7 @@ fun PausedFinishedSection(
         // Paused Card
         StatusCard(
             title = "Paused",
-            subtitle = "Temporarily paused subscriptions",
+            subtitle = "Temporarily paused payables",
             count = pausedPayables.size.toString(),
             icon = Icons.Filled.Pause,
             color = MaterialTheme.colorScheme.tertiary,
@@ -1403,7 +1403,7 @@ fun PausedFinishedSection(
         // Finished Card
         StatusCard(
             title = "Finished",
-            subtitle = "Completed subscriptions",
+            subtitle = "Completed payables",
             count = finishedPayables.size.toString(),
             icon = Icons.Filled.CheckCircle,
             color = MaterialTheme.colorScheme.secondary,
@@ -1478,7 +1478,9 @@ fun StatusCard(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(top = 4.dp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
