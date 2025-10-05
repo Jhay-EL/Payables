@@ -38,6 +38,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import com.app.payables.util.AppNotificationManager
 import androidx.compose.ui.graphics.Color
 import java.util.Locale
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,18 +115,13 @@ fun NotificationScreen(
 		}
 	) { paddingValues ->
 		val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-		val contentPadding = PaddingValues(
-			start = dims.spacing.md,
-			end = dims.spacing.md,
-			top = dims.spacing.md,
-			bottom = bottomInset + dims.spacing.navBarContentBottomMargin
-		)
 
 		Column(
 			modifier = Modifier
 				.fillMaxSize()
 				.padding(paddingValues)
-				.padding(contentPadding)
+				.verticalScroll(rememberScrollState())
+				.padding(horizontal = dims.spacing.md)
 		) {
 			// Invisible anchor to track Y during scroll
 			Box(modifier = Modifier.windowYReporter { currentY ->
@@ -175,6 +172,8 @@ fun NotificationScreen(
 			SelectPayablesCard(
 				onClick = { showSelectPayablesDialog = true }
 			)
+
+			Spacer(modifier = Modifier.height(bottomInset + dims.spacing.navBarContentBottomMargin))
 		}
 	}
 
