@@ -25,17 +25,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import com.app.payables.data.Currency
 import com.app.payables.data.CurrencyList
 import com.app.payables.theme.*
+import com.app.payables.util.SettingsManager
 import kotlinx.coroutines.android.awaitFrame
+import androidx.compose.material.icons.filled.Check
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CurrencyScreen(
-    onBack: () -> Unit = {},
-    onSelectCurrency: (Currency) -> Unit = {}
+    onBack: () -> Unit = {}
 ) {
     val dims = LocalAppDimensions.current
     var titleInitialY by remember { mutableStateOf<Int?>(null) }
@@ -45,9 +47,12 @@ fun CurrencyScreen(
     val topBarContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp).copy(alpha = topBarAlpha)
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
+    val context = LocalContext.current
+    val settingsManager = remember { SettingsManager(context) }
     var search by remember { mutableStateOf(TextFieldValue("")) }
     var isSearchActive by remember { mutableStateOf(false) }
     val results = remember(search) { CurrencyList.search(search.text) }
+    val selectedCurrencyCode = settingsManager.getDefaultCurrency()
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -159,7 +164,11 @@ fun CurrencyScreen(
                     val isLast = index == results.lastIndex
                     CurrencyRow(
                         currency = currency,
-                        onSelect = { onSelectCurrency(currency) },
+                        isSelected = currency.code == selectedCurrencyCode,
+                        onSelect = {
+                            settingsManager.setDefaultCurrency(currency.code)
+                            onBack()
+                        },
                         isFirst = isFirst,
                         isLast = isLast
                     )
@@ -181,6 +190,7 @@ private fun SectionHeader() {
 @Composable
 private fun CurrencyRow(
     currency: Currency,
+    isSelected: Boolean,
     onSelect: () -> Unit,
     isFirst: Boolean,
     isLast: Boolean,
@@ -251,6 +261,14 @@ private fun CurrencyRow(
             ) {
                 Text(text = currency.code, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                 Text(text = currency.name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+            }
+
+            if (isSelected) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Selected currency",
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }

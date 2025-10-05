@@ -48,7 +48,9 @@ import kotlinx.coroutines.launch
 import com.app.payables.work.BrandfetchService
 import coil.compose.AsyncImage
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.platform.LocalContext
 import com.app.payables.util.isColorBright
+import com.app.payables.util.SettingsManager
 
 // Screen state for transitions
 private enum class AddPayableScreenState {
@@ -70,6 +72,8 @@ fun AddPayableScreen(
     val isDarkTheme = isSystemInDarkTheme()
     val defaultHeaderColor = if (isDarkTheme) Color(0xFF26272e) else Color(0xFFf0eff7)
 
+    val context = LocalContext.current
+    val settingsManager = remember { SettingsManager(context) }
     var titleInitialY by remember { mutableStateOf<Int?>(null) }
     var titleWindowY by remember { mutableIntStateOf(Int.MAX_VALUE) }
     val fade = rememberFadeToTopBarProgress(titleInitialY, titleWindowY)
@@ -119,7 +123,7 @@ fun AddPayableScreen(
     var selectedCycle by remember { mutableStateOf(editingPayable?.billingCycle ?: cycles.first()) }
     val currencies = CurrencyList.all
     var currencyExpanded by remember { mutableStateOf(false) }
-    var selectedCurrency by remember { mutableStateOf(editingPayable?.currency ?: "EUR") }
+    var selectedCurrency by remember { mutableStateOf(editingPayable?.currency ?: settingsManager.getDefaultCurrency()) }
     var selectedCategory by remember { mutableStateOf(editingPayable?.category ?: "Not set") }
     var categoryExpanded by remember { mutableStateOf(false) }
     var paymentMethod by remember { mutableStateOf(editingPayable?.paymentMethod ?: "Not set") }

@@ -30,6 +30,7 @@ import com.app.payables.theme.fadeUpTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import com.app.payables.theme.AppTheme
 
@@ -161,7 +162,7 @@ fun SettingsScreen(
                 SettingsItemStack {
                     SettingsCard(
                         title = "Backup",
-                        subtitle = "Backup all your subscription",
+                        subtitle = "Backup all your payables",
                         leading = { BadgeIcon(background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)) { Icon(Icons.Filled.CloudUpload, null, tint = MaterialTheme.colorScheme.primary) } },
                         trailing = {},
                         isFirst = true,
@@ -170,7 +171,7 @@ fun SettingsScreen(
                     )
                     SettingsCard(
                         title = "Restore",
-                        subtitle = "Restore all your subscription",
+                        subtitle = "Restore all your payables",
                         leading = { BadgeIcon(background = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.35f)) { Icon(Icons.Filled.Restore, null, tint = MaterialTheme.colorScheme.tertiary) } },
                         trailing = {},
                         isFirst = false,
@@ -265,7 +266,7 @@ private fun SettingsCard(
                     .padding(start = 16.dp)
             ) {
                 Text(text = title, style = MaterialTheme.typography.titleMedium, color = titleColor)
-                Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             trailing()
         }
