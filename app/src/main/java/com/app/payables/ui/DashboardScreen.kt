@@ -379,7 +379,7 @@ fun DashboardScreen(
                                 val finishedPayables = payableRepository.getAllPayables().collectAsState(initial = emptyList()).value.filter { it.isFinished }
                                 PausedFinishedSection(
                                     pausedPayables = pausedPayablesUI,
-                                    finishedPayables = finishedPayables,
+                                    finishedPayables = finishedPayables.map { it.toPayableItemData() },
                                     onPausedClick = {
                                         if (pausedPayablesUI.isNotEmpty()) {
                                             selectedPayableFilter = PayableFilter.Paused
@@ -463,7 +463,7 @@ fun DashboardScreen(
                                 val allPayables = payableRepository.getAllPayables().first()
                                 val updatedPayable = allPayables.find { it.id == editedPayableId }
                                 if (updatedPayable != null) {
-                                    selectedPayable = updatedPayable
+                                    selectedPayable = updatedPayable.toPayableItemData()
                                     showViewPayableFullScreen = true
                                 } else {
                                     selectedPayable = null
@@ -483,7 +483,7 @@ fun DashboardScreen(
                     is PayableFilter.Paused -> pausedPayablesUI
                     is PayableFilter.Finished -> {
                         // Get all payables and filter for finished ones (only shown in Finished section)
-                        payableRepository.getAllPayables().collectAsState(initial = emptyList()).value.filter { it.isFinished }
+                        payableRepository.getAllPayables().collectAsState(initial = emptyList()).value.filter { it.isFinished }.map { it.toPayableItemData() }
                     }
                     is PayableFilter.ThisWeek -> payablesDueThisWeek
                     is PayableFilter.ThisMonth -> payablesDueThisMonth
@@ -508,7 +508,7 @@ fun DashboardScreen(
                         is PayableFilter.Category -> {
                             // Filter payables by their actual stored category
                             sourcePayables.filter { payable ->
-                                payable.category == currentFilter.categoryName
+                                payable.name == currentFilter.categoryName
                             }
                         }
                     }

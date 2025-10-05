@@ -16,11 +16,9 @@ enum class SpendingTimeframe {
 
 class PayableRepository(private val payableDao: PayableDao) {
     
-    // Get all payables as Flow of PayableItemData for UI
-    fun getAllPayables(): Flow<List<PayableItemData>> {
-        return payableDao.getAllPayables().map { payables ->
-            payables.map { it.toPayableItemData() }
-        }
+    // Get all payables as Flow of Payable entities
+    fun getAllPayables(): Flow<List<Payable>> {
+        return payableDao.getAllPayables()
     }
 
     suspend fun getAllPayablesList(): List<Payable> {
@@ -33,40 +31,41 @@ class PayableRepository(private val payableDao: PayableDao) {
     
     // Get only active (non-paused, non-finished) payables
     fun getActivePayables(): Flow<List<PayableItemData>> {
-        return payableDao.getAllPayables().map { payables ->
+        return getAllPayables().map { payables ->
             payables.filter { !it.isPaused && !it.isFinished }.map { it.toPayableItemData() }
+        }
+    }
+
+    // Get only active (non-paused, non-finished) payables as entities
+    fun getActivePayableEntities(): Flow<List<Payable>> {
+        return getAllPayables().map { payables ->
+            payables.filter { !it.isPaused && !it.isFinished }
         }
     }
     
     // Get only paused payables
     fun getPausedPayables(): Flow<List<PayableItemData>> {
-        return payableDao.getAllPayables().map { payables ->
+        return getAllPayables().map { payables ->
             payables.filter { it.isPaused }.map { it.toPayableItemData() }
         }
     }
 
     fun getActivePayablesDueThisWeek(): Flow<List<PayableItemData>> {
-        val today = LocalDate.now()
-        val endOfWeek = today.plusDays(6)
-
         return getActivePayables().map { payables ->
             payables.filter {
                 val billingDate = LocalDate.parse(it.billingStartDate, DateTimeFormatter.ofPattern("MMMM dd, yyyy"))
                 val nextDueDate = Payable.calculateNextDueDate(billingDate, it.billingCycle)
-                !nextDueDate.isBefore(today) && !nextDueDate.isAfter(endOfWeek)
+                !nextDueDate.isBefore(LocalDate.now()) && !nextDueDate.isAfter(LocalDate.now().plusDays(6))
             }
         }
     }
 
     fun getActivePayablesDueThisMonth(): Flow<List<PayableItemData>> {
-        val today = LocalDate.now()
-        val endOfMonth = today.withDayOfMonth(today.lengthOfMonth())
-
         return getActivePayables().map { payables ->
             payables.filter {
                 val billingDate = LocalDate.parse(it.billingStartDate, DateTimeFormatter.ofPattern("MMMM dd, yyyy"))
                 val nextDueDate = Payable.calculateNextDueDate(billingDate, it.billingCycle)
-                !nextDueDate.isBefore(today) && !nextDueDate.isAfter(endOfMonth)
+                !nextDueDate.isBefore(LocalDate.now()) && !nextDueDate.isAfter(LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth()))
             }
         }
     }
@@ -200,17 +199,6 @@ class PayableRepository(private val payableDao: PayableDao) {
         }
     }
 
-    // Finish payables whose end date is in the past
-    suspend fun finishPastDuePayables() {
-        val today = LocalDate.now().atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
-        val payablesToFinish = payableDao.getActivePayablesWithEndDate().filter {
-            it.endDateMillis != null && it.endDateMillis < today
-        }
-        payablesToFinish.forEach { payable ->
-            updatePayable(payable.copy(isFinished = true))
-        }
-    }
-    
     // Get payables count by category (useful for updating category counts)
     suspend fun getPayablesCountByCategory(category: String): Int {
         return payableDao.getPayablesCountByCategory(category)
