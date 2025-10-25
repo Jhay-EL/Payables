@@ -70,13 +70,15 @@ object NotificationErrorHandler {
     /**
      * Open exact alarm settings (Android 12+)
      */
-    @RequiresApi(Build.VERSION_CODES.S)
     fun openAlarmSettings(context: Context) {
         try {
-            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-                data = Uri.fromParts("package", context.packageName, null)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                    data = Uri.fromParts("package", context.packageName, null)
+                }
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
             }
-            context.startActivity(intent)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to open alarm settings", e)
             Toast.makeText(context, "Unable to open alarm settings", Toast.LENGTH_SHORT).show()

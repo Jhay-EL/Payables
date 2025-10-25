@@ -92,13 +92,6 @@ class AlarmScheduler(private val context: Context) {
      */
     fun rescheduleNextAlarm(payable: Payable, settingsManager: SettingsManager): Boolean {
         return try {
-            // Check if notifications are enabled for this payable
-            val enabledIds = settingsManager.getEnabledPayableIds()
-            if (payable.id !in enabledIds) {
-                Log.d(TAG, "Notifications not enabled for payable: ${payable.id}")
-                return false
-            }
-            
             // Calculate next due date
             val billingDate = LocalDate.ofEpochDay(payable.billingDateMillis / (1000 * 60 * 60 * 24))
             val nextDueDate = Payable.calculateNextDueDate(billingDate, payable.billingCycle)

@@ -41,9 +41,12 @@ class NotificationBroadcastReceiver : BroadcastReceiver() {
                 repository.getPayableById(payableId)?.let { payable ->
                     Log.d(TAG, "Sending notification for: ${payable.title}")
                     
-                    // Send the notification
+                    // Read lockscreen preference
+                    val showOnLockscreen = settingsManager.getShowOnLockscreen()
+                    
+                    // Send the notification with lockscreen setting
                     try {
-                        notificationManager.sendDuePayableNotification(payable)
+                        notificationManager.sendDuePayableNotification(payable, showOnLockscreen)
                         Log.d(TAG, "Successfully sent notification for: ${payable.title}")
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to send notification for: ${payable.title}", e)

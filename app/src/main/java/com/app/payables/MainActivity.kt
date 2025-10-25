@@ -1,8 +1,16 @@
 package com.app.payables
 import com.app.payables.ui.settings.AboutScreen
+import android.app.AlarmManager
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -16,6 +24,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.mutableStateListOf
@@ -37,13 +47,23 @@ import androidx.compose.animation.AnimatedContent
 import com.app.payables.theme.AppTransitions
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.launch
 import com.app.payables.ui.InsightsScreen
+import com.app.payables.util.AppNotificationManager
+import com.app.payables.util.SettingsManager
 
 class MainActivity : ComponentActivity() {
+    
+    private var showAlarmPermDialog by mutableStateOf(false)
+    private var showNotificationPermDialog by mutableStateOf(false)
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+
+        // Request permissions on first launch
+        requestInitialPermissionsIfNeeded()
 
         setContent {
             var themeChoice by remember { mutableStateOf(AppThemeChoice.System) }
@@ -211,9 +231,102 @@ class MainActivity : ComponentActivity() {
                             text = { Text("Are you sure you want to exit?") }
                         )
                     }
+                    
+                    // Notification permission dialog
+                    if (showNotificationPermDialog) {
+                        val permissionLauncher = rememberLauncherForActivityResult(
+                            contract = ActivityResultContracts.RequestPermission()
+                        ) { isGranted ->
+                            showNotificationPermDialog = false
+                            val settingsManager = SettingsManager(activity)
+                            if (isGranted) {
+                                onPermissionsGranted(settingsManager)
+                            }
+                            // After handling notification permission, check alarm permission
+                            checkAlarmPermission()
+                        }
+                        
+                        LaunchedEffect(Unit) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                permissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                showNotificationPermDialog = false
+                                checkAlarmPermission()
+                            }
+                        }
+                    }
+                    
+                    // Alarm permission dialog
+                    if (showAlarmPermDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showAlarmPermDialog = false },
+                            confirmButton = {
+                                TextButton(onClick = { 
+                                    showAlarmPermDialog = false
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                        val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                                        startActivity(intent)
+                                    }
+                                }) { Text("Open Settings") }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showAlarmPermDialog = false }) { Text("Skip") }
+                            },
+                            title = { Text("Alarm Permission Required") },
+                            text = { Text("To send timely reminders, this app needs permission to set alarms. You'll be redirected to settings.") }
+                        )
+                    }
                 }
             }
         }
+    }
+
+    private fun requestInitialPermissionsIfNeeded() {
+        val settingsManager = SettingsManager(this)
+        
+        // Only request once on first launch
+        if (!settingsManager.hasRequestedPermissions()) {
+            settingsManager.setPermissionsRequested()
+            
+            // Step 1: Request notification permission first
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) 
+                    == PackageManager.PERMISSION_GRANTED) {
+                    // Already granted, enable notifications
+                    onPermissionsGranted(settingsManager)
+                    // Then check alarm permission
+                    checkAlarmPermission()
+                } else {
+                    // Show notification permission dialog
+                    showNotificationPermDialog = true
+                }
+            } else {
+                // Pre-Android 13, notifications don't need runtime permission
+                onPermissionsGranted(settingsManager)
+                // Then check alarm permission
+                checkAlarmPermission()
+            }
+        }
+    }
+
+    private fun checkAlarmPermission() {
+        // Step 2: Check SCHEDULE_EXACT_ALARM permission (Android 12+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            if (!alarmManager.canScheduleExactAlarms()) {
+                // Show dialog explaining why we need this permission
+                showAlarmPermDialog = true
+            }
+        }
+    }
+
+    private fun onPermissionsGranted(settingsManager: SettingsManager) {
+        // Enable push notifications by default
+        settingsManager.setPushNotificationsEnabled(true)
+        
+        // Create notification channel
+        val notificationManager = AppNotificationManager(this)
+        notificationManager.createNotificationChannel()
     }
 }
 

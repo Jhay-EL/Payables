@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.activity.result.ActivityResultLauncher
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import com.app.payables.R
 import com.app.payables.data.Payable
 
 class AppNotificationManager(private val context: Context) {
@@ -26,9 +27,13 @@ class AppNotificationManager(private val context: Context) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Notifications for upcoming payable due dates"
+                lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+                setShowBadge(true)
+                enableLights(true)
+                enableVibration(true)
             }
             notificationManager.createNotificationChannel(channel)
             Log.d(TAG, "Notification channel created successfully")
@@ -57,7 +62,7 @@ class AppNotificationManager(private val context: Context) {
         return hasPermission
     }
 
-    fun sendDuePayableNotification(payable: Payable) {
+    fun sendDuePayableNotification(payable: Payable, showOnLockscreen: Boolean = true) {
         try {
             // Check permission before sending
             if (!hasNotificationPermission()) {
@@ -66,12 +71,21 @@ class AppNotificationManager(private val context: Context) {
                 return
             }
             
+            val visibility = if (showOnLockscreen) {
+                NotificationCompat.VISIBILITY_PUBLIC
+            } else {
+                NotificationCompat.VISIBILITY_SECRET
+            }
+            
             val notification = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setContentTitle("Payable Due: ${payable.title}")
                 .setContentText("Your payable for ${payable.title} is due today.")
-                .setSmallIcon(android.R.drawable.ic_dialog_info)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setSmallIcon(R.drawable.ic_notification)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setVisibility(visibility)
                 .setAutoCancel(true)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setCategory(NotificationCompat.CATEGORY_REMINDER)
                 .build()
 
             notificationManager.notify(payable.id.hashCode(), notification)

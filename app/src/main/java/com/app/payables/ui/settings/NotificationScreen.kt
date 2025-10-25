@@ -1,16 +1,13 @@
 package com.app.payables.ui.settings
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
@@ -29,21 +26,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.window.Dialog
-import com.app.payables.PayablesApplication
 import com.app.payables.theme.*
-import com.app.payables.ui.PayableItemData
 import com.app.payables.util.SettingsManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.app.payables.util.AppNotificationManager
-import androidx.compose.ui.graphics.Color
 import java.util.Locale
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import com.app.payables.util.AlarmScheduler
-import android.util.Log
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,8 +50,6 @@ fun NotificationScreen(
 	var showTimePicker by remember { mutableStateOf(false) }
 
 	val context = LocalContext.current
-	val app = context.applicationContext as PayablesApplication
-	val payableRepository = app.payableRepository
 	val settingsManager = remember { SettingsManager(context) }
 
 	val (hour, minute) = settingsManager.getNotificationTime()
@@ -74,10 +62,6 @@ fun NotificationScreen(
 	}
 	var selectedTime by remember { mutableStateOf(String.format(Locale.US, "%d:%02d %s", displayHour, minute, amPm)) }
 	var reminderPreference by remember { mutableIntStateOf(settingsManager.getReminderPreference()) }
-
-
-	val payables by payableRepository.getActivePayables().collectAsState(initial = emptyList())
-	var showSelectPayablesDialog by remember { mutableStateOf(false) }
 
 	if (showTimePicker) {
 		TimePickerDialog(
@@ -150,16 +134,24 @@ fun NotificationScreen(
 
 			// Description
 			Text(
-				text = "Enable app push notifications to receive Payment Reminders on your phone before bills are due.",
+			text = "Enable push notifications to receive reminders for all active payables before they're due.",
 				style = MaterialTheme.typography.bodyLarge,
 				color = MaterialTheme.colorScheme.onSurfaceVariant,
 				modifier = Modifier.padding(bottom = dims.spacing.section)
 			)
 
-			SectionHeader("Push notifications")
-			NotificationToggleCard()
+		SectionHeader("Push notifications")
+		NotificationSettingsGroup()
+		
+		// Lockscreen note
+		Text(
+			text = "Note: Make sure \"Sensitive notifications\" is enabled in your device's lockscreen settings for notifications to appear when locked.",
+			style = MaterialTheme.typography.bodySmall,
+			color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+			modifier = Modifier.padding(top = dims.spacing.sm, start = dims.spacing.xs, end = dims.spacing.xs)
+		)
 
-			Spacer(modifier = Modifier.height(dims.spacing.section))
+		Spacer(modifier = Modifier.height(dims.spacing.section))
 
 			SectionHeader("Alerts")
 			AlertTimeCard(
@@ -173,20 +165,9 @@ fun NotificationScreen(
 					settingsManager.setReminderPreference(days)
 				}
 			)
-			SelectPayablesCard(
-				onClick = { showSelectPayablesDialog = true }
-			)
 
-			Spacer(modifier = Modifier.height(bottomInset + dims.spacing.navBarContentBottomMargin))
+		Spacer(modifier = Modifier.height(bottomInset + dims.spacing.navBarContentBottomMargin))
 		}
-	}
-
-	if (showSelectPayablesDialog) {
-		SelectPayablesDialog(
-			payables = payables,
-			onDismiss = { showSelectPayablesDialog = false },
-			settingsManager = settingsManager
-		)
 	}
 }
 
@@ -202,45 +183,64 @@ private fun SectionHeader(text: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun NotificationToggleCard() {
+private fun NotificationSettingsGroup() {
 	val context = LocalContext.current
+	val settingsManager = remember { SettingsManager(context) }
 	val notificationManager = remember { AppNotificationManager(context) }
-	var pushEnabled by remember { mutableStateOf(notificationManager.hasNotificationPermission()) }
+	
+	// Initialize from saved state AND permission status
+	var pushEnabled by remember { 
+		mutableStateOf(
+			settingsManager.isPushNotificationsEnabled() && 
+			notificationManager.hasNotificationPermission()
+		)
+	}
+	var showOnLockscreen by remember { mutableStateOf(settingsManager.getShowOnLockscreen()) }
+	
 	val dims = LocalAppDimensions.current
-	val interaction = remember { MutableInteractionSource() }
-	val corners = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
+	val dashboardTheme = LocalDashboardTheme.current
 	val permissionLauncher = rememberLauncherForActivityResult(
 		contract = ActivityResultContracts.RequestPermission()
 	) { isGranted ->
 		if (isGranted) {
 			pushEnabled = true
+			settingsManager.setPushNotificationsEnabled(true)
 			notificationManager.createNotificationChannel()
 		} else {
 			pushEnabled = false
+			settingsManager.setPushNotificationsEnabled(false)
 		}
 	}
 
+	// Top card - Push Notifications
 	Card(
 		onClick = {
 			if (!pushEnabled) {
 				if (notificationManager.hasNotificationPermission()) {
 					pushEnabled = true
+					settingsManager.setPushNotificationsEnabled(true)
 				} else {
 					notificationManager.requestNotificationPermission(permissionLauncher)
 				}
 			} else {
 				pushEnabled = false
+				settingsManager.setPushNotificationsEnabled(false)
 			}
 		},
 		modifier = Modifier
 			.fillMaxWidth()
-			.pressableCard(interactionSource = interaction),
-		shape = corners,
+			.pressableCard(interactionSource = remember { MutableInteractionSource() }),
+		shape = RoundedCornerShape(
+			topStart = dashboardTheme.groupTopCornerRadius,
+			topEnd = dashboardTheme.groupTopCornerRadius,
+			bottomStart = dashboardTheme.groupInnerCornerRadius,
+			bottomEnd = dashboardTheme.groupInnerCornerRadius
+		),
 		colors = CardDefaults.cardColors(
 			containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
 		),
 		elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-		interactionSource = interaction
+		interactionSource = remember { MutableInteractionSource() }
 	) {
 		Row(
 			modifier = Modifier
@@ -248,7 +248,6 @@ private fun NotificationToggleCard() {
 				.padding(dims.spacing.card),
 			verticalAlignment = Alignment.CenterVertically
 		) {
-			// Leading icon badge
 			Box(
 				modifier = Modifier
 					.size(44.dp)
@@ -280,12 +279,89 @@ private fun NotificationToggleCard() {
 					if (it) {
 						if (notificationManager.hasNotificationPermission()) {
 							pushEnabled = true
+							settingsManager.setPushNotificationsEnabled(true)
 						} else {
 							notificationManager.requestNotificationPermission(permissionLauncher)
 						}
 					} else {
 						pushEnabled = false
+						settingsManager.setPushNotificationsEnabled(false)
 					}
+				}
+			)
+		}
+	}
+
+	Spacer(modifier = Modifier.height(2.dp))
+
+	// Bottom card - Show on lockscreen
+	Card(
+		onClick = {
+			showOnLockscreen = !showOnLockscreen
+			settingsManager.setShowOnLockscreen(showOnLockscreen)
+		},
+		modifier = Modifier
+			.fillMaxWidth()
+			.pressableCard(interactionSource = remember { MutableInteractionSource() }),
+		shape = RoundedCornerShape(
+			topStart = dashboardTheme.groupInnerCornerRadius,
+			topEnd = dashboardTheme.groupInnerCornerRadius,
+			bottomStart = dashboardTheme.groupBottomCornerRadius,
+			bottomEnd = dashboardTheme.groupBottomCornerRadius
+		),
+		colors = CardDefaults.cardColors(
+			containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+		),
+		elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+		interactionSource = remember { MutableInteractionSource() }
+	) {
+		Row(
+			modifier = Modifier
+				.fillMaxWidth()
+				.padding(dims.spacing.card),
+			verticalAlignment = Alignment.CenterVertically
+		) {
+			Box(
+				modifier = Modifier
+					.size(44.dp)
+					.background(
+						MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f),
+						RoundedCornerShape(16.dp)
+					),
+				contentAlignment = Alignment.Center
+			) {
+				Icon(
+					Icons.Filled.LockOpen,
+					contentDescription = null,
+					tint = MaterialTheme.colorScheme.secondary
+				)
+			}
+
+			Column(
+				modifier = Modifier
+					.weight(1f)
+					.padding(start = 16.dp)
+			) {
+				Text(
+					text = "Show on lockscreen",
+					style = MaterialTheme.typography.titleMedium,
+					color = MaterialTheme.colorScheme.onSurface
+				)
+				Text(
+					text = "Display notifications on your lockscreen",
+					style = MaterialTheme.typography.bodyMedium,
+					color = MaterialTheme.colorScheme.onSurfaceVariant,
+					modifier = Modifier.padding(top = 4.dp),
+					maxLines = 1,
+					overflow = TextOverflow.Ellipsis
+				)
+			}
+
+			Switch(
+				checked = showOnLockscreen,
+				onCheckedChange = {
+					showOnLockscreen = it
+					settingsManager.setShowOnLockscreen(it)
 				}
 			)
 		}
@@ -388,7 +464,12 @@ private fun ReminderPreferenceCard(
 	val dims = LocalAppDimensions.current
 	val interaction = remember { MutableInteractionSource() }
 	val dashboardTheme = LocalDashboardTheme.current
-	val shape = RoundedCornerShape(dashboardTheme.groupInnerCornerRadius)
+	val shape = RoundedCornerShape(
+		topStart = dashboardTheme.groupInnerCornerRadius,
+		topEnd = dashboardTheme.groupInnerCornerRadius,
+		bottomStart = dashboardTheme.groupBottomCornerRadius,
+		bottomEnd = dashboardTheme.groupBottomCornerRadius
+	)
 
 	Card(
 		onClick = { expanded = true },
@@ -469,74 +550,6 @@ private fun ReminderPreferenceCard(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SelectPayablesCard(
-	onClick: () -> Unit
-) {
-	val dims = LocalAppDimensions.current
-	val interaction = remember { MutableInteractionSource() }
-	val dashboardTheme = LocalDashboardTheme.current
-	val shape = RoundedCornerShape(
-			topStart = dashboardTheme.groupInnerCornerRadius,
-			topEnd = dashboardTheme.groupInnerCornerRadius,
-			bottomStart = dashboardTheme.groupBottomCornerRadius,
-			bottomEnd = dashboardTheme.groupBottomCornerRadius
-		)
-
-	Card(
-		onClick = onClick,
-		modifier = Modifier
-			.fillMaxWidth()
-			.padding(bottom = 0.dp)
-			.pressableCard(interactionSource = interaction),
-		shape = shape,
-		colors = CardDefaults.cardColors(
-			containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
-		),
-		elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-		interactionSource = interaction
-	) {
-		Row(
-			modifier = Modifier
-				.fillMaxWidth()
-				.padding(dims.spacing.card),
-			verticalAlignment = Alignment.CenterVertically
-		) {
-			Box(
-				modifier = Modifier
-					.size(44.dp)
-					.background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f), RoundedCornerShape(16.dp)),
-				contentAlignment = Alignment.Center
-			) {
-				Icon(Icons.Filled.Checklist, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
-			}
-
-			Column(
-				modifier = Modifier
-					.weight(1f)
-					.padding(start = 16.dp)
-			) {
-				Text(text = "Select Payables", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-				Text(
-					text = "Choose which payables send reminders",
-					style = MaterialTheme.typography.bodyMedium,
-					color = MaterialTheme.colorScheme.onSurfaceVariant,
-					modifier = Modifier.padding(top = 4.dp),
-					maxLines = 1,
-					overflow = TextOverflow.Ellipsis
-				)
-			}
-
-			Icon(
-				Icons.AutoMirrored.Filled.KeyboardArrowRight,
-				contentDescription = "Select payables",
-				tint = MaterialTheme.colorScheme.onSurfaceVariant
-			)
-		}
-	}
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
 private fun TimePickerDialog(
 	onCancel: () -> Unit,
 	onConfirm: () -> Unit,
@@ -574,147 +587,6 @@ private fun TimePickerDialog(
 					Spacer(modifier = Modifier.weight(1f))
 					TextButton(onClick = onCancel) { Text("Cancel") }
 					TextButton(onClick = onConfirm) { Text("OK") }
-				}
-			}
-		}
-	}
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SelectPayablesDialog(
-	payables: List<PayableItemData>,
-	onDismiss: () -> Unit,
-	settingsManager: SettingsManager
-) {
-	val context = LocalContext.current
-	val app = context.applicationContext as PayablesApplication
-	val alarmScheduler = remember { AlarmScheduler(context) }
-	val coroutineScope = rememberCoroutineScope()
-	
-	val initialEnabledIds = if (settingsManager.hasNotificationSetting()) {
-		settingsManager.getEnabledPayableIds()
-	} else {
-		// Default to all enabled if no setting is saved
-		payables.map { it.id }.toSet()
-	}
-	
-	val enabledPayableIds = remember {
-		mutableStateOf(initialEnabledIds)
-	}
-
-	Dialog(onDismissRequest = onDismiss) {
-		Surface(
-			shape = MaterialTheme.shapes.extraLarge,
-			tonalElevation = 6.dp,
-		) {
-			Column(modifier = Modifier.padding(24.dp)) {
-				Text(
-					text = "Select Payables",
-					style = MaterialTheme.typography.headlineSmall
-				)
-				Text(
-					text = "Choose which payables will send reminders.",
-					style = MaterialTheme.typography.bodyMedium,
-					color = MaterialTheme.colorScheme.onSurfaceVariant,
-					modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
-				)
-
-				LazyColumn(modifier = Modifier.weight(1f)) {
-					items(payables) { payable ->
-						val isEnabled = payable.id in enabledPayableIds.value
-						Row(
-							modifier = Modifier
-								.fillMaxWidth()
-								.background(
-									color = if (isEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color.Transparent,
-									shape = RoundedCornerShape(8.dp)
-								)
-								.clickable {
-									val currentIds = enabledPayableIds.value.toMutableSet()
-									if (payable.id in currentIds) {
-										currentIds.remove(payable.id)
-									} else {
-										currentIds.add(payable.id)
-									}
-									enabledPayableIds.value = currentIds
-								}
-								.padding(vertical = 8.dp, horizontal = 12.dp),
-							verticalAlignment = Alignment.CenterVertically
-						) {
-							Column(
-								modifier = Modifier.weight(1f)
-							) {
-								Text(
-									text = payable.name,
-									style = MaterialTheme.typography.titleMedium
-								)
-								if (payable.planType.isNotBlank()) {
-									Text(
-										text = payable.planType,
-										style = MaterialTheme.typography.bodyMedium,
-										color = MaterialTheme.colorScheme.onSurfaceVariant
-									)
-								}
-							}
-							Switch(
-								checked = isEnabled,
-								onCheckedChange = { isChecked ->
-									val currentIds = enabledPayableIds.value.toMutableSet()
-									if (isChecked) {
-										currentIds.add(payable.id)
-									} else {
-										currentIds.remove(payable.id)
-									}
-									enabledPayableIds.value = currentIds
-								}
-							)
-						}
-						Spacer(modifier = Modifier.height(4.dp))
-					}
-				}
-
-				Row(
-					modifier = Modifier
-						.fillMaxWidth()
-						.padding(top = 24.dp),
-					horizontalArrangement = Arrangement.End
-				) {
-					TextButton(onClick = onDismiss) {
-						Text("Cancel")
-					}
-					Spacer(modifier = Modifier.width(8.dp))
-					TextButton(
-						onClick = {
-							// Save enabled payable IDs
-							settingsManager.setEnabledPayableIds(enabledPayableIds.value)
-							
-							// Handle alarm cancellation and scheduling
-							coroutineScope.launch(Dispatchers.IO) {
-								try {
-									// Cancel alarms for payables that were disabled
-									val disabledPayables = initialEnabledIds - enabledPayableIds.value
-									disabledPayables.forEach { payableId ->
-										alarmScheduler.cancelAlarm(payableId)
-									}
-									
-									// Schedule alarms for newly enabled payables
-									val newlyEnabledPayables = enabledPayableIds.value - initialEnabledIds
-									newlyEnabledPayables.forEach { payableId ->
-										app.payableRepository.getPayableById(payableId)?.let { payable ->
-											alarmScheduler.rescheduleNextAlarm(payable, settingsManager)
-										}
-									}
-								} catch (e: Exception) {
-									Log.e("SelectPayablesDialog", "Error updating alarms", e)
-								}
-							}
-							
-							onDismiss()
-						}
-					) {
-						Text("Confirm")
-					}
 				}
 			}
 		}
