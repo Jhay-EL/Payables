@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import androidx.activity.result.ActivityResultLauncher
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -15,41 +16,74 @@ class AppNotificationManager(private val context: Context) {
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
     companion object {
+        private const val TAG = "AppNotificationManager"
         private const val CHANNEL_ID = "payable_reminders"
         private const val CHANNEL_NAME = "Payable Reminders"
     }
 
     fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            CHANNEL_NAME,
-            NotificationManager.IMPORTANCE_DEFAULT
-        )
-        notificationManager.createNotificationChannel(channel)
+        try {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                CHANNEL_NAME,
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Notifications for upcoming payable due dates"
+            }
+            notificationManager.createNotificationChannel(channel)
+            Log.d(TAG, "Notification channel created successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create notification channel", e)
+            throw e
+        }
     }
 
     fun requestNotificationPermission(permissionLauncher: ActivityResultLauncher<String>) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                Log.d(TAG, "Requesting notification permission")
                 permissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
             }
         }
     }
 
     fun hasNotificationPermission(): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            return ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        val hasPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
         }
-        return true
+        Log.d(TAG, "Notification permission status: $hasPermission")
+        return hasPermission
     }
 
     fun sendDuePayableNotification(payable: Payable) {
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle("Payable Due: ${payable.title}")
-            .setContentText("Your payable for ${payable.title} is due today.")
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .build()
+        try {
+            // Check permission before sending
+            if (!hasNotificationPermission()) {
+                Log.w(TAG, "Cannot send notification - permission not granted")
+                NotificationErrorHandler.showPermissionErrorDialog(context)
+                return
+            }
+            
+            val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setContentTitle("Payable Due: ${payable.title}")
+                .setContentText("Your payable for ${payable.title} is due today.")
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setAutoCancel(true)
+                .build()
 
-        notificationManager.notify(payable.id.hashCode(), notification)
+            notificationManager.notify(payable.id.hashCode(), notification)
+            Log.d(TAG, "Notification sent successfully for: ${payable.title}")
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Security exception sending notification for ${payable.title}", e)
+            NotificationErrorHandler.handleNotificationSendError(context, payable.title, e)
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send notification for ${payable.title}", e)
+            NotificationErrorHandler.handleNotificationSendError(context, payable.title, e)
+            throw e
+        }
     }
 }

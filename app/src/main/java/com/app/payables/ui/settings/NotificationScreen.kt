@@ -40,6 +40,10 @@ import androidx.compose.ui.graphics.Color
 import java.util.Locale
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import com.app.payables.util.AlarmScheduler
+import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -583,15 +587,20 @@ private fun SelectPayablesDialog(
 	onDismiss: () -> Unit,
 	settingsManager: SettingsManager
 ) {
+	val context = LocalContext.current
+	val app = context.applicationContext as PayablesApplication
+	val alarmScheduler = remember { AlarmScheduler(context) }
+	val coroutineScope = rememberCoroutineScope()
+	
+	val initialEnabledIds = if (settingsManager.hasNotificationSetting()) {
+		settingsManager.getEnabledPayableIds()
+	} else {
+		// Default to all enabled if no setting is saved
+		payables.map { it.id }.toSet()
+	}
+	
 	val enabledPayableIds = remember {
-		mutableStateOf(
-			if (settingsManager.hasNotificationSetting()) {
-				settingsManager.getEnabledPayableIds()
-			} else {
-				// Default to all enabled if no setting is saved
-				payables.map { it.id }.toSet()
-			}
-		)
+		mutableStateOf(initialEnabledIds)
 	}
 
 	Dialog(onDismissRequest = onDismiss) {
@@ -677,7 +686,30 @@ private fun SelectPayablesDialog(
 					Spacer(modifier = Modifier.width(8.dp))
 					TextButton(
 						onClick = {
+							// Save enabled payable IDs
 							settingsManager.setEnabledPayableIds(enabledPayableIds.value)
+							
+							// Handle alarm cancellation and scheduling
+							coroutineScope.launch(Dispatchers.IO) {
+								try {
+									// Cancel alarms for payables that were disabled
+									val disabledPayables = initialEnabledIds - enabledPayableIds.value
+									disabledPayables.forEach { payableId ->
+										alarmScheduler.cancelAlarm(payableId)
+									}
+									
+									// Schedule alarms for newly enabled payables
+									val newlyEnabledPayables = enabledPayableIds.value - initialEnabledIds
+									newlyEnabledPayables.forEach { payableId ->
+										app.payableRepository.getPayableById(payableId)?.let { payable ->
+											alarmScheduler.rescheduleNextAlarm(payable, settingsManager)
+										}
+									}
+								} catch (e: Exception) {
+									Log.e("SelectPayablesDialog", "Error updating alarms", e)
+								}
+							}
+							
 							onDismiss()
 						}
 					) {

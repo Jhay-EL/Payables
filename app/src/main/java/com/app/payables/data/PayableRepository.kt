@@ -1,8 +1,10 @@
 package com.app.payables.data
 
+import android.content.Context
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import com.app.payables.ui.PayableItemData
+import com.app.payables.util.AlarmScheduler
 import androidx.compose.ui.graphics.Color
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -14,7 +16,13 @@ enum class SpendingTimeframe {
     Yearly
 }
 
-class PayableRepository(private val payableDao: PayableDao) {
+class PayableRepository(
+    private val payableDao: PayableDao,
+    private val context: Context? = null
+) {
+    private val alarmScheduler: AlarmScheduler? by lazy {
+        context?.let { AlarmScheduler(it) }
+    }
     
     // Get all payables as Flow of Payable entities
     fun getAllPayables(): Flow<List<Payable>> {
@@ -134,6 +142,10 @@ class PayableRepository(private val payableDao: PayableDao) {
     suspend fun deletePayable(id: String, categoryRepository: CategoryRepository? = null) {
         // Get the payable to find its category before deleting
         val payable = payableDao.getPayableById(id)
+        
+        // Cancel any scheduled alarms for this payable
+        alarmScheduler?.cancelAlarm(id)
+        
         payableDao.deletePayableById(id)
         
         // Update category count if repository provided
@@ -155,6 +167,9 @@ class PayableRepository(private val payableDao: PayableDao) {
     suspend fun pausePayable(id: String) {
         val payable = payableDao.getPayableById(id)
         payable?.let { p ->
+            // Cancel any scheduled alarms when pausing
+            alarmScheduler?.cancelAlarm(id)
+            
             val pausedPayable = p.copy(
                 isPaused = true,
                 updatedAt = System.currentTimeMillis()
@@ -179,6 +194,9 @@ class PayableRepository(private val payableDao: PayableDao) {
     suspend fun finishPayable(id: String) {
         val payable = payableDao.getPayableById(id)
         payable?.let { p ->
+            // Cancel any scheduled alarms when finishing
+            alarmScheduler?.cancelAlarm(id)
+            
             val finishedPayable = p.copy(
                 isFinished = true,
                 updatedAt = System.currentTimeMillis()

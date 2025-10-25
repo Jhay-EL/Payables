@@ -16,7 +16,7 @@ class PayablesApplication : Application() {
     
     // Repository instances
     val categoryRepository by lazy { CategoryRepository(database.categoryDao()) }
-    val payableRepository by lazy { PayableRepository(database.payableDao()) }
+    val payableRepository by lazy { PayableRepository(database.payableDao(), this) }
     val customPaymentMethodRepository by lazy { CustomPaymentMethodRepository(database.customPaymentMethodDao()) }
 
     override fun onCreate() {
@@ -25,12 +25,8 @@ class PayablesApplication : Application() {
     }
 
     private fun setupRecurringWork() {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-
+        // Removed network constraint - notifications don't require network
         val workRequest = PeriodicWorkRequestBuilder<PayableStatusWorker>(1, TimeUnit.DAYS)
-            .setConstraints(constraints)
             .build()
 
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
