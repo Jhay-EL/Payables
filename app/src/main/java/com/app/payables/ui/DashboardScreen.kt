@@ -45,6 +45,7 @@ import androidx.activity.compose.BackHandler
 import java.util.UUID
 import android.content.Context
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.edit
 import com.app.payables.PayablesApplication
 import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.flow.first
@@ -89,10 +90,10 @@ fun DashboardScreen(
             val payableId = prefs.getString("pending_payable_id", null)
             payableId?.let { id ->
                 // Clear the preference
-                prefs.edit()
-                    .remove("pending_payable_id")
-                    .putBoolean("should_open_payable", false)
-                    .apply()
+                prefs.edit {
+                    remove("pending_payable_id")
+                    putBoolean("should_open_payable", false)
+                }
                 
                 // Fetch the payable and open ViewPayableScreen
                 coroutineScope.launch {

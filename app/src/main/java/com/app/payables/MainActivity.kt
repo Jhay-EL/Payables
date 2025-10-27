@@ -1,7 +1,6 @@
 package com.app.payables
 import com.app.payables.ui.settings.AboutScreen
 import android.app.AlarmManager
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build

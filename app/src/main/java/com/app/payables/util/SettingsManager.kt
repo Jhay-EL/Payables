@@ -9,7 +9,6 @@ class SettingsManager(context: Context) {
 
     companion object {
         const val KEY_DEFAULT_CURRENCY = "default_currency"
-        const val KEY_PAYABLE_NOTIFICATIONS = "payable_notifications"
         const val KEY_NOTIFICATION_HOUR = "notification_hour"
         const val KEY_NOTIFICATION_MINUTE = "notification_minute"
         const val KEY_REMINDER_PREFERENCE = "reminder_preference"
