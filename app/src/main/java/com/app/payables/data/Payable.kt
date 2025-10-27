@@ -121,8 +121,8 @@ data class Payable(
             val today = LocalDate.now()
             var nextDue = billingDate
             
-            // Move to future dates based on cycle
-            while (nextDue.isBefore(today) || nextDue.isEqual(today)) {
+            // Move to future dates based on cycle (only advance if BEFORE today, not ON today)
+            while (nextDue.isBefore(today)) {
                 nextDue = when (cycle) {
                     "Weekly" -> nextDue.plusWeeks(1)
                     "Monthly" -> nextDue.plusMonths(1)

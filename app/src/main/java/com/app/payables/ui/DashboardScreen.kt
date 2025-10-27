@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import com.app.payables.theme.*
 import androidx.activity.compose.BackHandler
 import java.util.UUID
+import android.content.Context
 import androidx.compose.ui.platform.LocalContext
 import com.app.payables.PayablesApplication
 import androidx.compose.runtime.collectAsState
@@ -80,6 +81,30 @@ fun DashboardScreen(
     var showViewPayableFullScreen by remember { mutableStateOf(false) }
     var selectedPayable by remember { mutableStateOf<PayableItemData?>(null) }
     var selectedPayableFilter by remember { mutableStateOf<PayableFilter>(PayableFilter.All) }
+    
+    // Handle deep link from notification
+    LaunchedEffect(Unit) {
+        val prefs = context.getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
+        if (prefs.getBoolean("should_open_payable", false)) {
+            val payableId = prefs.getString("pending_payable_id", null)
+            payableId?.let { id ->
+                // Clear the preference
+                prefs.edit()
+                    .remove("pending_payable_id")
+                    .putBoolean("should_open_payable", false)
+                    .apply()
+                
+                // Fetch the payable and open ViewPayableScreen
+                coroutineScope.launch {
+                    val payable = payableRepository.getPayableById(id)
+                    payable?.let {
+                        selectedPayable = it.toPayableItemData()
+                        showViewPayableFullScreen = true
+                    }
+                }
+            }
+        }
+    }
     
     // State for animated deletion
     val categoriesBeingDeleted = remember { mutableStateListOf<String>() }

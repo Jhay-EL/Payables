@@ -28,20 +28,6 @@ class SettingsManager(context: Context) {
         return prefs.getString(KEY_DEFAULT_CURRENCY, "EUR") ?: "EUR" // Default to EUR
     }
 
-    fun setEnabledPayableIds(ids: Set<String>) {
-        prefs.edit {
-            putStringSet(KEY_PAYABLE_NOTIFICATIONS, ids)
-        }
-    }
-
-    fun getEnabledPayableIds(): MutableSet<String> {
-        return prefs.getStringSet(KEY_PAYABLE_NOTIFICATIONS, emptySet())?.toMutableSet() ?: mutableSetOf()
-    }
-
-    fun hasNotificationSetting(): Boolean {
-        return prefs.contains(KEY_PAYABLE_NOTIFICATIONS)
-    }
-
     fun setNotificationTime(hour: Int, minute: Int) {
         prefs.edit {
             putInt(KEY_NOTIFICATION_HOUR, hour)

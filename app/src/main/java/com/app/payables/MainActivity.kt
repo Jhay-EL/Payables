@@ -24,8 +24,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.core.view.WindowCompat
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.mutableStateListOf
@@ -279,6 +279,30 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        
+        // Handle notification deep link
+        handleNotificationIntent(intent)
+    }
+    
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleNotificationIntent(intent)
+    }
+
+    private fun handleNotificationIntent(intent: Intent?) {
+        intent?.let {
+            if (it.getBooleanExtra("OPEN_PAYABLE", false)) {
+                val payableId = it.getStringExtra("PAYABLE_ID")
+                payableId?.let { id ->
+                    // Store the payable ID to be handled by DashboardScreen
+                    getSharedPreferences("notification_prefs", MODE_PRIVATE).edit {
+                        putString("pending_payable_id", id)
+                        putBoolean("should_open_payable", true)
+                    }
+                }
+            }
+        }
     }
 
     private fun requestInitialPermissionsIfNeeded() {
@@ -312,7 +336,7 @@ class MainActivity : ComponentActivity() {
     private fun checkAlarmPermission() {
         // Step 2: Check SCHEDULE_EXACT_ALARM permission (Android 12+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
             if (!alarmManager.canScheduleExactAlarms()) {
                 // Show dialog explaining why we need this permission
                 showAlarmPermDialog = true

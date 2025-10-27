@@ -2,13 +2,16 @@ package com.app.payables.util
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import androidx.activity.result.ActivityResultLauncher
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import com.app.payables.MainActivity
 import com.app.payables.R
 import com.app.payables.data.Payable
 
@@ -77,6 +80,20 @@ class AppNotificationManager(private val context: Context) {
                 NotificationCompat.VISIBILITY_SECRET
             }
             
+            // Create intent to open app and navigate to specific payable
+            val intent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("PAYABLE_ID", payable.id)
+                putExtra("OPEN_PAYABLE", true)
+            }
+
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                payable.id.hashCode(),
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            
             val notification = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setContentTitle("Payable Due: ${payable.title}")
                 .setContentText("Your payable for ${payable.title} is due today.")
@@ -86,17 +103,18 @@ class AppNotificationManager(private val context: Context) {
                 .setAutoCancel(true)
                 .setDefaults(NotificationCompat.DEFAULT_ALL)
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                .setContentIntent(pendingIntent)
                 .build()
 
             notificationManager.notify(payable.id.hashCode(), notification)
             Log.d(TAG, "Notification sent successfully for: ${payable.title}")
         } catch (e: SecurityException) {
             Log.e(TAG, "Security exception sending notification for ${payable.title}", e)
-            NotificationErrorHandler.handleNotificationSendError(context, payable.title, e)
+            NotificationErrorHandler.handleNotificationSendError(payable.title, e)
             throw e
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send notification for ${payable.title}", e)
-            NotificationErrorHandler.handleNotificationSendError(context, payable.title, e)
+            NotificationErrorHandler.handleNotificationSendError(payable.title, e)
             throw e
         }
     }

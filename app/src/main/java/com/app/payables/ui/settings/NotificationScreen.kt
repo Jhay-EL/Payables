@@ -34,6 +34,9 @@ import com.app.payables.util.AppNotificationManager
 import java.util.Locale
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import com.app.payables.PayablesApplication
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +54,8 @@ fun NotificationScreen(
 
 	val context = LocalContext.current
 	val settingsManager = remember { SettingsManager(context) }
+	val scope = rememberCoroutineScope()
+	val app = context.applicationContext as PayablesApplication
 
 	val (hour, minute) = settingsManager.getNotificationTime()
 	val timePickerState = rememberTimePickerState(initialHour = hour, initialMinute = minute, is24Hour = false)
@@ -79,6 +84,11 @@ fun NotificationScreen(
 				}
 				selectedTime = String.format(Locale.US, "%d:%02d %s", newDisplayHour, newMinute, newAmPm)
 				showTimePicker = false
+				
+				// Reschedule alarms with new time
+				scope.launch(Dispatchers.IO) {
+					app.payableRepository.rescheduleAllAlarms()
+				}
 			},
 			timePickerState = timePickerState
 		)
@@ -153,18 +163,23 @@ fun NotificationScreen(
 
 		Spacer(modifier = Modifier.height(dims.spacing.section))
 
-			SectionHeader("Alerts")
-			AlertTimeCard(
-				selectedTime = selectedTime,
-				onClick = { showTimePicker = true }
-			)
-			ReminderPreferenceCard(
-				selectedDays = reminderPreference,
-				onSelect = { days ->
-					reminderPreference = days
-					settingsManager.setReminderPreference(days)
+		SectionHeader("Alerts")
+		AlertTimeCard(
+			selectedTime = selectedTime,
+			onClick = { showTimePicker = true }
+		)
+		ReminderPreferenceCard(
+			selectedDays = reminderPreference,
+			onSelect = { days ->
+				reminderPreference = days
+				settingsManager.setReminderPreference(days)
+				
+				// Reschedule alarms with new reminder preference
+				scope.launch(Dispatchers.IO) {
+					app.payableRepository.rescheduleAllAlarms()
 				}
-			)
+			}
+		)
 
 		Spacer(modifier = Modifier.height(bottomInset + dims.spacing.navBarContentBottomMargin))
 		}

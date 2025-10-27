@@ -5,9 +5,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import com.app.payables.ui.PayableItemData
 import com.app.payables.util.AlarmScheduler
+import com.app.payables.util.SettingsManager
 import androidx.compose.ui.graphics.Color
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.Calendar
 
 enum class SpendingTimeframe {
     Daily,
@@ -35,6 +37,71 @@ class PayableRepository(
 
     suspend fun getPayableById(id: String): Payable? {
         return payableDao.getPayableById(id)
+    }
+    
+    /**
+     * Schedule notification alarm for a payable
+     * Only schedules if notifications are enabled and the alarm time is in the future
+     */
+    fun scheduleNotificationForPayable(payable: Payable) {
+        context?.let { ctx ->
+            val settingsManager = SettingsManager(ctx)
+            
+            // Only schedule if push notifications are enabled
+            if (!settingsManager.isPushNotificationsEnabled()) {
+                return
+            }
+            
+            alarmScheduler?.let { scheduler ->
+                try {
+                    val billingDate = LocalDate.ofEpochDay(payable.billingDateMillis / (1000 * 60 * 60 * 24))
+                    val nextDueDate = Payable.calculateNextDueDate(billingDate, payable.billingCycle)
+                    val reminderPrefDays = settingsManager.getReminderPreference()
+                    val reminderDate = nextDueDate.minusDays(reminderPrefDays.toLong())
+                    val (hour, minute) = settingsManager.getNotificationTime()
+                    
+                    val calendar = Calendar.getInstance().apply {
+                        set(Calendar.YEAR, reminderDate.year)
+                        set(Calendar.MONTH, reminderDate.monthValue - 1)
+                        set(Calendar.DAY_OF_MONTH, reminderDate.dayOfMonth)
+                        set(Calendar.HOUR_OF_DAY, hour)
+                        set(Calendar.MINUTE, minute)
+                        set(Calendar.SECOND, 0)
+                        set(Calendar.MILLISECOND, 0)
+                    }
+                    
+                    // Only schedule if the time is in the future
+                    if (calendar.timeInMillis > System.currentTimeMillis()) {
+                        scheduler.scheduleAlarm(payable.id, calendar.timeInMillis)
+                    }
+                } catch (e: Exception) {
+                    // Log error but don't crash
+                    android.util.Log.e("PayableRepository", "Error scheduling notification for ${payable.id}", e)
+                }
+            }
+        }
+    }
+    
+    /**
+     * Reschedule alarms for all active payables
+     * Call this when notification settings change
+     */
+    suspend fun rescheduleAllAlarms() {
+        try {
+            val activePayables = getAllPayablesList().filter { !it.isPaused && !it.isFinished }
+            android.util.Log.d("PayableRepository", "Rescheduling alarms for ${activePayables.size} active payables")
+            
+            activePayables.forEach { payable ->
+                // Cancel existing alarm
+                alarmScheduler?.cancelAlarm(payable.id)
+                // Schedule new alarm with updated settings
+                scheduleNotificationForPayable(payable)
+            }
+            
+            android.util.Log.d("PayableRepository", "Successfully rescheduled all alarms")
+        } catch (e: Exception) {
+            android.util.Log.e("PayableRepository", "Error rescheduling all alarms", e)
+        }
     }
     
     // Get only active (non-paused, non-finished) payables
@@ -121,6 +188,9 @@ class PayableRepository(
         )
         payableDao.insertPayable(payable)
         
+        // Schedule notification for new payable
+        scheduleNotificationForPayable(payable)
+        
         // Update category count if repository provided
         categoryRepository?.let { repo ->
             val currentCount = getPayablesCountByCategory(category)
@@ -131,11 +201,24 @@ class PayableRepository(
     // Insert a new payable
     suspend fun insertPayable(payable: Payable) {
         payableDao.insertPayable(payable)
+        
+        // Schedule notification if payable is active
+        if (!payable.isPaused && !payable.isFinished) {
+            scheduleNotificationForPayable(payable)
+        }
     }
     
     // Update an existing payable
     suspend fun updatePayable(payable: Payable) {
         payableDao.updatePayable(payable.copy(updatedAt = System.currentTimeMillis()))
+        
+        // Cancel old alarm
+        alarmScheduler?.cancelAlarm(payable.id)
+        
+        // Reschedule if payable is active
+        if (!payable.isPaused && !payable.isFinished) {
+            scheduleNotificationForPayable(payable)
+        }
     }
     
     // Delete a payable by ID
@@ -187,6 +270,9 @@ class PayableRepository(
                 updatedAt = System.currentTimeMillis()
             )
             payableDao.updatePayable(unpausedPayable)
+            
+            // Schedule notification when unpausing
+            scheduleNotificationForPayable(unpausedPayable)
         }
     }
 
@@ -214,6 +300,9 @@ class PayableRepository(
                 updatedAt = System.currentTimeMillis()
             )
             payableDao.updatePayable(unfinishedPayable)
+            
+            // Schedule notification when unfinishing
+            scheduleNotificationForPayable(unfinishedPayable)
         }
     }
 
