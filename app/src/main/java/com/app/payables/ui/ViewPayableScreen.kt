@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.net.toUri
@@ -35,6 +36,7 @@ import android.content.Intent
 import com.app.payables.theme.*
 import androidx.compose.material.icons.filled.Payment
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import androidx.activity.compose.BackHandler
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,9 +111,17 @@ fun ViewPayableScreen(
                     
                     DropdownMenu(
                         expanded = showTopBarMenu,
-                        onDismissRequest = { showTopBarMenu = false },
+                        onDismissRequest = { 
+                            android.util.Log.d("ViewPayableDropdown", "onDismissRequest called")
+                            showTopBarMenu = false 
+                        },
                         offset = DpOffset(x = (-16).dp, y = 0.dp),
-                        modifier = Modifier.width(150.dp)
+                        modifier = Modifier.width(150.dp),
+                        properties = PopupProperties(
+                            focusable = true,
+                            dismissOnBackPress = true,
+                            dismissOnClickOutside = true
+                        )
                     ) {
                         DropdownMenuItem(
                             text = { Text("Edit", style = MaterialTheme.typography.bodyLarge) },
@@ -497,6 +507,12 @@ fun ViewPayableScreen(
                 }
             }
         )
+    }
+    
+    // Handle back button when menu is open (highest priority)
+    BackHandler(enabled = showTopBarMenu) {
+        android.util.Log.d("ViewPayableBackHandler", "Closing menu")
+        showTopBarMenu = false
     }
 }
 

@@ -24,10 +24,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.window.PopupProperties
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.app.payables.theme.*
 import kotlin.math.pow
+import androidx.activity.compose.BackHandler
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -116,9 +118,17 @@ fun PayableScreen(
                         }
                         DropdownMenu(
                             expanded = showTopBarMenu,
-                            onDismissRequest = { showTopBarMenu = false },
+                            onDismissRequest = { 
+                                android.util.Log.d("PayableScreenDropdown", "onDismissRequest called")
+                                showTopBarMenu = false 
+                            },
                             offset = DpOffset(x = (-16).dp, y = 0.dp),
-                            modifier = Modifier.width(150.dp)
+                            modifier = Modifier.width(150.dp),
+                            properties = PopupProperties(
+                                focusable = true,
+                                dismissOnBackPress = true,
+                                dismissOnClickOutside = true
+                            )
                         ) {
                             DropdownMenuItem(
                                 text = { 
@@ -422,6 +432,12 @@ fun PayableScreen(
             onFilterStateChange = { filterState = it },
             paymentMethods = payables.map { it.paymentMethod }.distinct()
         )
+    }
+    
+    // Handle back button when menu is open (highest priority)
+    BackHandler(enabled = showTopBarMenu) {
+        android.util.Log.d("PayableScreenBackHandler", "Closing menu")
+        showTopBarMenu = false
     }
 }
 

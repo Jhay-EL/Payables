@@ -50,7 +50,7 @@ class NotificationBroadcastReceiver : BroadcastReceiver() {
                         Log.d(TAG, "Successfully sent notification for: ${payable.title}")
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to send notification for: ${payable.title}", e)
-                        NotificationErrorHandler.handleNotificationSendError(context, payable.title, e)
+                        NotificationErrorHandler.handleNotificationSendError(payable.title, e)
                     }
                     
                     // Reschedule the next notification for recurring payables

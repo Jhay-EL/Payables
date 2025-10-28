@@ -50,6 +50,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.ui.window.PopupProperties
+import androidx.activity.compose.BackHandler
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -535,7 +537,15 @@ private fun SpendingBreakdownCard(
                 }
                 DropdownMenu(
                     expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
+                    onDismissRequest = { 
+                        android.util.Log.d("InsightsDropdown", "onDismissRequest called")
+                        showMenu = false 
+                    },
+                    properties = PopupProperties(
+                        focusable = true,
+                        dismissOnBackPress = true,
+                        dismissOnClickOutside = true
+                    )
                 ) {
                     SpendingTimeframe.entries.forEach { timeframeOption ->
                         DropdownMenuItem(
@@ -634,6 +644,12 @@ private fun SpendingBreakdownCard(
                 }
             }
         }
+    }
+    
+    // Handle back button when menu is open (highest priority)
+    BackHandler(enabled = showMenu) {
+        android.util.Log.d("InsightsBackHandler", "Closing menu")
+        showMenu = false
     }
 }
 

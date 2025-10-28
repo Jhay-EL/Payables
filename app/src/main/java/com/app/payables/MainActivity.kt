@@ -24,7 +24,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.core.content.ContextCompat
-import androidx.core.content.edit
 import androidx.core.view.WindowCompat
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.mutableStateListOf
@@ -274,30 +273,6 @@ class MainActivity : ComponentActivity() {
                             title = { Text("Alarm Permission Required") },
                             text = { Text("To send timely reminders, this app needs permission to set alarms. You'll be redirected to settings.") }
                         )
-                    }
-                }
-            }
-        }
-        
-        // Handle notification deep link
-        handleNotificationIntent(intent)
-    }
-    
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        handleNotificationIntent(intent)
-    }
-
-    private fun handleNotificationIntent(intent: Intent?) {
-        intent?.let {
-            if (it.getBooleanExtra("OPEN_PAYABLE", false)) {
-                val payableId = it.getStringExtra("PAYABLE_ID")
-                payableId?.let { id ->
-                    // Store the payable ID to be handled by DashboardScreen
-                    getSharedPreferences("notification_prefs", MODE_PRIVATE).edit {
-                        putString("pending_payable_id", id)
-                        putBoolean("should_open_payable", true)
                     }
                 }
             }

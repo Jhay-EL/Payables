@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.PopupProperties
 import com.app.payables.theme.*
 import androidx.activity.compose.BackHandler
 import java.util.UUID
@@ -293,9 +294,17 @@ fun DashboardScreen(
                                     }
                                     DropdownMenu(
                                         expanded = showMenu,
-                                        onDismissRequest = { showMenu = false },
+                                        onDismissRequest = { 
+                                            android.util.Log.d("DashboardDropdown", "onDismissRequest called")
+                                            showMenu = false 
+                                        },
                                         offset = DpOffset(x = (-16).dp, y = 0.dp),
-                                        modifier = Modifier.width(150.dp)
+                                        modifier = Modifier.width(150.dp),
+                                        properties = PopupProperties(
+                                            focusable = true,
+                                            dismissOnBackPress = true,
+                                            dismissOnClickOutside = true
+                                        )
                                     ) {
                                         DropdownMenuItem(
                                             text = { Text("Add", style = MaterialTheme.typography.bodyLarge) },
@@ -534,7 +543,7 @@ fun DashboardScreen(
                         is PayableFilter.Category -> {
                             // Filter payables by their actual stored category
                             sourcePayables.filter { payable ->
-                                payable.name == currentFilter.categoryName
+                                payable.category == currentFilter.categoryName
                             }
                         }
                     }
@@ -662,41 +671,46 @@ fun DashboardScreen(
         }
     }
 
-    // Centralized back handler for all navigation
-    // This is the ONLY BackHandler in the entire app to prevent conflicts
-    BackHandler(enabled = currentEditScreen != EditScreenState.None) {
-        when (currentEditScreen) {
-            EditScreenState.CustomIcons -> {
-                // Return to EditCategory by disabling CustomIcons only
-                showCustomIconsFullScreen = false
+    // Combined back handler: menu first (highest priority), then navigation
+    BackHandler(enabled = showMenu || currentEditScreen != EditScreenState.None) {
+        when {
+            showMenu -> {
+                android.util.Log.d("DashboardBackHandler", "Closing menu")
+                showMenu = false
             }
-            EditScreenState.EditCategory -> {
-                // Return to Dashboard by disabling EditCategory
-                showEditCategoryFullScreen = false
-                editingCategoryIndex = -1
-            }
-            EditScreenState.AddPayable -> {
-                showAddPayableFullScreen = false
-                // Return to ViewPayableScreen if we came from there (selectedPayable exists)
-                // Otherwise return to Payables screen
-                if (selectedPayable != null) {
-                    showViewPayableFullScreen = true
+            currentEditScreen != EditScreenState.None -> {
+                android.util.Log.d("DashboardBackHandler", "Handling navigation: $currentEditScreen")
+                when (currentEditScreen) {
+                    EditScreenState.CustomIcons -> {
+                        // Return to EditCategory by disabling CustomIcons only
+                        showCustomIconsFullScreen = false
+                    }
+                    EditScreenState.EditCategory -> {
+                        // Return to Dashboard by disabling EditCategory
+                        showEditCategoryFullScreen = false
+                        editingCategoryIndex = -1
+                    }
+                    EditScreenState.AddPayable -> {
+                        showAddPayableFullScreen = false
+                        // Return to ViewPayableScreen if we came from there (selectedPayable exists)
+                        // Otherwise return to Payables screen
+                        if (selectedPayable != null) {
+                            showViewPayableFullScreen = true
+                        }
+                        // Don't clear selectedPayable here - keep it for ViewPayableScreen
+                    }
+                    EditScreenState.ViewPayable -> {
+                        // Single state change to prevent animation conflicts
+                        showViewPayableFullScreen = false
+                        // Return to Payables screen when backing out of ViewPayable
+                        showPayablesFullScreen = true
+                        // Don't set selectedPayable = null here - defer to LaunchedEffect for smooth animation
+                    }
+                    EditScreenState.Payables -> {
+                        showPayablesFullScreen = false
+                    }
+                    else -> {} // EditScreenState.None - unreachable due to outer condition
                 }
-                // Don't clear selectedPayable here - keep it for ViewPayableScreen
-            }
-            EditScreenState.ViewPayable -> {
-                // Single state change to prevent animation conflicts
-                showViewPayableFullScreen = false
-                // Return to Payables screen when backing out of ViewPayable
-                showPayablesFullScreen = true
-                // Don't set selectedPayable = null here - defer to LaunchedEffect for smooth animation
-            }
-            EditScreenState.Payables -> {
-                showPayablesFullScreen = false
-            }
-            EditScreenState.None -> {
-                // This case is unreachable because the handler is disabled when state is None.
-                // It's here to make the 'when' exhaustive.
             }
         }
     }
