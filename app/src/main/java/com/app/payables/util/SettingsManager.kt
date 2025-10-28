@@ -67,7 +67,7 @@ class SettingsManager(context: Context) {
     }
 
     fun isPushNotificationsEnabled(): Boolean {
-        return prefs.getBoolean(KEY_PUSH_NOTIFICATIONS_ENABLED, false)
+        return prefs.getBoolean(KEY_PUSH_NOTIFICATIONS_ENABLED, true) // Default to true
     }
 
     fun setShowOnLockscreen(enabled: Boolean) {

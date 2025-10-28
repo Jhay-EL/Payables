@@ -39,6 +39,11 @@ import java.util.Date
 import java.util.Locale
 import android.os.Environment
 import android.widget.Toast
+import android.graphics.pdf.PdfDocument
+import android.graphics.Paint
+import android.graphics.Typeface
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -149,6 +154,163 @@ fun BackupScreen(
                 }
             }
 
+            val onExcelExport = {
+                coroutineScope.launch {
+                    val payables = payableRepository.getAllPayablesList()
+                    
+                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                    val filename = "payables_export_$timestamp.csv"
+                    val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                    val file = File(downloadsDir, filename)
+
+                    try {
+                        FileOutputStream(file).use { outputStream ->
+                            // CSV Header
+                            val header = "Title,Amount,Currency,Due Date,Category,Payment Method,Billing Cycle,Status\n"
+                            outputStream.write(header.toByteArray())
+                            
+                            // CSV Data
+                            payables.forEach { payable ->
+                                val row = formatPayableForCsv(payable)
+                                outputStream.write(row.toByteArray())
+                            }
+                        }
+                        Toast.makeText(context, "CSV exported to Downloads", Toast.LENGTH_SHORT).show()
+                    } catch (_: Exception) {
+                        Toast.makeText(context, "Failed to export CSV", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+
+            val onPdfExport = {
+                coroutineScope.launch {
+                    val payables = payableRepository.getAllPayablesList()
+                    
+                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                    val filename = "payables_report_$timestamp.pdf"
+                    val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                    val file = File(downloadsDir, filename)
+
+                    try {
+                        val pdfDocument = PdfDocument()
+                        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4 size
+                        var page = pdfDocument.startPage(pageInfo)
+                        var canvas = page.canvas
+                        
+                        val titlePaint = Paint().apply {
+                            textSize = 24f
+                            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                        }
+                        val headerPaint = Paint().apply {
+                            textSize = 14f
+                            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                        }
+                        val bodyPaint = Paint().apply {
+                            textSize = 10f
+                        }
+                        
+                        var yPosition = 50f
+                        
+                        // Title
+                        canvas.drawText("Payables Export", 50f, yPosition, titlePaint)
+                        yPosition += 20f
+                        canvas.drawText(SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(Date()), 50f, yPosition, bodyPaint)
+                        yPosition += 40f
+                        
+                        // Group payables by status
+                        val activePayables = payables.filter { !it.isPaused && !it.isFinished }
+                        val pausedPayables = payables.filter { it.isPaused }
+                        val finishedPayables = payables.filter { it.isFinished }
+                        
+                        // Active section
+                        if (activePayables.isNotEmpty()) {
+                            canvas.drawText("Active (${activePayables.size})", 50f, yPosition, headerPaint)
+                            yPosition += 20f
+                            activePayables.forEach { payable ->
+                                if (yPosition > 800) {
+                                    pdfDocument.finishPage(page)
+                                    page = pdfDocument.startPage(pageInfo)
+                                    canvas = page.canvas
+                                    yPosition = 50f
+                                }
+                                val text = formatPayableForPdf(payable)
+                                canvas.drawText(text, 50f, yPosition, bodyPaint)
+                                yPosition += 15f
+                            }
+                            yPosition += 20f
+                        }
+                        
+                        // Paused section
+                        if (pausedPayables.isNotEmpty()) {
+                            if (yPosition > 800) {
+                                pdfDocument.finishPage(page)
+                                page = pdfDocument.startPage(pageInfo)
+                                canvas = page.canvas
+                                yPosition = 50f
+                            }
+                            canvas.drawText("Paused (${pausedPayables.size})", 50f, yPosition, headerPaint)
+                            yPosition += 20f
+                            pausedPayables.forEach { payable ->
+                                if (yPosition > 800) {
+                                    pdfDocument.finishPage(page)
+                                    page = pdfDocument.startPage(pageInfo)
+                                    canvas = page.canvas
+                                    yPosition = 50f
+                                }
+                                val text = formatPayableForPdf(payable)
+                                canvas.drawText(text, 50f, yPosition, bodyPaint)
+                                yPosition += 15f
+                            }
+                            yPosition += 20f
+                        }
+                        
+                        // Finished section
+                        if (finishedPayables.isNotEmpty()) {
+                            if (yPosition > 800) {
+                                pdfDocument.finishPage(page)
+                                page = pdfDocument.startPage(pageInfo)
+                                canvas = page.canvas
+                                yPosition = 50f
+                            }
+                            canvas.drawText("Finished (${finishedPayables.size})", 50f, yPosition, headerPaint)
+                            yPosition += 20f
+                            finishedPayables.forEach { payable ->
+                                if (yPosition > 800) {
+                                    pdfDocument.finishPage(page)
+                                    page = pdfDocument.startPage(pageInfo)
+                                    canvas = page.canvas
+                                    yPosition = 50f
+                                }
+                                val text = formatPayableForPdf(payable)
+                                canvas.drawText(text, 50f, yPosition, bodyPaint)
+                                yPosition += 15f
+                            }
+                        }
+                        
+                        // Footer
+                        if (yPosition > 800) {
+                            pdfDocument.finishPage(page)
+                            page = pdfDocument.startPage(pageInfo)
+                            canvas = page.canvas
+                            yPosition = 50f
+                        }
+                        yPosition += 20f
+                        canvas.drawText("Total: ${payables.size} payables", 50f, yPosition, headerPaint)
+                        
+                        pdfDocument.finishPage(page)
+                        
+                        FileOutputStream(file).use {
+                            pdfDocument.writeTo(it)
+                        }
+                        pdfDocument.close()
+                        
+                        Toast.makeText(context, "PDF exported to Downloads", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Failed to export PDF: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+
             ExportOptionCard(
                 title = "JSON Export",
                 subtitle = "Download a .json file",
@@ -161,14 +323,13 @@ fun BackupScreen(
             )
             ExportOptionCard(
                 title = "Excel Export",
-                subtitle = "Download an .xlsx file",
+                subtitle = "Download a .csv file",
                 icon = {
                     Icon(Icons.Filled.GridOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 },
-                onClick = { },
+                onClick = { onExcelExport() },
                 isFirst = false,
-                isLast = false,
-                enabled = false
+                isLast = false
             )
             ExportOptionCard(
                 title = "PDF Export",
@@ -176,10 +337,9 @@ fun BackupScreen(
                 icon = {
                     Icon(Icons.Filled.PictureAsPdf, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
                 },
-                onClick = { },
+                onClick = { onPdfExport() },
                 isFirst = false,
-                isLast = true,
-                enabled = false
+                isLast = true
             )
         }
     }
@@ -255,6 +415,39 @@ private fun ExportOptionCard(
                 )
             }
         }
+    }
+}
+
+// Helper function to format payable data for CSV
+private fun formatPayableForCsv(payable: com.app.payables.data.Payable): String {
+    val status = getPayableStatus(payable)
+    val billingDate = LocalDate.ofEpochDay(payable.billingDateMillis / (24 * 60 * 60 * 1000))
+    val dueDate = com.app.payables.data.Payable.calculateNextDueDate(billingDate, payable.billingCycle)
+    val dueDateFormatted = dueDate.format(DateTimeFormatter.ofPattern("MMM dd, yyyy"))
+    
+    // Escape CSV fields by wrapping in quotes and escaping internal quotes
+    fun escapeField(field: String): String {
+        return "\"${field.replace("\"", "\"\"")}\""
+    }
+    
+    return "${escapeField(payable.title)},${escapeField(payable.amount)},${escapeField(payable.currency)},${escapeField(dueDateFormatted)},${escapeField(payable.category)},${escapeField(payable.paymentMethod)},${escapeField(payable.billingCycle)},${escapeField(status)}\n"
+}
+
+// Helper function to format payable data for PDF
+private fun formatPayableForPdf(payable: com.app.payables.data.Payable): String {
+    val billingDate = LocalDate.ofEpochDay(payable.billingDateMillis / (24 * 60 * 60 * 1000))
+    val dueDate = com.app.payables.data.Payable.calculateNextDueDate(billingDate, payable.billingCycle)
+    val dueDateFormatted = dueDate.format(DateTimeFormatter.ofPattern("MMM dd, yyyy"))
+    
+    return "${payable.title} - ${payable.amount} ${payable.currency} - Due: $dueDateFormatted - ${payable.category}"
+}
+
+// Helper function to get payable status
+private fun getPayableStatus(payable: com.app.payables.data.Payable): String {
+    return when {
+        payable.isFinished -> "Finished"
+        payable.isPaused -> "Paused"
+        else -> "Active"
     }
 }
 

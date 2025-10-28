@@ -62,6 +62,26 @@ class MainActivity : ComponentActivity() {
 
         // Request permissions on first launch
         requestInitialPermissionsIfNeeded()
+        
+        // Check if permissions already granted but toggle not set (e.g., after reinstall)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) 
+                == PackageManager.PERMISSION_GRANTED) {
+                val settingsManager = SettingsManager(this)
+                if (!settingsManager.hasRequestedPermissions()) {
+                    // Permission granted but we haven't recorded it - fix the state
+                    settingsManager.setPermissionsRequested()
+                    onPermissionsGranted(settingsManager)
+                }
+            }
+        } else {
+            // Pre-Android 13, check if we need to set up notifications
+            val settingsManager = SettingsManager(this)
+            if (!settingsManager.hasRequestedPermissions()) {
+                settingsManager.setPermissionsRequested()
+                onPermissionsGranted(settingsManager)
+            }
+        }
 
         setContent {
             var themeChoice by remember { mutableStateOf(AppThemeChoice.System) }

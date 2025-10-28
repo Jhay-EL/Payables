@@ -47,8 +47,12 @@ class PayableRepository(
         context?.let { ctx ->
             val settingsManager = SettingsManager(ctx)
             
+            android.util.Log.d("PayableRepository", "Attempting to schedule notification for: ${payable.title}")
+            android.util.Log.d("PayableRepository", "Notifications enabled: ${settingsManager.isPushNotificationsEnabled()}")
+            
             // Only schedule if push notifications are enabled
             if (!settingsManager.isPushNotificationsEnabled()) {
+                android.util.Log.w("PayableRepository", "Notifications disabled - skipping ${payable.title}")
                 return
             }
             
@@ -70,9 +74,15 @@ class PayableRepository(
                         set(Calendar.MILLISECOND, 0)
                     }
                     
+                    android.util.Log.d("PayableRepository", "Next due date: $nextDueDate, Reminder date: $reminderDate, Time: $hour:$minute")
+                    android.util.Log.d("PayableRepository", "Scheduled time: ${calendar.timeInMillis}, Current time: ${System.currentTimeMillis()}")
+                    
                     // Only schedule if the time is in the future
                     if (calendar.timeInMillis > System.currentTimeMillis()) {
                         scheduler.scheduleAlarm(payable.id, calendar.timeInMillis)
+                        android.util.Log.i("PayableRepository", "✓ Alarm scheduled for ${payable.title} at ${calendar.time}")
+                    } else {
+                        android.util.Log.w("PayableRepository", "✗ Alarm time is in the past for ${payable.title} - not scheduling")
                     }
                 } catch (e: Exception) {
                     // Log error but don't crash

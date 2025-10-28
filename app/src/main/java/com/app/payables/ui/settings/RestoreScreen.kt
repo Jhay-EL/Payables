@@ -6,8 +6,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.GridOn
-import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -122,7 +120,7 @@ fun RestoreScreen(
             }
 
             Text(
-                text = "Restore your payables data from an Excel, JSON, or PDF file.",
+                text = "Restore your payables data from .JSON file.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = dims.spacing.section)
@@ -171,7 +169,11 @@ fun RestoreScreen(
                                         }
                                     }
                                 }
-                                Toast.makeText(context, "Restore completed", Toast.LENGTH_SHORT).show()
+                                
+                                // Schedule alarms for all active payables after restore
+                                payableRepository.rescheduleAllAlarms()
+                                
+                                Toast.makeText(context, "Restore completed - notifications scheduled", Toast.LENGTH_SHORT).show()
                             } catch (_: Exception) {
                                 Toast.makeText(context, "Failed to restore backup", Toast.LENGTH_SHORT).show()
                             }
@@ -195,29 +197,7 @@ fun RestoreScreen(
                 },
                 onClick = { filePicker.launch(arrayOf("application/json")) },
                 isFirst = true,
-                isLast = false
-            )
-            RestoreOptionCard(
-                title = "Excel Restore",
-                subtitle = "Select an .xlsx file",
-                icon = {
-                    Icon(Icons.Filled.GridOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                },
-                onClick = { },
-                isFirst = false,
-                isLast = false,
-                enabled = false
-            )
-            RestoreOptionCard(
-                title = "PDF Restore",
-                subtitle = "Select a .pdf file",
-                icon = {
-                    Icon(Icons.Filled.PictureAsPdf, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
-                },
-                onClick = { },
-                isFirst = false,
-                isLast = true,
-                enabled = false
+                isLast = true
             )
 
             if (showConflictDialog) {
@@ -284,6 +264,7 @@ private fun RestoreOptionCard(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val corners = when {
+        isFirst && isLast -> RoundedCornerShape(24.dp) // Single card - all corners rounded
         isFirst -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 5.dp, bottomEnd = 5.dp)
         isLast -> RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
         else -> RoundedCornerShape(5.dp)
