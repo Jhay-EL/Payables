@@ -98,7 +98,6 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val activity = this@MainActivity
                     val backStack = remember { mutableStateListOf(AppRoute.Dashboard) }
-                    var showExitDialog by remember { mutableStateOf(false) }
                     
                     // Get repository and coroutine scope for database operations
                     val repository = (applicationContext as PayablesApplication).categoryRepository
@@ -108,7 +107,7 @@ class MainActivity : ComponentActivity() {
                         if (backStack.last() != route) backStack.add(route)
                     }
                     fun back() {
-                        if (backStack.size > 1) backStack.removeAt(backStack.lastIndex) else showExitDialog = true
+                        if (backStack.size > 1) backStack.removeAt(backStack.lastIndex) else activity.finish()
                     }
 
                     val currentRoute = backStack.last()
@@ -138,6 +137,7 @@ class MainActivity : ComponentActivity() {
                             when (route) {
                             AppRoute.Dashboard ->
                                 DashboardScreen(
+                                    onBack = { back() },
                                     onOpenSettings = { navigateTo(AppRoute.Settings) },
                                     onOpenAddCategory = {
                                         backStack.add(AppRoute.AddCategory)
@@ -234,20 +234,6 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                         }
-                    }
-
-                    if (currentRoute == AppRoute.Dashboard && showExitDialog) {
-                        AlertDialog(
-                            onDismissRequest = { showExitDialog = false },
-                            confirmButton = {
-                                TextButton(onClick = { showExitDialog = false; activity.finish() }) { Text("Exit") }
-                            },
-                            dismissButton = {
-                                TextButton(onClick = { showExitDialog = false }) { Text("Cancel") }
-                            },
-                            title = { Text("Exit app?") },
-                            text = { Text("Are you sure you want to exit?") }
-                        )
                     }
                     
                     // Notification permission dialog

@@ -25,6 +25,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
@@ -56,6 +60,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun DashboardScreen(
     modifier: Modifier = Modifier,
+    onBack: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenAddCategory: () -> Unit = {},
     onOpenInsights: () -> Unit = {}
@@ -83,6 +88,11 @@ fun DashboardScreen(
     var showViewPayableFullScreen by remember { mutableStateOf(false) }
     var selectedPayable by remember { mutableStateOf<PayableItemData?>(null) }
     var selectedPayableFilter by remember { mutableStateOf<PayableFilter>(PayableFilter.All) }
+    
+    // Double-back to exit functionality
+    val snackbarHostState = remember { SnackbarHostState() }
+    var lastBackPressTime by remember { mutableLongStateOf(0L) }
+    val backPressTimeout = 2000L // 2 seconds
     
     // Handle deep link from notification
     LaunchedEffect(Unit) {
@@ -272,6 +282,19 @@ fun DashboardScreen(
                 // Show Dashboard content
                 Scaffold(
                     modifier = Modifier.nestedScroll(topBarScrollBehavior.nestedScrollConnection),
+                    snackbarHost = { 
+                        SnackbarHost(
+                            hostState = snackbarHostState,
+                            snackbar = { snackbarData ->
+                                Snackbar(
+                                    snackbarData = snackbarData,
+                                    containerColor = MaterialTheme.colorScheme.inverseSurface,
+                                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                                    actionColor = MaterialTheme.colorScheme.inversePrimary
+                                )
+                            }
+                        )
+                    },
                     topBar = {
                         TopAppBar(
                             scrollBehavior = topBarScrollBehavior,
@@ -671,8 +694,8 @@ fun DashboardScreen(
         }
     }
 
-    // Combined back handler: menu first (highest priority), then navigation
-    BackHandler(enabled = showMenu || currentEditScreen != EditScreenState.None) {
+    // Combined back handler: menu first, then navigation, then double-back exit
+    BackHandler(enabled = true) {
         when {
             showMenu -> {
                 android.util.Log.d("DashboardBackHandler", "Closing menu")
@@ -709,7 +732,24 @@ fun DashboardScreen(
                     EditScreenState.Payables -> {
                         showPayablesFullScreen = false
                     }
-                    else -> {} // EditScreenState.None - unreachable due to outer condition
+                    else -> {} // EditScreenState.None - handled in next branch
+                }
+            }
+            else -> {
+                // Double-back to exit on Dashboard
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastBackPressTime < backPressTimeout) {
+                    // Second press within timeout - exit app
+                    onBack()
+                } else {
+                    // First press - show snackbar
+                    lastBackPressTime = currentTime
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = "Press back again to exit",
+                            duration = SnackbarDuration.Short
+                        )
+                    }
                 }
             }
         }
