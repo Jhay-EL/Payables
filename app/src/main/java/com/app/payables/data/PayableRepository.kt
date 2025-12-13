@@ -58,7 +58,7 @@ class PayableRepository(
             
             alarmScheduler?.let { scheduler ->
                 try {
-                    val billingDate = LocalDate.ofEpochDay(payable.billingDateMillis / (1000 * 60 * 60 * 24))
+                    val billingDate = LocalDate.ofEpochDay(payable.billingDateMillis / Payable.MILLIS_PER_DAY)
                     val nextDueDate = Payable.calculateNextDueDate(billingDate, payable.billingCycle)
                     val reminderPrefDays = settingsManager.getReminderPreference()
                     val reminderDate = nextDueDate.minusDays(reminderPrefDays.toLong())

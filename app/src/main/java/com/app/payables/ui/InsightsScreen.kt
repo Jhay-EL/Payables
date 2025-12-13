@@ -1,3 +1,5 @@
+@file:Suppress("AssignedValueIsNeverRead")
+
 package com.app.payables.ui
 
 import androidx.compose.foundation.layout.Box
@@ -66,8 +68,13 @@ fun InsightsScreen(
     var spendingTimeframe by remember { mutableStateOf(SpendingTimeframe.Monthly) }
     var avgCostTimeframe by remember { mutableStateOf(SpendingTimeframe.Monthly) }
 
-    val avgCost by payableRepository.getAverageCost(avgCostTimeframe).collectAsState(initial = 0.0)
-    val spendingPerCategory by payableRepository.getSpendingPerCategory(spendingTimeframe).collectAsState(initial = null)
+    val avgCost by remember(avgCostTimeframe) {
+        payableRepository.getAverageCost(avgCostTimeframe)
+    }.collectAsState(initial = 0.0)
+    
+    val spendingPerCategory by remember(spendingTimeframe) {
+        payableRepository.getSpendingPerCategory(spendingTimeframe)
+    }.collectAsState(initial = null)
     val categories by categoryRepository.getAllCategories().collectAsState(initial = emptyList())
     val upcomingPayments by payableRepository.getUpcomingPayments().collectAsState(initial = null)
     val topFiveMostExpensive by payableRepository.getTopFiveMostExpensive().collectAsState(initial = null)
@@ -82,7 +89,8 @@ fun InsightsScreen(
         upcomingPayments = upcomingPayments,
         topFiveMostExpensive = topFiveMostExpensive,
         onTimeframeSelected = { spendingTimeframe = it },
-        onAvgCostTimeframeSelected = { avgCostTimeframe = it }
+        onAvgCostTimeframeSelected = { avgCostTimeframe = it },
+        spendingTimeframe = spendingTimeframe
     )
 }
 
@@ -99,6 +107,7 @@ fun InsightsScreenContent(
     topFiveMostExpensive: List<PayableItemData>?,
     onTimeframeSelected: (SpendingTimeframe) -> Unit,
     onAvgCostTimeframeSelected: (SpendingTimeframe) -> Unit,
+    spendingTimeframe: SpendingTimeframe
 ) {
     val dims = LocalAppDimensions.current
 
@@ -179,7 +188,8 @@ fun InsightsScreenContent(
                 SpendingBreakdownCard(
                     spendingPerCategory = spendingPerCategory,
                     categories = categories,
-                    onTimeframeSelected = onTimeframeSelected
+                    onTimeframeSelected = onTimeframeSelected,
+                    spendingTimeframe = spendingTimeframe
                 )
             }
 
@@ -269,7 +279,8 @@ private fun InsightsScreenPreview() {
                 )
             ),
             onTimeframeSelected = {},
-            onAvgCostTimeframeSelected = {}
+            onAvgCostTimeframeSelected = {},
+            spendingTimeframe = SpendingTimeframe.Monthly
         )
     }
 }
@@ -512,7 +523,8 @@ private fun UpcomingPaymentItem(
 private fun SpendingBreakdownCard(
     spendingPerCategory: Map<String, Double>?,
     categories: List<CategoryData>,
-    onTimeframeSelected: (SpendingTimeframe) -> Unit
+    onTimeframeSelected: (SpendingTimeframe) -> Unit,
+    spendingTimeframe: SpendingTimeframe
 ) {
     val dims = LocalAppDimensions.current
     var showMenu by remember { mutableStateOf(false) }
@@ -602,6 +614,7 @@ private fun SpendingBreakdownCard(
                         ColumnChart(
                             spendingPerCategory = spendingPerCategory,
                             categories = categories,
+                            spendingTimeframe = spendingTimeframe,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(150.dp)
@@ -657,6 +670,7 @@ private fun SpendingBreakdownCard(
 private fun ColumnChart(
     spendingPerCategory: Map<String, Double>,
     categories: List<CategoryData>,
+    spendingTimeframe: SpendingTimeframe,
     modifier: Modifier = Modifier
 ) {
     val maxSpending = spendingPerCategory.values.maxOrNull() ?: 0.0
@@ -670,7 +684,13 @@ private fun ColumnChart(
         remember(it) { Animatable(0f) }
     }
 
-    LaunchedEffect(spendingPerCategory) {
+    LaunchedEffect(spendingTimeframe, spendingPerCategory) {
+        // Reset all animations to 0 first
+        animatables.values.forEach { animatable ->
+            animatable.snapTo(0f)
+        }
+        
+        // Then animate to target values
         spendingPerCategory.forEach { (categoryName, spending) ->
             val proportion = if (maxSpending > 0) (spending / maxSpending).toFloat() else 0f
             launch {
@@ -689,8 +709,8 @@ private fun ColumnChart(
         )
         Canvas(modifier = Modifier.fillMaxSize()) {
             val barCount = spendingPerCategory.size
-            val barWidth = size.width / (barCount * 2)
-            val spacing = barWidth
+            val barWidth = size.width / (barCount * 1.5f)
+            val spacing = barWidth / 2
 
             spendingPerCategory.keys.forEachIndexed { index, categoryName ->
                 val category = categories.find { it.name == categoryName }

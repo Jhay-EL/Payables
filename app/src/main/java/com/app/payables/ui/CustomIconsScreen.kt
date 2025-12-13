@@ -1,41 +1,43 @@
 package com.app.payables.ui
 
-import android.content.ContentResolver
-import android.content.Intent
 import android.net.Uri
-import android.widget.ImageView
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
-import androidx.activity.compose.BackHandler
+import coil.compose.AsyncImage
 import com.app.payables.data.ImportedIconsStore
 import com.app.payables.theme.*
+import com.app.payables.util.LogoKitService
+import kotlinx.coroutines.launch
+import java.io.File
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CustomIconsScreen(
-    onBack: () -> Unit = {},
-    onImport: (Uri) -> Unit = {},
+    onBack: () -> Unit,
     onPick: (Uri) -> Unit = {}
 ) {
     val dims = LocalAppDimensions.current
@@ -46,161 +48,269 @@ fun CustomIconsScreen(
     val topBarColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp).copy(alpha = topBarAlpha)
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
-    val context = LocalContext.current
-    var icons by remember { mutableStateOf(ImportedIconsStore.getIcons(context)) }
-
-    // Use Storage Access Framework (persistable permission) to avoid crashes after process death
-    val openDoc = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-        if (uri != null) {
-            try {
-                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (_: Throwable) { /* ignore if already granted */ }
-            ImportedIconsStore.addIcon(context, uri.toString())
-            icons = ImportedIconsStore.getIcons(context)
-            onImport(uri)
-        }
-    }
+    // Tab state
+    val pagerState = rememberPagerState(pageCount = { 2 })
+    val coroutineScope = rememberCoroutineScope()
+    val tabTitles = listOf("Search by Brand", "Import Icons")
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
                 scrollBehavior = scrollBehavior,
-                title = { Text("Custom Icons", modifier = Modifier.graphicsLayer(alpha = topBarAlpha)) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = topBarColor, scrolledContainerColor = topBarColor)
+                title = { Text("Custom Icons") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = topBarColor,
+                    scrolledContainerColor = topBarColor
+                )
             )
         }
     ) { paddingValues ->
-        var isSelecting by remember { mutableStateOf(false) }
-        val selectedUris = remember { mutableStateListOf<String>() }
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = dims.spacing.md)
-                .verticalScroll(rememberScrollState())
         ) {
-            // Y reporter
-            Box(Modifier.windowYReporter { y -> if (titleInitialY == null) titleInitialY = y; titleWindowY = y })
-
-            Column(Modifier.fadeUpTransform(fade)) {
-                Text(
-                    text = "Custom Icons",
-                    style = LocalDashboardTheme.current.titleTextStyle,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 1f - fade),
-                    modifier = Modifier.padding(
-                        top = dims.titleDimensions.payablesTitleTopPadding,
-                        bottom = dims.titleDimensions.payablesTitleToOverviewSpacing
+            // Tab Row
+            TabRow(
+                selectedTabIndex = pagerState.currentPage,
+                modifier = Modifier.padding(horizontal = dims.spacing.md)
+            ) {
+                tabTitles.forEachIndexed { index, title ->
+                    Tab(
+                        selected = pagerState.currentPage == index,
+                        onClick = { coroutineScope.launch { pagerState.animateScrollToPage(index) } },
+                        text = { Text(title) },
+                        icon = {
+                            Icon(
+                                imageVector = if (index == 0) Icons.Default.Search else Icons.Default.Upload,
+                                contentDescription = null
+                            )
+                        }
                     )
-                )
-            }
-
-            // Actions inside content
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                Button(onClick = { openDoc.launch(arrayOf("image/*")) }) { Text("Import") }
-                OutlinedButton(onClick = {
-                    isSelecting = !isSelecting
-                    if (!isSelecting) selectedUris.clear()
-                }) { Text(if (isSelecting) "Done" else "Select") }
-            }
-
-            Spacer(Modifier.height(dims.spacing.md))
-
-            Text("Imported icons", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-            Spacer(Modifier.height(8.dp))
-
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                val visibleIcons = icons.filter { uri ->
-                    isUriReadable(context.contentResolver, uri.toUri())
-                }
-                val rows = visibleIcons.chunked(4)
-                rows.forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                        row.forEach { uriStr ->
-                            val uri = uriStr.toUri()
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .aspectRatio(1f)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f))
-                                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
-                                    .clickable {
-                                        if (isSelecting) {
-                                            if (uriStr in selectedUris) selectedUris.remove(uriStr) else selectedUris.add(uriStr)
-                                        } else {
-                                            onPick(uri)
-                                        }
-                                    }
-                            ) {
-                                AndroidView(
-                                    factory = { ctx ->
-                                        ImageView(ctx).apply {
-                                            // Maintain aspect ratio within square without cropping
-                                            scaleType = ImageView.ScaleType.FIT_CENTER
-                                            setImageURI(uri)
-                                        }
-                                    },
-                                    update = { it.setImageURI(uri) },
-                                    modifier = Modifier.matchParentSize()
-                                )
-                                if (isSelecting) {
-                                    val isChecked = uriStr in selectedUris
-                                    val overlayColor = if (isChecked) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else Color.Transparent
-                                    Box(
-                                        modifier = Modifier
-                                            .matchParentSize()
-                                            .background(overlayColor)
-                                            .border(2.dp, if (isChecked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
-                                    )
-                                }
-                            }
-                        }
-                        if (row.size < 4) repeat(4 - row.size) { Spacer(modifier = Modifier.weight(1f).aspectRatio(1f)) }
-                    }
                 }
             }
 
-            if (isSelecting) {
-                Spacer(Modifier.height(dims.spacing.md))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                    OutlinedButton(onClick = { selectedUris.clear(); isSelecting = false }, modifier = Modifier.weight(1f)) { Text("Cancel") }
-                    Button(onClick = {
-                        if (selectedUris.isNotEmpty()) {
-                            selectedUris.toList().forEach { ImportedIconsStore.removeIcon(context, it) }
-                            icons = ImportedIconsStore.getIcons(context)
-                            selectedUris.clear()
-                            isSelecting = false
-                        }
-                    }, enabled = selectedUris.isNotEmpty(), modifier = Modifier.weight(1f)) { Text("Delete selected") }
+            // Pager Content
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.weight(1f)
+            ) { page ->
+                when (page) {
+                    0 -> BrandSearchTab(onPick = onPick)
+                    1 -> CustomIconsTab(onPick = onPick)
                 }
             }
-
-            Spacer(Modifier.height(dims.spacing.section))
-
-            val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-            Spacer(Modifier.height(bottomInset + dims.spacing.navBarContentBottomMargin))
         }
     }
-    
-    // Handle system back button
     BackHandler(true) { onBack() }
 }
 
-private fun isUriReadable(resolver: ContentResolver, uri: Uri): Boolean {
-    return try {
-        resolver.openInputStream(uri)?.use { true } ?: false
-    } catch (_: Throwable) {
-        false
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BrandSearchTab(
+    onPick: (Uri) -> Unit
+) {
+    val dims = LocalAppDimensions.current
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    var searchQuery by remember { mutableStateOf("") }
+    var cachedFilePath by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = dims.spacing.md)
+            .verticalScroll(rememberScrollState())
+    ) {
+        Spacer(Modifier.height(dims.spacing.md))
+
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Brand domain") },
+            placeholder = { Text("e.g., nike.com") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            singleLine = true
+        )
+
+        Spacer(Modifier.height(dims.spacing.sm))
+
+        Button(
+            onClick = {
+                if (searchQuery.isNotBlank()) {
+                    isLoading = true
+                    errorMessage = null
+                    cachedFilePath = null
+                    coroutineScope.launch {
+                        val filePath = LogoKitService.fetchAndCacheLogo(context, searchQuery)
+                        cachedFilePath = filePath
+                        isLoading = false
+                        if (filePath == null) {
+                            errorMessage = "Failed to fetch logo. Check domain and try again."
+                        }
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = searchQuery.isNotBlank() && !isLoading
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(if (isLoading) "Searching..." else "Search")
+        }
+
+        Spacer(Modifier.height(dims.spacing.section))
+
+        Text(
+            text = "Preview",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(Modifier.height(dims.spacing.sm))
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            )
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                when {
+                    errorMessage != null -> {
+                        Text(
+                            text = errorMessage!!,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(dims.spacing.md)
+                        )
+                    }
+                    isLoading -> CircularProgressIndicator()
+                    cachedFilePath != null -> {
+                        AsyncImage(
+                            model = File(cachedFilePath!!),
+                            contentDescription = "Brand logo preview",
+                            modifier = Modifier.padding(dims.spacing.md)
+                        )
+                    }
+                    else -> {
+                        Text(
+                            text = "Search for a brand to see a preview",
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(dims.spacing.md)
+                        )
+                    }
+                }
+            }
+        }
+
+        if (cachedFilePath != null) {
+            Spacer(Modifier.height(dims.spacing.sm))
+            Button(
+                onClick = { onPick(File(cachedFilePath!!).toUri()) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Use This Logo")
+            }
+        }
+        val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        Spacer(Modifier.height(bottomInset + dims.spacing.navBarContentBottomMargin))
     }
 }
 
-@Preview(showBackground = true)
+
 @Composable
-private fun CustomIconsScreenPreview() {
-    AppTheme {
-        CustomIconsScreen()
+private fun CustomIconsTab(onPick: (Uri) -> Unit) {
+    val dims = LocalAppDimensions.current
+    val context = LocalContext.current
+    var importedIcons by remember { mutableStateOf(ImportedIconsStore.getIcons(context)) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            ImportedIconsStore.addIcon(context, it.toString())
+            importedIcons = ImportedIconsStore.getIcons(context)
+            onPick(it)
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = dims.spacing.md)
+    ) {
+        Spacer(Modifier.height(dims.spacing.md))
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = 100.dp),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 120.dp),
+            horizontalArrangement = Arrangement.spacedBy(dims.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(dims.spacing.md)
+        ) {
+            item {
+                AddIconCard(onClick = { imagePickerLauncher.launch("image/*") })
+            }
+            items(importedIcons) { iconUriString ->
+                IconPreviewCard(uri = iconUriString.toUri(), onClick = { onPick(iconUriString.toUri()) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun AddIconCard(onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.aspectRatio(1f),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Filled.AddPhotoAlternate,
+                contentDescription = "Add Icon",
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
+    }
+}
+
+@Composable
+private fun IconPreviewCard(uri: Uri, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.aspectRatio(1f)
+    ) {
+        AsyncImage(
+            model = uri,
+            contentDescription = "Imported Icon",
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }

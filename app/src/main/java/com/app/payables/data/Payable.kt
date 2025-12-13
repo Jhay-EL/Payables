@@ -37,10 +37,10 @@ data class Payable(
 ) {
     // Convert to UI PayableItemData
     fun toPayableItemData(): PayableItemData {
-        val billingDate = LocalDate.ofEpochDay(billingDateMillis / (24 * 60 * 60 * 1000))
+        val billingDate = LocalDate.ofEpochDay(billingDateMillis / MILLIS_PER_DAY)
         val dueDate = calculateNextDueDate(billingDate, billingCycle)
         val endDateFormatted = endDateMillis?.let {
-            LocalDate.ofEpochDay(it / (24 * 60 * 60 * 1000)).format(dateFormatter)
+            LocalDate.ofEpochDay(it / MILLIS_PER_DAY).format(dateFormatter)
         }
         
         return PayableItemData(
@@ -64,11 +64,12 @@ data class Payable(
             endDate = endDateFormatted,
             createdAt = createdAt,
             billingDateMillis = billingDateMillis,
-            nextDueDateMillis = dueDate.toEpochDay() * (24 * 60 * 60 * 1000)
+            nextDueDateMillis = dueDate.toEpochDay() * MILLIS_PER_DAY
         )
     }
     
     companion object {
+        const val MILLIS_PER_DAY = 86_400_000L
         private val dateFormatter = DateTimeFormatter.ofPattern("MMMM dd, yyyy")
         
         // Create from AddPayableScreen form data
@@ -99,8 +100,8 @@ data class Payable(
                 amount = amount,
                 description = description,
                 isRecurring = isRecurring,
-                billingDateMillis = billingDate.toEpochDay() * (24 * 60 * 60 * 1000),
-                endDateMillis = endDate?.toEpochDay()?.times(24 * 60 * 60 * 1000),
+                billingDateMillis = billingDate.toEpochDay() * MILLIS_PER_DAY,
+                endDateMillis = endDate?.toEpochDay()?.times(MILLIS_PER_DAY),
                 billingCycle = billingCycle,
                 currency = currency,
                 category = category,

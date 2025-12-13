@@ -133,22 +133,62 @@ fun DashboardScreen(
     // Load categories from database
     val categories by repository.getAllCategories().collectAsState(initial = emptyList())
     
-    // Load active payables from database for count calculations (UI representation)
-    val allPayablesUI by payableRepository.getActivePayables().collectAsState(initial = emptyList())
+    // Load all payables - SINGLE SOURCE OF TRUTH
+    val allPayablesEntities by payableRepository.getAllPayables().collectAsState(initial = emptyList())
     
-    // Load paused payables for the paused section
-    val pausedPayablesUI by payableRepository.getPausedPayables().collectAsState(initial = emptyList())
+    // Derive UI models and lists in memory to ensure consistency
+    val allPayablesData = remember(allPayablesEntities) {
+        allPayablesEntities.map { it.toPayableItemData() }
+    }
     
-    val payablesDueThisWeek by payableRepository.getActivePayablesDueThisWeek().collectAsState(initial = emptyList())
-    val payablesDueThisMonth by payableRepository.getActivePayablesDueThisMonth().collectAsState(initial = emptyList())
+    // Derived: Active Payables (Not paused, Not finished)
+    val activePayablesUI = remember(allPayablesEntities) {
+        allPayablesData.filter { !it.isPaused && !it.isFinished }
+    }
+    
+    // Derived: Paused Payables
+    val pausedPayablesUI = remember(allPayablesEntities) {
+        allPayablesData.filter { it.isPaused }
+    }
+    
+    // Derived: Finished Payables
+    val finishedPayablesUI = remember(allPayablesEntities) {
+        allPayablesData.filter { it.isFinished }
+    }
+    
+    // Derived: Payables Due This Week
+    val payablesDueThisWeek = remember(activePayablesUI) {
+        val today = java.time.LocalDate.now()
+        val endOfWeek = today.plusDays(6)
+        val dateFormatter = java.time.format.DateTimeFormatter.ofPattern("MMMM dd, yyyy")
+        
+        activePayablesUI.filter {
+            val billingDate = java.time.LocalDate.parse(it.billingStartDate, dateFormatter)
+            val nextDueDate = com.app.payables.data.Payable.calculateNextDueDate(billingDate, it.billingCycle)
+            !nextDueDate.isBefore(today) && !nextDueDate.isAfter(endOfWeek)
+        }
+    }
+    
+    // Derived: Payables Due This Month
+    val payablesDueThisMonth = remember(activePayablesUI) {
+        val today = java.time.LocalDate.now()
+        val endOfMonth = today.withDayOfMonth(today.lengthOfMonth())
+        val dateFormatter = java.time.format.DateTimeFormatter.ofPattern("MMMM dd, yyyy")
+        
+        activePayablesUI.filter {
+            val billingDate = java.time.LocalDate.parse(it.billingStartDate, dateFormatter)
+            val nextDueDate = com.app.payables.data.Payable.calculateNextDueDate(billingDate, it.billingCycle)
+            !nextDueDate.isBefore(today) && !nextDueDate.isAfter(endOfMonth)
+        }
+    }
     
     // Calculate dynamic counts directly from UI data to ensure accuracy
-    val counts = remember(allPayablesUI, categories) {
+    val counts = remember(activePayablesUI, categories) {
         val categoryCountsMap = mutableMapOf<String, Int>()
         
         // Count payables by their actual stored category
         categories.forEach { category ->
-            val count = allPayablesUI.count { payable -> payable.category == category.name }
+            val count = activePayablesUI.count { payable -> payable.category == category.name }
             categoryCountsMap[category.name] = count
         }
         
@@ -156,9 +196,9 @@ fun DashboardScreen(
     }
     
     // Calculate overview counts
-    val overviewCounts = remember(allPayablesUI, payablesDueThisWeek, payablesDueThisMonth) {
+    val overviewCounts = remember(activePayablesUI, payablesDueThisWeek, payablesDueThisMonth) {
         mapOf(
-            "All" to allPayablesUI.size,
+            "All" to activePayablesUI.size,
             "This Week" to payablesDueThisWeek.size,
             "This Month" to payablesDueThisMonth.size
         )
@@ -434,10 +474,9 @@ fun DashboardScreen(
                         // Paused/Finished Section
                         if (!hidePausedFinished) {
                             item {
-                                val finishedPayables = payableRepository.getAllPayables().collectAsState(initial = emptyList()).value.filter { it.isFinished }
                                 PausedFinishedSection(
                                     pausedPayables = pausedPayablesUI,
-                                    finishedPayables = finishedPayables.map { it.toPayableItemData() },
+                                    finishedPayables = finishedPayablesUI,
                                     onPausedClick = {
                                         if (pausedPayablesUI.isNotEmpty()) {
                                             selectedPayableFilter = PayableFilter.Paused
@@ -518,8 +557,7 @@ fun DashboardScreen(
                             val editedPayableId = selectedPayable?.id
                             showAddPayableFullScreen = false
                             if (editedPayableId != null) {
-                                val allPayables = payableRepository.getAllPayables().first()
-                                val updatedPayable = allPayables.find { it.id == editedPayableId }
+                                val updatedPayable = allPayablesEntities.find { it.id == editedPayableId }
                                 if (updatedPayable != null) {
                                     selectedPayable = updatedPayable.toPayableItemData()
                                     showViewPayableFullScreen = true
@@ -539,19 +577,10 @@ fun DashboardScreen(
                 // Choose data source based on filter
                 val sourcePayables = when (selectedPayableFilter) {
                     is PayableFilter.Paused -> pausedPayablesUI
-                    is PayableFilter.Finished -> {
-                        // Get all payables and filter for finished ones (only shown in Finished section)
-                        payableRepository.getAllPayables().collectAsState(initial = emptyList()).value.filter { it.isFinished }.map { it.toPayableItemData() }
-                    }
+                    is PayableFilter.Finished -> finishedPayablesUI
                     is PayableFilter.ThisWeek -> payablesDueThisWeek
                     is PayableFilter.ThisMonth -> payablesDueThisMonth
-                    else -> {
-                        // For active payables (non-paused, non-finished)
-                        // Note: We removed automatic finished status checking to prevent
-                        // accidental marking of payables as finished on app restart
-                        val activePayables = payableRepository.getActivePayables().collectAsState(initial = emptyList()).value
-                        activePayables
-                    }
+                    else -> activePayablesUI
                 }
                 
                 // Filter payables based on selected filter

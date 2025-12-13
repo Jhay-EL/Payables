@@ -1,3 +1,5 @@
+@file:Suppress("AssignedValueIsNeverRead")
+
 package com.app.payables.ui
 
 import androidx.activity.compose.BackHandler
@@ -17,7 +19,6 @@ import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.input.KeyboardType
@@ -45,7 +46,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
-import com.app.payables.work.BrandfetchService
 import coil.compose.AsyncImage
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalContext
@@ -135,7 +135,6 @@ fun AddPayableScreen(
     var tempColor by remember { mutableStateOf(editingPayable?.backgroundColor ?: defaultHeaderColor) }
     var screenState by remember { mutableStateOf(AddPayableScreenState.Main) }
     var editingPaymentMethod by remember { mutableStateOf<CustomPaymentMethod?>(null) }
-    var isTitleFocused by remember { mutableStateOf(false) }
 
     val canSave = title.text.isNotBlank()
     val saveableStateHolder = rememberSaveableStateHolder()
@@ -148,23 +147,6 @@ fun AddPayableScreen(
     // Load custom payment methods from database
     val customPaymentMethods by customPaymentMethodRepository?.getAllCustomPaymentMethods()?.collectAsState(initial = emptyList())
         ?: remember { mutableStateOf(emptyList()) }
-    
-    val wasTitleFocused = remember { mutableStateOf(false) }
-    LaunchedEffect(isTitleFocused) {
-        if (wasTitleFocused.value && !isTitleFocused) {
-            // Focus lost
-            if (title.text.isNotBlank()) {
-                try {
-                    val domain = title.text.trim().lowercase().replace(" ", "") + ".com"
-                    val symbolUrl = BrandfetchService.getLogoUrl(domain, "symbol")
-                    selectedIcon = symbolUrl.toUri()
-                } catch (_: Exception) {
-                    selectedIcon = null
-                }
-            }
-        }
-        wasTitleFocused.value = isTitleFocused
-    }
     
     // Create category options list with "Not set" as first option
     val categoryOptions = remember(categories) {
@@ -283,7 +265,6 @@ fun AddPayableScreen(
                     onTitleYUpdate = { y -> if (titleInitialY == null) titleInitialY = y; titleWindowY = y },
                     title = title,
                     onTitleChange = { title = it },
-                    onTitleFocusChange = { isTitleFocused = it },
                     amount = amount,
                     onAmountChange = { newValue ->
                         val filtered = newValue.text.filter { it.isDigit() || it == '.' }
@@ -383,15 +364,12 @@ fun AddPayableScreen(
                     onSave = { customPaymentMethod ->
                         // Add the custom payment method to the payment method value
                         paymentMethod = customPaymentMethod.name
-                        editingPaymentMethod = null // Clear editing state
                         screenState = AddPayableScreenState.Main
                     },
                     onCancel = {
-                        editingPaymentMethod = null // Clear editing state
                         screenState = AddPayableScreenState.Main
                     },
                     onDelete = {
-                        editingPaymentMethod = null // Clear editing state
                         screenState = AddPayableScreenState.Main
                     },
                     editingPaymentMethod = editingPaymentMethod
@@ -512,7 +490,6 @@ private fun MainAddPayableContent(
     onTitleYUpdate: (Int) -> Unit,
     title: TextFieldValue,
     onTitleChange: (TextFieldValue) -> Unit,
-    onTitleFocusChange: (Boolean) -> Unit,
     amount: TextFieldValue,
     onAmountChange: (TextFieldValue) -> Unit,
     description: TextFieldValue,
@@ -607,8 +584,7 @@ private fun MainAddPayableContent(
                 value = title,
                 onValueChange = onTitleChange,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .onFocusChanged { focusState -> onTitleFocusChange(focusState.isFocused) },
+                    .fillMaxWidth(),
                 label = { Text("Title") },
                 leadingIcon = { Icon(Icons.Filled.TextFields, contentDescription = null) },
                 singleLine = true

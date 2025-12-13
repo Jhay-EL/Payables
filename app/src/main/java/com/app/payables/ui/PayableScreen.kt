@@ -31,6 +31,7 @@ import com.app.payables.theme.*
 import kotlin.math.pow
 import androidx.activity.compose.BackHandler
 
+@Suppress("AssignedValueIsNeverRead")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PayableScreen(
