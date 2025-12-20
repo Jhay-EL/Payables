@@ -1,3 +1,5 @@
+@file:Suppress("AssignedValueIsNeverRead")
+
 package com.app.payables.ui.settings
 
 import androidx.compose.animation.AnimatedContent

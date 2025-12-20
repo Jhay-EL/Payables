@@ -1,3 +1,5 @@
+@file:Suppress("AssignedValueIsNeverRead")
+
 package com.app.payables
 import com.app.payables.ui.settings.AboutScreen
 import android.app.AlarmManager

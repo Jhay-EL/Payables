@@ -1,3 +1,5 @@
+@file:Suppress("AssignedValueIsNeverRead")
+
 package com.app.payables.ui
 
 import androidx.compose.animation.AnimatedContent
@@ -53,7 +55,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.edit
 import com.app.payables.PayablesApplication
 import androidx.compose.runtime.collectAsState
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -484,7 +485,7 @@ fun DashboardScreen(
                                         }
                                     },
                                     onFinishedClick = {
-                                        if (finishedPayables.isNotEmpty()) {
+                                        if (finishedPayablesUI.isNotEmpty()) {
                                             selectedPayableFilter = PayableFilter.Finished
                                             showPayablesFullScreen = true
                                         }
@@ -585,8 +586,7 @@ fun DashboardScreen(
                 
                 // Filter payables based on selected filter
                 val filteredPayables = remember(sourcePayables, selectedPayableFilter) {
-                    val currentFilter = selectedPayableFilter // Store in local variable for smart casting
-                    when (currentFilter) {
+                    when (val currentFilter = selectedPayableFilter) { // Variable moved into when
                         is PayableFilter.All,
                         is PayableFilter.Paused,
                         is PayableFilter.ThisWeek,

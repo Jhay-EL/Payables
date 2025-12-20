@@ -87,4 +87,7 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
+    // Jetpack Security
+    implementation("androidx.security:security-crypto:1.0.0")
 }

@@ -1,3 +1,5 @@
+@file:Suppress("AssignedValueIsNeverRead")
+
 package com.app.payables.ui
 
 import androidx.compose.foundation.Canvas

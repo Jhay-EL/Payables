@@ -3,9 +3,53 @@ package com.app.payables.util
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import androidx.security.crypto.EncryptedSharedPreferences
 
 class SettingsManager(context: Context) {
-    private val prefs: SharedPreferences = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+    // Encrypted Preferences
+    private val prefs: SharedPreferences
+
+    init {
+        // Master Key Alias for encryption (1.0.0 API)
+        val masterKeyAlias = androidx.security.crypto.MasterKeys.getOrCreate(androidx.security.crypto.MasterKeys.AES256_GCM_SPEC)
+            
+        val secureFileName = "secret_payables_prefs"
+        val oldFileName = "app_settings"
+
+        // Initialize EncryptedSharedPreferences (1.0.0 API: fileName, masterKeyAlias, context, scheme, scheme)
+        prefs = EncryptedSharedPreferences.create(
+            secureFileName,
+            masterKeyAlias,
+            context,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+        
+        // Migration Logic: Check for old plaintext prefs
+        val oldPrefs = context.getSharedPreferences(oldFileName, Context.MODE_PRIVATE)
+        if (oldPrefs.all.isNotEmpty()) {
+            android.util.Log.i("SettingsManager", "Migrating plaintext preferences to encrypted storage...")
+            // Copy all values to secure prefs
+            prefs.edit {
+                oldPrefs.all.forEach { (key, value) ->
+                    when (value) {
+                        is String -> putString(key, value)
+                        is Int -> putInt(key, value)
+                        is Boolean -> putBoolean(key, value)
+                        is Float -> putFloat(key, value)
+                        is Long -> putLong(key, value)
+                        is Set<*> -> {
+                            @Suppress("UNCHECKED_CAST")
+                            putStringSet(key, value as Set<String>)
+                        }
+                    }
+                }
+            }
+            // Clear old prefs to remove sensitive data from plaintext file
+            oldPrefs.edit { clear() }
+            android.util.Log.i("SettingsManager", "Migration complete. Old preferences cleared.")
+        }
+    }
 
     companion object {
         const val KEY_DEFAULT_CURRENCY = "default_currency"

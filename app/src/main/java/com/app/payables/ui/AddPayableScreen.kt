@@ -51,7 +51,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalContext
 import com.app.payables.util.isColorBright
 import com.app.payables.util.SettingsManager
-
+import com.app.payables.util.InputValidator
 // Screen state for transitions
 private enum class AddPayableScreenState {
     Main, CustomIcons, CustomColor, CustomPaymentMethod
@@ -165,9 +165,39 @@ fun AddPayableScreen(
         listOf("Not set", "Credit Card", "Debit Card", "Bank Transfer", "Custom") + customMethods
     }
     
+    // Validation State
+    var titleError by remember { mutableStateOf<String?>(null) }
+    var amountError by remember { mutableStateOf<String?>(null) }
+    var websiteError by remember { mutableStateOf<String?>(null) }
+
     // Save payable to database (handles both insert and update)
+    @ComposableTarget(applier = "androidx.compose.ui.UiComposable")
     fun savePayableToDatabase() {
-        if (payableRepository != null && canSave) {
+        // Reset errors
+        titleError = null
+        amountError = null
+        websiteError = null
+
+        // Validate Input
+        val titleResult = InputValidator.validateTitle(title.text)
+        val amountResult = InputValidator.validateAmount(amount.text)
+        val websiteResult = InputValidator.validateUrl(website.text)
+
+        if (!titleResult.successful) {
+            titleError = titleResult.errorMessage
+        }
+        if (!amountResult.successful) {
+            amountError = amountResult.errorMessage
+        }
+        if (!websiteResult.successful) {
+            websiteError = websiteResult.errorMessage
+        }
+
+        if (!titleResult.successful || !amountResult.successful || !websiteResult.successful) {
+            return
+        }
+
+        if (payableRepository != null) {
             coroutineScope.launch {
                 try {
                     // Handle both custom icons (URIs) and default Material Icons
@@ -338,7 +368,10 @@ fun AddPayableScreen(
                     website = website,
                     onWebsiteChange = { website = it },
                     notes = notes,
-                    onNotesChange = { notes = it }
+                    onNotesChange = { notes = it },
+                    titleError = titleError,
+                    amountError = amountError,
+                    websiteError = websiteError
                 )
                 
                 AddPayableScreenState.CustomIcons -> CustomIconsScreen(
@@ -416,7 +449,7 @@ fun AddPayableScreen(
                             TextButton(
                                 onClick = {
                                     datePickerState.selectedDateMillis?.let { millis ->
-                                        billingDate = LocalDate.ofEpochDay(millis / 86400000)
+                                        billingDate = LocalDate.ofEpochDay(millis / com.app.payables.data.Payable.MILLIS_PER_DAY)
                                     }
                                     showBillingDatePicker = false
                                 }
@@ -456,7 +489,7 @@ fun AddPayableScreen(
                             TextButton(
                                 onClick = {
                                     datePickerState.selectedDateMillis?.let { millis ->
-                                        endDate = LocalDate.ofEpochDay(millis / 86400000)
+                                        endDate = LocalDate.ofEpochDay(millis / com.app.payables.data.Payable.MILLIS_PER_DAY)
                                     }
                                     showEndDatePicker = false
                                 }
@@ -534,7 +567,10 @@ private fun MainAddPayableContent(
     website: TextFieldValue,
     onWebsiteChange: (TextFieldValue) -> Unit,
     notes: TextFieldValue,
-    onNotesChange: (TextFieldValue) -> Unit
+    onNotesChange: (TextFieldValue) -> Unit,
+    titleError: String? = null,
+    amountError: String? = null,
+    websiteError: String? = null
 ) {
     val dateFormatter = DateTimeFormatter.ofPattern("MMMM dd, yyyy")
     
@@ -587,7 +623,9 @@ private fun MainAddPayableContent(
                     .fillMaxWidth(),
                 label = { Text("Title") },
                 leadingIcon = { Icon(Icons.Filled.TextFields, contentDescription = null) },
-                singleLine = true
+                singleLine = true,
+                isError = titleError != null,
+                supportingText = { titleError?.let { Text(it) } }
             )
             Spacer(Modifier.height(dims.spacing.md))
 
@@ -599,7 +637,9 @@ private fun MainAddPayableContent(
                     label = { Text("Amount") },
                     leadingIcon = { Text(currencySymbol) },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    isError = amountError != null,
+                    supportingText = { amountError?.let { Text(it) } }
                 )
                 CurrencyDropdownField(
                     selectedCurrency = selectedCurrency,
@@ -792,7 +832,9 @@ private fun MainAddPayableContent(
                 modifier = Modifier.fillMaxWidth(),
                 leadingIcon = { Icon(Icons.Filled.Link, contentDescription = null) },
                 placeholder = { Text("Website (Optional)") },
-                singleLine = true
+                singleLine = true,
+                isError = websiteError != null,
+                supportingText = { websiteError?.let { Text(it) } }
             )
             Spacer(Modifier.height(dims.spacing.md))
             OutlinedTextField(

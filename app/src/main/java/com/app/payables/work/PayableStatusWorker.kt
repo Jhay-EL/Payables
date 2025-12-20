@@ -39,7 +39,7 @@ class PayableStatusWorker(
             var scheduledCount = 0
             activePayables.forEach { payable ->
                 try {
-                    val billingDate = LocalDate.ofEpochDay(payable.billingDateMillis / (1000 * 60 * 60 * 24))
+                    val billingDate = LocalDate.ofEpochDay(payable.billingDateMillis / Payable.MILLIS_PER_DAY)
                     val nextDueDate = Payable.calculateNextDueDate(billingDate, payable.billingCycle)
                     val reminderDate = nextDueDate.minusDays(reminderPrefDays.toLong())
 

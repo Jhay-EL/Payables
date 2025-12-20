@@ -1,3 +1,5 @@
+@file:Suppress("AssignedValueIsNeverRead")
+
 package com.app.payables.ui.settings
 
 import androidx.compose.foundation.background
@@ -12,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.ComposableTarget
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -52,6 +55,7 @@ import androidx.core.net.toUri
 import androidx.compose.ui.draw.blur
 import androidx.compose.animation.core.animateFloatAsState
 
+@Suppress("unused")
 private enum class WidgetSize { FourByTwo, TwoByTwo, TwoByOne }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -509,6 +513,7 @@ private fun OptionToggleCard(
 }
 
 @Composable
+@ComposableTarget(applier = "androidx.compose.ui.UiComposable")
 private fun WidgetLivePreview(
     modifier: Modifier = Modifier,
     aspectRatio: Float = 2.2f,
@@ -532,6 +537,7 @@ private fun WidgetLivePreview(
     ) {
         // Full-bleed background image if provided
         if (backgroundImageUri != null) {
+            @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
             AndroidView(
                 factory = { ctx ->
                     ImageView(ctx).apply { scaleType = ImageView.ScaleType.CENTER_CROP }

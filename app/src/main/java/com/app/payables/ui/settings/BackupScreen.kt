@@ -1,3 +1,5 @@
+@file:Suppress("AssignedValueIsNeverRead")
+
 package com.app.payables.ui.settings
 
 import androidx.compose.foundation.background
@@ -421,7 +423,7 @@ private fun ExportOptionCard(
 // Helper function to format payable data for CSV
 private fun formatPayableForCsv(payable: com.app.payables.data.Payable): String {
     val status = getPayableStatus(payable)
-    val billingDate = LocalDate.ofEpochDay(payable.billingDateMillis / (24 * 60 * 60 * 1000))
+    val billingDate = LocalDate.ofEpochDay(payable.billingDateMillis / com.app.payables.data.Payable.MILLIS_PER_DAY)
     val dueDate = com.app.payables.data.Payable.calculateNextDueDate(billingDate, payable.billingCycle)
     val dueDateFormatted = dueDate.format(DateTimeFormatter.ofPattern("MMM dd, yyyy"))
     
@@ -435,7 +437,7 @@ private fun formatPayableForCsv(payable: com.app.payables.data.Payable): String 
 
 // Helper function to format payable data for PDF
 private fun formatPayableForPdf(payable: com.app.payables.data.Payable): String {
-    val billingDate = LocalDate.ofEpochDay(payable.billingDateMillis / (24 * 60 * 60 * 1000))
+    val billingDate = LocalDate.ofEpochDay(payable.billingDateMillis / com.app.payables.data.Payable.MILLIS_PER_DAY)
     val dueDate = com.app.payables.data.Payable.calculateNextDueDate(billingDate, payable.billingCycle)
     val dueDateFormatted = dueDate.format(DateTimeFormatter.ofPattern("MMM dd, yyyy"))
     
