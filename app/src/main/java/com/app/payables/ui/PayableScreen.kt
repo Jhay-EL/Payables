@@ -390,24 +390,26 @@ fun PayableScreen(
                 }
             } else {
                 sortedPayables.forEachIndexed { index, payable ->
-                    PayableCard(
-                        title = payable.name,
-                        subtitle = payable.planType,
-                        amountLabel = when (payable.currency) {
-                            "EUR" -> "€${payable.price}"
-                            "USD" -> "$${payable.price}"
-                            "GBP" -> "£${payable.price}"
-                            "JPY" -> "¥${payable.price}"
-                            else -> "${payable.currency} ${payable.price}"
-                        },
-                        badge = payable.dueDate,
-                        icon = payable.icon,
-                        backgroundColor = payable.backgroundColor,
-                        customIconUri = payable.customIconUri,
-                        isFirst = index == 0,
-                        isLast = index == sortedPayables.lastIndex,
-                        onClick = { onPayableClick(payable) }
-                    )
+                    key(payable.id) {
+                        PayableCard(
+                            title = payable.name,
+                            subtitle = payable.planType,
+                            amountLabel = when (payable.currency) {
+                                "EUR" -> "€${payable.price}"
+                                "USD" -> "$${payable.price}"
+                                "GBP" -> "£${payable.price}"
+                                "JPY" -> "¥${payable.price}"
+                                else -> "${payable.currency} ${payable.price}"
+                            },
+                            badge = payable.dueDate,
+                            icon = payable.icon,
+                            backgroundColor = payable.backgroundColor,
+                            customIconUri = payable.customIconUri,
+                            isFirst = index == 0,
+                            isLast = index == sortedPayables.lastIndex,
+                            onClick = { onPayableClick(payable) }
+                        )
+                    }
                 }
             }
 

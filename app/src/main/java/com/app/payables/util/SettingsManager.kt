@@ -10,20 +10,55 @@ class SettingsManager(context: Context) {
     private val prefs: SharedPreferences
 
     init {
-        // Master Key Alias for encryption (1.0.0 API)
-        val masterKeyAlias = androidx.security.crypto.MasterKeys.getOrCreate(androidx.security.crypto.MasterKeys.AES256_GCM_SPEC)
-            
         val secureFileName = "secret_payables_prefs"
         val oldFileName = "app_settings"
 
-        // Initialize EncryptedSharedPreferences (1.0.0 API: fileName, masterKeyAlias, context, scheme, scheme)
-        prefs = EncryptedSharedPreferences.create(
-            secureFileName,
-            masterKeyAlias,
-            context,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
+        // Try to initialize EncryptedSharedPreferences with error handling for keystore corruption
+        prefs = try {
+            // Master Key Alias for encryption (1.0.0 API)
+            val masterKeyAlias = androidx.security.crypto.MasterKeys.getOrCreate(
+                androidx.security.crypto.MasterKeys.AES256_GCM_SPEC
+            )
+            
+            // Initialize EncryptedSharedPreferences (1.0.0 API)
+            EncryptedSharedPreferences.create(
+                secureFileName,
+                masterKeyAlias,
+                context,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            // Handle corrupted keystore or encrypted preferences
+            android.util.Log.e("SettingsManager", "EncryptedSharedPreferences failed, recreating...", e)
+            
+            // Delete corrupted encrypted preferences file
+            try {
+                context.deleteSharedPreferences(secureFileName)
+                android.util.Log.i("SettingsManager", "Deleted corrupted preferences file")
+            } catch (deleteException: Exception) {
+                android.util.Log.w("SettingsManager", "Could not delete corrupted file", deleteException)
+            }
+            
+            // Recreate with new master key
+            try {
+                val masterKeyAlias = androidx.security.crypto.MasterKeys.getOrCreate(
+                    androidx.security.crypto.MasterKeys.AES256_GCM_SPEC
+                )
+                
+                EncryptedSharedPreferences.create(
+                    secureFileName,
+                    masterKeyAlias,
+                    context,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                )
+            } catch (retryException: Exception) {
+                // If still failing, fall back to regular SharedPreferences
+                android.util.Log.e("SettingsManager", "Failed to recreate encrypted prefs, using plaintext fallback", retryException)
+                context.getSharedPreferences("app_settings_fallback", Context.MODE_PRIVATE)
+            }
+        }
         
         // Migration Logic: Check for old plaintext prefs
         val oldPrefs = context.getSharedPreferences(oldFileName, Context.MODE_PRIVATE)

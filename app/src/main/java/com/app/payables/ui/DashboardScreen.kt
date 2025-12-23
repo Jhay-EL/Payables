@@ -185,15 +185,11 @@ fun DashboardScreen(
     
     // Calculate dynamic counts directly from UI data to ensure accuracy
     val counts = remember(activePayablesUI, categories) {
-        val categoryCountsMap = mutableMapOf<String, Int>()
+        // Single pass: group payables by category and count
+        val grouped = activePayablesUI.groupingBy { it.category }.eachCount()
         
-        // Count payables by their actual stored category
-        categories.forEach { category ->
-            val count = activePayablesUI.count { payable -> payable.category == category.name }
-            categoryCountsMap[category.name] = count
-        }
-        
-        categoryCountsMap.toMap()
+        // Ensure all categories exist in map (even with 0 count)
+        categories.associate { it.name to (grouped[it.name] ?: 0) }
     }
     
     // Calculate overview counts

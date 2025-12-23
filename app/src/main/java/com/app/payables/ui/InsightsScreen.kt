@@ -340,10 +340,12 @@ private fun TopFiveCard(
                             .padding(dims.spacing.card)
                     ) {
                         topFivePayables.forEachIndexed { index, payable ->
-                            TopFiveItem(
-                                payable = payable,
-                                rank = index + 1
-                            )
+                            key(payable.id) {
+                                TopFiveItem(
+                                    payable = payable,
+                                    rank = index + 1
+                                )
+                            }
                         }
                     }
                 }
@@ -449,10 +451,12 @@ private fun UpcomingPaymentsCard(
                             .padding(dims.spacing.card)
                     ) {
                         upcomingPayments.forEachIndexed { index, payable ->
-                            UpcomingPaymentItem(
-                                payable = payable,
-                                isLast = index == upcomingPayments.lastIndex
-                            )
+                            key(payable.id) {
+                                UpcomingPaymentItem(
+                                    payable = payable,
+                                    isLast = index == upcomingPayments.lastIndex
+                                )
+                            }
                         }
                     }
                 }
