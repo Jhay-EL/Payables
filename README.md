@@ -376,7 +376,8 @@ Optimizations implemented:
 
 - **Issues:** [GitHub Issues](https://github.com/Jhay-EL/Payables/issues)
 - **Discussions:** [GitHub Discussions](https://github.com/Jhay-EL/Payables/discussions)
-- **Email:** [Replace with contact email if desired]
+- **Email:** [jl.temporary@outlook.it](mailto:jl.temporary@outlook.it)
+
 
 <br>
 
