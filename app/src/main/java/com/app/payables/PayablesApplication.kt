@@ -11,6 +11,9 @@ import coil.decode.SvgDecoder
 import androidx.work.*
 import com.app.payables.work.PayableStatusWorker
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Dispatchers
 
 class PayablesApplication : Application(), ImageLoaderFactory {
     
@@ -21,6 +24,10 @@ class PayablesApplication : Application(), ImageLoaderFactory {
     val categoryRepository by lazy { CategoryRepository(database.categoryDao()) }
     val payableRepository by lazy { PayableRepository(database.payableDao(), this) }
     val customPaymentMethodRepository by lazy { CustomPaymentMethodRepository(database.customPaymentMethodDao()) }
+    
+    // Application-scoped coroutine scope for long-running operations
+    // Uses SupervisorJob so one failed coroutine doesn't cancel all others
+    val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
         super.onCreate()

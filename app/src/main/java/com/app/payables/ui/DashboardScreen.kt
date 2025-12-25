@@ -664,8 +664,9 @@ fun DashboardScreen(
                             coroutineScope.launch {
                                 payableRepository.deletePayable(payable.id, repository)
                             }
-                            // BackHandler will handle navigation
+                            // Use same transition as onBack: return to Payables screen
                             showViewPayableFullScreen = false
+                            showPayablesFullScreen = true
                             selectedPayable = null
                         }
                     )

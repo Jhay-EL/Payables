@@ -46,9 +46,19 @@ class Migration6To7 : Migration(6, 7) {
     }
 }
 
+class Migration7To8 : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Add indices for performance optimization
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_payables_currency_isRecurring_billingCycle ON payables(currency, isRecurring, billingCycle)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_payables_category ON payables(category)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_payables_isPaused_isFinished ON payables(isPaused, isFinished)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_payables_billingDateMillis ON payables(billingDateMillis)")
+    }
+}
+
 @Database(
     entities = [Category::class, Payable::class, CustomPaymentMethod::class],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -68,7 +78,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "payables_database"
                 )
                 .addCallback(DatabaseCallback())
-                .addMigrations(Migration5To6(), Migration6To7()) // Add proper migration to preserve data
+                .addMigrations(Migration5To6(), Migration6To7(), Migration7To8()) // Add new migration
                 .build() // Removed fallbackToDestructiveMigration for production stability
                 INSTANCE = instance
                 instance

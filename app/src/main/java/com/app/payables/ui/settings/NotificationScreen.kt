@@ -311,15 +311,21 @@ private fun NotificationSettingsGroup() {
 
 	Spacer(modifier = Modifier.height(2.dp))
 
-	// Bottom card - Show on lockscreen
+	// Bottom card - Show on lockscreen (disabled when push notifications are off)
+	val lockscreenCardAlpha = if (pushEnabled) 1f else 0.5f
+	
 	Card(
 		onClick = {
-			showOnLockscreen = !showOnLockscreen
-			settingsManager.setShowOnLockscreen(showOnLockscreen)
+			if (pushEnabled) {
+				showOnLockscreen = !showOnLockscreen
+				settingsManager.setShowOnLockscreen(showOnLockscreen)
+			}
 		},
+		enabled = pushEnabled,
 		modifier = Modifier
 			.fillMaxWidth()
-			.pressableCard(interactionSource = remember { MutableInteractionSource() }),
+			.pressableCard(interactionSource = remember { MutableInteractionSource() })
+			.graphicsLayer(alpha = lockscreenCardAlpha),
 		shape = RoundedCornerShape(
 			topStart = dashboardTheme.groupInnerCornerRadius,
 			topEnd = dashboardTheme.groupInnerCornerRadius,
@@ -327,7 +333,8 @@ private fun NotificationSettingsGroup() {
 			bottomEnd = dashboardTheme.groupBottomCornerRadius
 		),
 		colors = CardDefaults.cardColors(
-			containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+			containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f),
+			disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
 		),
 		elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
 		interactionSource = remember { MutableInteractionSource() }
@@ -365,7 +372,8 @@ private fun NotificationSettingsGroup() {
 					color = MaterialTheme.colorScheme.onSurface
 				)
 				Text(
-					text = "Display notifications on your lockscreen",
+					text = if (pushEnabled) "Display notifications on your lockscreen" 
+					       else "Enable push notifications first",
 					style = MaterialTheme.typography.bodyMedium,
 					color = MaterialTheme.colorScheme.onSurfaceVariant,
 					modifier = Modifier.padding(top = 4.dp),
@@ -377,9 +385,12 @@ private fun NotificationSettingsGroup() {
 			Switch(
 				checked = showOnLockscreen,
 				onCheckedChange = {
-					showOnLockscreen = it
-					settingsManager.setShowOnLockscreen(it)
-				}
+					if (pushEnabled) {
+						showOnLockscreen = it
+						settingsManager.setShowOnLockscreen(it)
+					}
+				},
+				enabled = pushEnabled
 			)
 		}
 	}

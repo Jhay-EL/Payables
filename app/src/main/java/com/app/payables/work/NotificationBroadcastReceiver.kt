@@ -36,7 +36,9 @@ class NotificationBroadcastReceiver : BroadcastReceiver() {
         // Use goAsync for long-running operations
         val pendingResult = goAsync()
 
-        CoroutineScope(Dispatchers.IO).launch {
+        // Use application-scoped coroutine instead of creating new scope
+        // This prevents memory leaks and ensures proper lifecycle management
+        app.applicationScope.launch {
             try {
                 repository.getPayableById(payableId)?.let { payable ->
                     Log.d(TAG, "Sending notification for: ${payable.title}")

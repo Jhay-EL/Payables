@@ -36,6 +36,20 @@ class PayableStatusWorker(
 
             Log.d(TAG, "Processing ${activePayables.size} active payables for notifications")
 
+            // Check if we have permission to schedule exact alarms on Android 12+
+            val alarmManager = applicationContext.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+            val canScheduleExactAlarms = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                alarmManager.canScheduleExactAlarms()
+            } else {
+                true  // Permission not required on older versions
+            }
+            
+            if (!canScheduleExactAlarms) {
+                Log.w(TAG, "Cannot schedule exact alarms - permission not granted. Notifications will not work.")
+                // Still return success to avoid retry, but log the issue
+                return Result.success()
+            }
+
             var scheduledCount = 0
             activePayables.forEach { payable ->
                 try {

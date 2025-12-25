@@ -627,7 +627,7 @@ private fun MainAddPayableContent(
                 isError = titleError != null,
                 supportingText = { titleError?.let { Text(it) } }
             )
-            Spacer(Modifier.height(dims.spacing.md))
+            Spacer(Modifier.height(dims.spacing.sm))
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
@@ -650,7 +650,7 @@ private fun MainAddPayableContent(
                     modifier = Modifier.weight(1f)
                 )
             }
-            Spacer(Modifier.height(dims.spacing.md))
+            Spacer(Modifier.height(dims.spacing.sm))
             OutlinedTextField(
                 value = description,
                 onValueChange = onDescriptionChange,
@@ -998,10 +998,11 @@ private fun HeaderCard(
                 // Icon aligned to center of content
                 if (customIcon != null) {
                     var imageModel by remember(customIcon) { mutableStateOf<Any?>(customIcon) }
-                    // Custom icon without background container - uses full space
+                    // Custom icon - maintains natural aspect ratio, no square constraint
                     AsyncImage(
                         model = imageModel,
                         contentDescription = "Brand Logo",
+                        contentScale = androidx.compose.ui.layout.ContentScale.Fit,
                         onError = {
                             val currentModel = imageModel.toString()
                             if (currentModel.contains("/symbol")) {
@@ -1010,7 +1011,10 @@ private fun HeaderCard(
                                 imageModel = currentModel.replace("/icon", "/logo")
                             }
                         },
-                        modifier = Modifier.size(60.dp)
+                        modifier = Modifier
+                            .height(60.dp)
+                            .widthIn(min = 40.dp, max = 120.dp)
+                            .wrapContentWidth()
                     )
                 } else {
                     // Default icon with background container

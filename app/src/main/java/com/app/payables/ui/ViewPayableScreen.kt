@@ -210,10 +210,11 @@ fun ViewPayableScreen(
                             // Service Icon (no container)
                             if (payable.customIconUri != null) {
                                 var imageModel by remember(payable.customIconUri) { mutableStateOf<Any?>(payable.customIconUri.toUri()) }
-                                // Custom icon from URI
+                                // Custom icon from URI - maintains natural aspect ratio, no square constraint
                                 AsyncImage(
                                     model = imageModel,
                                     contentDescription = "${payable.name} logo",
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Fit,
                                     onError = {
                                         val currentModel = imageModel.toString()
                                         if (currentModel.contains("/symbol")) {
@@ -222,7 +223,10 @@ fun ViewPayableScreen(
                                             imageModel = currentModel.replace("/icon", "/logo")
                                         }
                                     },
-                                    modifier = Modifier.size(60.dp)
+                                    modifier = Modifier
+                                        .height(60.dp)
+                                        .widthIn(min = 40.dp, max = 120.dp)
+                                        .wrapContentWidth()
                                 )
                             } else {
                                 // Default Material Icon

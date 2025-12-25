@@ -200,17 +200,27 @@ fun PayableScreen(
                 )
                 .verticalScroll(rememberScrollState())
         ) {
-            // Search Bar - appears under top bar with animation
+            // Search Bar - appears under top bar with enhanced smooth animation
             AnimatedVisibility(
                 visible = showSearch,
-                enter = slideInVertically(
-                    animationSpec = tween(300, easing = EaseOutCubic),
-                    initialOffsetY = { -it }
-                ) + fadeIn(animationSpec = tween(300, easing = EaseOutCubic)),
-                exit = slideOutVertically(
-                    animationSpec = tween(250, easing = EaseInCubic),
-                    targetOffsetY = { -it }
-                ) + fadeOut(animationSpec = tween(250, easing = EaseInCubic))
+                enter = expandVertically(
+                    animationSpec = spring(
+                        dampingRatio = 0.8f,
+                        stiffness = 400f
+                    ),
+                    expandFrom = Alignment.Top
+                ) + fadeIn(
+                    animationSpec = tween(200, easing = EaseOutCubic)
+                ),
+                exit = shrinkVertically(
+                    animationSpec = spring(
+                        dampingRatio = 0.9f,
+                        stiffness = 500f
+                    ),
+                    shrinkTowards = Alignment.Top
+                ) + fadeOut(
+                    animationSpec = tween(150, easing = EaseInCubic)
+                )
             ) {
                 Column {
                     SearchBar(

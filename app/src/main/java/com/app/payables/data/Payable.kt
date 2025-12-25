@@ -10,7 +10,15 @@ import com.app.payables.ui.PayableItemData
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-@Entity(tableName = "payables")
+@Entity(
+    tableName = "payables",
+    indices = [
+        androidx.room.Index(value = ["currency", "isRecurring", "billingCycle"]),  // For getTotalAmountByCurrencyAndCycle
+        androidx.room.Index(value = ["category"]),  // For category queries
+        androidx.room.Index(value = ["isPaused", "isFinished"]),  // For active/paused/finished queries
+        androidx.room.Index(value = ["billingDateMillis"])  // For sorting by date
+    ]
+)
 data class Payable(
     @PrimaryKey
     val id: String,
