@@ -41,6 +41,7 @@ data class Payable(
     val isPaused: Boolean = false, // Whether the payable is paused (hidden from main view)
     val pausedAtMillis: Long? = null, // Timestamp when payable was paused (null = never paused or currently active)
     val isFinished: Boolean = false, // Whether the payable is finished (completed or expired)
+    val finishedAtMillis: Long? = null, // Timestamp when payable was finished (null = never finished or currently active)
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 ) {
@@ -74,7 +75,8 @@ data class Payable(
             createdAt = createdAt,
             billingDateMillis = billingDateMillis,
             nextDueDateMillis = dueDate.toEpochDay() * MILLIS_PER_DAY,
-            pausedAtMillis = pausedAtMillis
+            pausedAtMillis = pausedAtMillis,
+            finishedAtMillis = finishedAtMillis
         )
     }
     

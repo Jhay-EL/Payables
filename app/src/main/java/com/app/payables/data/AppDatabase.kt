@@ -78,9 +78,16 @@ class Migration9To10 : Migration(9, 10) {
     }
 }
 
+class Migration10To11 : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Add finishedAtMillis column to track when a payable was finished
+        db.execSQL("ALTER TABLE payables ADD COLUMN finishedAtMillis INTEGER DEFAULT NULL")
+    }
+}
+
 @Database(
     entities = [Category::class, Payable::class, CustomPaymentMethod::class, ExchangeRate::class],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -101,7 +108,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "payables_database"
                 )
                 .addCallback(DatabaseCallback())
-                .addMigrations(Migration5To6(), Migration6To7(), Migration7To8(), Migration8To9(), Migration9To10()) // Add new migration
+                .addMigrations(Migration5To6(), Migration6To7(), Migration7To8(), Migration8To9(), Migration9To10(), Migration10To11()) // Add new migration
                 .build() // Removed fallbackToDestructiveMigration for production stability
                 INSTANCE = instance
                 instance

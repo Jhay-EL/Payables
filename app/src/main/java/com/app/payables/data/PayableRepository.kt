@@ -304,6 +304,7 @@ class PayableRepository(
             
             val finishedPayable = p.copy(
                 isFinished = true,
+                finishedAtMillis = System.currentTimeMillis(), // Track when finished
                 updatedAt = System.currentTimeMillis()
             )
             payableDao.updatePayable(finishedPayable)
@@ -311,11 +312,17 @@ class PayableRepository(
     }
 
     // Unfinish a payable by ID
+    // When unfinishing, the billing cycle restarts from today to exclude finished periods from payment history
     suspend fun unfinishPayable(id: String) {
         val payable = payableDao.getPayableById(id)
         payable?.let { p ->
+            // Reset billing date to today so the cycle starts fresh
+            val todayMillis = LocalDate.now().toEpochDay() * Payable.MILLIS_PER_DAY
+            
             val unfinishedPayable = p.copy(
                 isFinished = false,
+                finishedAtMillis = null, // Clear finish timestamp
+                billingDateMillis = todayMillis, // Reset billing date to today
                 updatedAt = System.currentTimeMillis()
             )
             payableDao.updatePayable(unfinishedPayable)

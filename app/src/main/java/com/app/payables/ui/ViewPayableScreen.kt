@@ -614,11 +614,13 @@ private fun calculateTotalPaid(payable: PayableItemData): String {
             LocalDate.now().minusMonths(6)
         }
         
-        // If currently paused, use pause date as end date; otherwise use today
-        val endDate = if (payable.isPaused && payable.pausedAtMillis != null) {
-            LocalDate.ofEpochDay(payable.pausedAtMillis / 86_400_000L)
-        } else {
-            LocalDate.now()
+        // If currently paused or finished, use the respective timestamp as end date; otherwise use today
+        val endDate = when {
+            payable.isPaused && payable.pausedAtMillis != null -> 
+                LocalDate.ofEpochDay(payable.pausedAtMillis / 86_400_000L)
+            payable.isFinished && payable.finishedAtMillis != null -> 
+                LocalDate.ofEpochDay(payable.finishedAtMillis / 86_400_000L)
+            else -> LocalDate.now()
         }
         
         // Calculate the number of billing cycles elapsed based on actual billing cycle
@@ -684,11 +686,13 @@ private fun calculatePaymentDates(payable: PayableItemData): List<String> {
             LocalDate.now().minusMonths(6)
         }
         
-        // If currently paused, use pause date as end date; otherwise use today
-        val endDate = if (payable.isPaused && payable.pausedAtMillis != null) {
-            LocalDate.ofEpochDay(payable.pausedAtMillis / 86_400_000L)
-        } else {
-            LocalDate.now()
+        // If currently paused or finished, use the respective timestamp as end date; otherwise use today
+        val endDate = when {
+            payable.isPaused && payable.pausedAtMillis != null -> 
+                LocalDate.ofEpochDay(payable.pausedAtMillis / 86_400_000L)
+            payable.isFinished && payable.finishedAtMillis != null -> 
+                LocalDate.ofEpochDay(payable.finishedAtMillis / 86_400_000L)
+            else -> LocalDate.now()
         }
         
         val paymentDates = mutableListOf<String>()
