@@ -46,7 +46,8 @@ Payables is a modern Android app that helps you manage all your recurring expens
 | **🗂️ Smart Organization** | Group expenses with fully customizable categories—each with unique name, color, and icon. Manage payable lifecycle with `Active`, `Paused`, and `Finished` states. Advanced search and filtering. |
 | **🎨 Rich Customization** | Personalize each payable with custom background colors and icons from your gallery. Full support for **Light, Dark, and System** themes. Material Design 3 UI with smooth animations. |
 | **🔔 Smart Notifications** | Receive customizable reminders before bills are due. Configurable notification timing and quiet hours. Scheduled alarms with AlarmManager integration. |
-| **⚙️ Utilities & Data** | **Multi-currency support** with 150+ currencies. Local **Backup/Restore** functionality. Secure, encrypted storage using Room database. Payment method tracking. |
+| **⚙️ Utilities & Data** | **Multi-currency support** with 150+ currencies and **real-time exchange rates**. Local **Backup/Restore** functionality. Secure, encrypted storage using Room database. Payment method tracking. |
+| **🌐 Smart Integrations** | **BrandFetch API** for automatic company logo fetching. **FreeCurrencyAPI** for live currency exchange rates with 24-hour caching. |
 
 <br>
 
@@ -115,6 +116,8 @@ This project is built with modern Android development best practices and librari
 | **Storage** | `EncryptedSharedPreferences` (Security Library) |
 | **Notifications** | `Android Notification Framework` |
 | **Build System** | `Gradle (Kotlin DSL)` |
+| **Networking** | `Ktor Client`, `Kotlinx Serialization` |
+| **Image Loading** | `Coil` |
 | **IDEs** | `Android Studio`, `Cursor AI` |
 | **Design** | `Figma`, `Canva` |
 
@@ -126,6 +129,16 @@ This project is built with modern Android development best practices and librari
 - Jetpack Security (EncryptedSharedPreferences)
 - WorkManager for background scheduling
 - Material 3 Compose theme
+- **Ktor Client** for HTTP networking
+- **Kotlinx Serialization** for JSON parsing
+- **Coil** for image loading
+
+### External APIs
+
+| API | Purpose | Documentation |
+| :--- | :--- | :--- |
+| **BrandFetch** | Fetches company logos and brand assets by domain | [brandfetch.com](https://brandfetch.com) |
+| **FreeCurrencyAPI** | Provides real-time exchange rates with 24-hour caching | [freecurrencyapi.com](https://freecurrencyapi.com) |
 
 <br>
 
@@ -207,32 +220,19 @@ This project is built with modern Android development best practices and librari
 
 <br>
 
-## 🐛 Known Issues & Roadmap
+## 📋 Planned Features (Roadmap)
 
-### Current Limitations (v1.0)
-
-| Issue | Severity | Status | Planned Fix |
-|-------|----------|--------|-------------|
-| Date epoch calculation in legacy code | 🔴 | ✅ Fixed | - |
-| Multiple data sources race condition | 🔴 | 🔄 In Progress | Consolidate to single source of truth |
-| Unencrypted SharedPreferences | 🔴 | 🔄 In Progress | Switch to EncryptedSharedPreferences |
-| Missing input validation | 🟡 | 📋 Backlog | Add comprehensive validation layer |
-| No undo for deletions | 🟡 | 📋 Backlog | Implement soft delete + recovery |
-| Missing accessibility features | 🟡 | 📋 Backlog | WCAG 2.1 AA compliance |
-
-### Planned Features (Roadmap)
-
-**v1.1 (Q1 2025)**
+**v1.1 (Q3 2025)**
 - ✅ Single source of truth state management
 - ✅ Enhanced input validation
 - ✅ Undo/Redo functionality
-- 🔄 Dark mode improvements
+- ✅ Dark mode improvements
 
-**v1.2 (Q2 2025)**
+**v1.2 (Q4 2025)**
 - 📋 Cloud backup integration (Google Drive)
-- 📋 Export to CSV/PDF
-- 📋 Advanced analytics dashboard
-- 📋 Recurring payment history
+- ✅ Export to CSV/PDF
+- ✅ Advanced analytics dashboard
+- ✅ Recurring payment history
 
 **v1.3+ (Future)**
 - 📋 Multi-device sync
@@ -374,8 +374,6 @@ Optimizations implemented:
 
 ## 📞 Support & Contact
 
-- **Issues:** [GitHub Issues](https://github.com/Jhay-EL/Payables/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/Jhay-EL/Payables/discussions)
 - **Email:** [jl.temporary@outlook.it](mailto:jl.temporary@outlook.it)
 
 
@@ -394,6 +392,10 @@ The MIT License is permissive and allows you to use this code for personal and c
 - **Material Design 3** for the beautiful design system
 - **Jetpack Compose** for modern, reactive UI toolkit
 - **Room Database** for robust local persistence
+- **BrandFetch** for the logo fetching API
+- **FreeCurrencyAPI** for real-time exchange rate data
+- **Ktor** for seamless HTTP networking
+- **Coil** for efficient image loading
 - **Android Community** for excellent libraries and documentation
 - **Contributors** who help improve this project
 

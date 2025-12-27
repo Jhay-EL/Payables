@@ -5,11 +5,14 @@ import com.app.payables.data.AppDatabase
 import com.app.payables.data.CategoryRepository
 import com.app.payables.data.CustomPaymentMethodRepository
 import com.app.payables.data.PayableRepository
+import com.app.payables.data.CurrencyApiService
+import com.app.payables.data.CurrencyExchangeRepository
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.decode.SvgDecoder
 import androidx.work.*
 import com.app.payables.work.PayableStatusWorker
+import com.app.payables.work.ExchangeRateSyncWorker
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -20,10 +23,16 @@ class PayablesApplication : Application(), ImageLoaderFactory {
     // Database instance
     val database by lazy { AppDatabase.getDatabase(this) }
     
+    // API Services
+    val currencyApiService by lazy { CurrencyApiService() }
+    
     // Repository instances
     val categoryRepository by lazy { CategoryRepository(database.categoryDao()) }
     val payableRepository by lazy { PayableRepository(database.payableDao(), this) }
     val customPaymentMethodRepository by lazy { CustomPaymentMethodRepository(database.customPaymentMethodDao()) }
+    val currencyExchangeRepository by lazy { 
+        CurrencyExchangeRepository(database.exchangeRateDao(), currencyApiService) 
+    }
     
     // Application-scoped coroutine scope for long-running operations
     // Uses SupervisorJob so one failed coroutine doesn't cancel all others
@@ -35,14 +44,32 @@ class PayablesApplication : Application(), ImageLoaderFactory {
     }
 
     private fun setupRecurringWork() {
-        // Removed network constraint - notifications don't require network
-        val workRequest = PeriodicWorkRequestBuilder<PayableStatusWorker>(1, TimeUnit.DAYS)
+        // Payable status worker - runs daily, no network required
+        val payableStatusRequest = PeriodicWorkRequestBuilder<PayableStatusWorker>(1, TimeUnit.DAYS)
             .build()
 
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "payable-status-worker",
             ExistingPeriodicWorkPolicy.KEEP,
-            workRequest
+            payableStatusRequest
+        )
+        
+        // Exchange rate sync worker - runs every 24 hours, requires network
+        val exchangeRateConstraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+            
+        val exchangeRateSyncRequest = PeriodicWorkRequestBuilder<ExchangeRateSyncWorker>(
+            24, TimeUnit.HOURS
+        )
+            .setConstraints(exchangeRateConstraints)
+            .setInitialDelay(1, TimeUnit.MINUTES) // Small delay on first run
+            .build()
+            
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            ExchangeRateSyncWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            exchangeRateSyncRequest
         )
     }
 

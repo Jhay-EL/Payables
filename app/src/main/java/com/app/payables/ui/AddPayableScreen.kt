@@ -625,9 +625,9 @@ private fun MainAddPayableContent(
                 leadingIcon = { Icon(Icons.Filled.TextFields, contentDescription = null) },
                 singleLine = true,
                 isError = titleError != null,
-                supportingText = { titleError?.let { Text(it) } }
+                supportingText = titleError?.let { { Text(it) } }
             )
-            Spacer(Modifier.height(dims.spacing.sm))
+            Spacer(Modifier.height(dims.spacing.md))
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
@@ -639,7 +639,7 @@ private fun MainAddPayableContent(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     isError = amountError != null,
-                    supportingText = { amountError?.let { Text(it) } }
+                    supportingText = amountError?.let { { Text(it) } }
                 )
                 CurrencyDropdownField(
                     selectedCurrency = selectedCurrency,
@@ -650,7 +650,7 @@ private fun MainAddPayableContent(
                     modifier = Modifier.weight(1f)
                 )
             }
-            Spacer(Modifier.height(dims.spacing.sm))
+            Spacer(Modifier.height(dims.spacing.md))
             OutlinedTextField(
                 value = description,
                 onValueChange = onDescriptionChange,

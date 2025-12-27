@@ -297,6 +297,35 @@ fun ViewPayableScreen(
                             }
                         )
                         
+                        // Converted Amount (if different currency from main)
+                        if (payable.convertedPrice != null && payable.mainCurrency != null && payable.currency != payable.mainCurrency) {
+                            Spacer(modifier = Modifier.height(dims.spacing.sm))
+                            
+                            val mainSymbol = when (payable.mainCurrency) {
+                                "EUR" -> "€"
+                                "USD" -> "$"
+                                "GBP" -> "£"
+                                "JPY" -> "¥"
+                                else -> payable.mainCurrency
+                            }
+                            
+                            PayableDetailRow(
+                                label = "In ${payable.mainCurrency}:",
+                                value = "$mainSymbol${String.format(java.util.Locale.US, "%.2f", payable.convertedPrice)}"
+                            )
+                            
+                            // Exchange rate (show as 1 main currency = X payable currency)
+                            if (payable.exchangeRate != null) {
+                                Spacer(modifier = Modifier.height(dims.spacing.sm))
+                                val invertedRate = 1.0 / payable.exchangeRate!!
+                                PayableDetailRow(
+                                    label = "Exchange rate:",
+                                    value = "1 ${payable.mainCurrency} = ${String.format(java.util.Locale.US, "%.2f", invertedRate)} ${payable.currency}",
+                                    valueColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        
                         Spacer(modifier = Modifier.height(dims.spacing.md))
                         
                         // Billing Cycle
@@ -567,7 +596,7 @@ private fun calculateSubscribedSince(payable: PayableItemData): String {
     return startDate.format(formatter)
 }
 
-// Helper function to calculate total amount paid
+// Helper function to calculate total amount paid (in main currency if available)
 private fun calculateTotalPaid(payable: PayableItemData): String {
     try {
         // Parse the actual billing start date from payable data
@@ -585,10 +614,11 @@ private fun calculateTotalPaid(payable: PayableItemData): String {
         val currentDate = LocalDate.now()
         
         // Calculate the number of billing cycles elapsed based on actual billing cycle
+        // Add 1 because the first payment is made on the start date
         val billingCycleLower = payable.billingCycle.lowercase()
-        val cyclesElapsed = when (billingCycleLower) {
+        val cyclesElapsed = 1 + when (billingCycleLower) {
             "weekly" -> ChronoUnit.WEEKS.between(startDate, currentDate)
-            "monthly" -> ChronoUnit.MONTHS.between(startDate, currentDate) / 3
+            "monthly" -> ChronoUnit.MONTHS.between(startDate, currentDate)
             "quarterly" -> ChronoUnit.MONTHS.between(startDate, currentDate) / 3
             "yearly" -> ChronoUnit.YEARS.between(startDate, currentDate)
             else -> {
@@ -598,22 +628,34 @@ private fun calculateTotalPaid(payable: PayableItemData): String {
             }
         }
         
-        // Get the amount per billing cycle
-        val amountPerCycle = payable.price.toDoubleOrNull() ?: 0.0
+        // Get the amount per billing cycle - use converted amount if available (for main currency display)
+        val amountPerCycle = if (payable.convertedPrice != null && payable.mainCurrency != null && payable.currency != payable.mainCurrency) {
+            payable.convertedPrice
+        } else {
+            payable.price.toDoubleOrNull() ?: 0.0
+        }
+        
+        // Determine which currency to display
+        val displayCurrency = if (payable.convertedPrice != null && payable.mainCurrency != null && payable.currency != payable.mainCurrency) {
+            payable.mainCurrency
+        } else {
+            payable.currency
+        }
         
         // Calculate total paid based on actual billing cycles
         val totalPaid = amountPerCycle * cyclesElapsed
         
         // Format the total with currency symbol
-        return when (payable.currency) {
+        return when (displayCurrency) {
             "EUR" -> "€${String.format(java.util.Locale.US, "%.2f", totalPaid)}"
             "USD" -> "$${String.format(java.util.Locale.US, "%.2f", totalPaid)}"
             "GBP" -> "£${String.format(java.util.Locale.US, "%.2f", totalPaid)}"
             "JPY" -> "¥${String.format(java.util.Locale.US, "%.0f", totalPaid)}"
-            else -> "${payable.currency} ${String.format(java.util.Locale.US, "%.2f", totalPaid)}"
+            else -> "$displayCurrency ${String.format(java.util.Locale.US, "%.2f", totalPaid)}"
         }
     } catch (_: Exception) {
-        return "${payable.currency} 0.00"
+        val displayCurrency = payable.mainCurrency ?: payable.currency
+        return "$displayCurrency 0.00"
     }
 }
 

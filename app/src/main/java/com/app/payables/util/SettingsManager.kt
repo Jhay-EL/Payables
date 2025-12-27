@@ -62,11 +62,13 @@ class SettingsManager(context: Context) {
         
         // Migration Logic: Check for old plaintext prefs
         val oldPrefs = context.getSharedPreferences(oldFileName, Context.MODE_PRIVATE)
-        if (oldPrefs.all.isNotEmpty()) {
+        // Use safe call on .all as it can be null in some contexts (like Preview)
+        val allOldPrefs = oldPrefs.all
+        if (!allOldPrefs.isNullOrEmpty()) {
             android.util.Log.i("SettingsManager", "Migrating plaintext preferences to encrypted storage...")
             // Copy all values to secure prefs
             prefs.edit {
-                oldPrefs.all.forEach { (key, value) ->
+                allOldPrefs.forEach { (key, value) ->
                     when (value) {
                         is String -> putString(key, value)
                         is Int -> putInt(key, value)

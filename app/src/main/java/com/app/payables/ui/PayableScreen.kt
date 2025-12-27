@@ -40,11 +40,10 @@ fun PayableScreen(
     onPayableClick: (PayableItemData) -> Unit = {},
     monthlyAmount: String = "0.00",
     payables: List<PayableItemData> = emptyList(),
-    screenTitle: String = "All"
+    screenTitle: String = "All",
+    mainCurrency: String = "EUR" // User's default currency from settings
 ) {
 
-    var selectedCurrency by remember { mutableStateOf("EUR") }
-    var showCurrencyDropdown by remember { mutableStateOf(false) }
     var showTopBarMenu by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -235,85 +234,35 @@ fun PayableScreen(
                 }
             }
             
-            // Content with Currency Selector aligned to center
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Total Payable",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    
-                    Spacer(modifier = Modifier.height(LocalAppDimensions.current.spacing.xs))
-                    
-                    Text(
-                        text = when (selectedCurrency) {
-                            "EUR" -> "€$monthlyAmount"
-                            "USD" -> "$$monthlyAmount"
-                            "GBP" -> "£$monthlyAmount"
-                            "JPY" -> "¥$monthlyAmount"
-                            else -> "$selectedCurrency $monthlyAmount"
-                        },
-                        style = MaterialTheme.typography.displayLarge.copy(
-                            fontSize = 48.sp,
-                            fontWeight = FontWeight.Medium
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Updated just now",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = LocalAppDimensions.current.spacing.xs)
-                    )
-                }
-
-                // Currency Selector - aligned with center of text content
-                ExposedDropdownMenuBox(
-                    expanded = showCurrencyDropdown,
-                    onExpandedChange = { showCurrencyDropdown = it }
-                ) {
-                    Surface(
-                        modifier = Modifier
-                            .menuAnchor()
-                            .height(40.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                        onClick = { showCurrencyDropdown = !showCurrencyDropdown }
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = selectedCurrency,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = showCurrencyDropdown)
-                        }
-                    }
-                    ExposedDropdownMenu(
-                        expanded = showCurrencyDropdown,
-                        onDismissRequest = { showCurrencyDropdown = false }
-                    ) {
-                        listOf("EUR", "USD", "GBP", "JPY").forEach { currency ->
-                            DropdownMenuItem(
-                                text = { Text(currency) },
-                                onClick = { 
-                                    selectedCurrency = currency
-                                    showCurrencyDropdown = false
-                                }
-                            )
-                        }
-                    }
-                }
+            // Content with Total Payable display
+            Column {
+                Text(
+                    text = "Total Payable",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                
+                Spacer(modifier = Modifier.height(LocalAppDimensions.current.spacing.xs))
+                
+                Text(
+                    text = when (mainCurrency) {
+                        "EUR" -> "€$monthlyAmount"
+                        "USD" -> "$$monthlyAmount"
+                        "GBP" -> "£$monthlyAmount"
+                        "JPY" -> "¥$monthlyAmount"
+                        else -> "$mainCurrency $monthlyAmount"
+                    },
+                    style = MaterialTheme.typography.displayLarge.copy(
+                        fontSize = 48.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Remaining this month",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             Spacer(modifier = Modifier.height(LocalAppDimensions.current.spacing.lg))
@@ -411,6 +360,10 @@ fun PayableScreen(
                                 "JPY" -> "¥${payable.price}"
                                 else -> "${payable.currency} ${payable.price}"
                             },
+                            originalCurrency = payable.currency,
+                            originalPrice = payable.price,
+                            convertedAmount = payable.convertedPrice,
+                            convertedCurrency = if (payable.currency != mainCurrency) mainCurrency else null,
                             badge = payable.dueDate,
                             icon = payable.icon,
                             backgroundColor = payable.backgroundColor,
@@ -613,6 +566,10 @@ private fun PayableCard(
     title: String,
     subtitle: String,
     amountLabel: String,
+    originalCurrency: String,
+    originalPrice: String,
+    convertedAmount: Double? = null,
+    convertedCurrency: String? = null,
     badge: String,
     icon: ImageVector,
     backgroundColor: Color,
@@ -739,22 +696,94 @@ private fun PayableCard(
                 }
             }
 
-            // Amount Label
-            Surface(
-                shape = RoundedCornerShape(dims.spacing.md),
-                color = textColor.copy(alpha = 0.16f)
+            // Amount Label with optional converted amount
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = amountLabel,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Medium
-                    ),
-                    color = textColor,
-                    modifier = Modifier.padding(
-                        horizontal = dims.spacing.md, 
-                        vertical = dims.spacing.sm
+                // If conversion available, show main currency in container, otherwise show original
+                if (convertedAmount != null && convertedCurrency != null) {
+                    // Main currency amount in container
+                    val mainSymbol = when (convertedCurrency) {
+                        "EUR" -> "€"
+                        "USD" -> "$"
+                        "GBP" -> "£"
+                        "JPY" -> "¥"
+                        else -> convertedCurrency
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(dims.spacing.md),
+                        color = textColor.copy(alpha = 0.16f)
+                    ) {
+                        Text(
+                            text = "$mainSymbol${String.format(java.util.Locale.US, "%.2f", convertedAmount)}",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Medium
+                            ),
+                            color = textColor,
+                            modifier = Modifier.padding(
+                                horizontal = dims.spacing.md, 
+                                vertical = dims.spacing.sm
+                            )
+                        )
+                    }
+                    // Original currency below with symbol
+                    val originalSymbol = when (originalCurrency) {
+                        "EUR" -> "€"
+                        "USD" -> "$"
+                        "GBP" -> "£"
+                        "JPY" -> "¥"
+                        "PHP" -> "₱"
+                        "CHF" -> "CHF"
+                        "CAD" -> "C$"
+                        "AUD" -> "A$"
+                        "NZD" -> "NZ$"
+                        "CNY" -> "¥"
+                        "INR" -> "₹"
+                        "KRW" -> "₩"
+                        "BRL" -> "R$"
+                        "MXN" -> "MX$"
+                        "SGD" -> "S$"
+                        "HKD" -> "HK$"
+                        "SEK" -> "kr"
+                        "NOK" -> "kr"
+                        "DKK" -> "kr"
+                        "PLN" -> "zł"
+                        "THB" -> "฿"
+                        "MYR" -> "RM"
+                        "IDR" -> "Rp"
+                        "VND" -> "₫"
+                        "RUB" -> "₽"
+                        "TRY" -> "₺"
+                        "ZAR" -> "R"
+                        "AED" -> "د.إ"
+                        "SAR" -> "﷼"
+                        else -> originalCurrency
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "$originalSymbol$originalPrice",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = secondaryTextColor
                     )
-                )
+                } else {
+                    // No conversion - show original currency in container
+                    Surface(
+                        shape = RoundedCornerShape(dims.spacing.md),
+                        color = textColor.copy(alpha = 0.16f)
+                    ) {
+                        Text(
+                            text = amountLabel,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Medium
+                            ),
+                            color = textColor,
+                            modifier = Modifier.padding(
+                                horizontal = dims.spacing.md, 
+                                vertical = dims.spacing.sm
+                            )
+                        )
+                    }
+                }
             }
         }
     }
@@ -869,7 +898,11 @@ data class PayableItemData(
     val endDate: String? = null,
     val createdAt: Long = 0L,
     val billingDateMillis: Long = 0L,
-    val nextDueDateMillis: Long = 0L
+    val nextDueDateMillis: Long = 0L,
+    // Currency conversion fields
+    val convertedPrice: Double? = null, // Amount in main currency (null if same currency or unavailable)
+    val mainCurrency: String? = null,   // The user's main currency code
+    val exchangeRate: Double? = null    // Exchange rate used for conversion (1 source = X main)
 )
 
 enum class SortOption {

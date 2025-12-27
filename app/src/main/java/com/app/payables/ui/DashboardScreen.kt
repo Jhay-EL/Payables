@@ -56,6 +56,8 @@ import androidx.core.content.edit
 import com.app.payables.PayablesApplication
 import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.launch
+import com.app.payables.util.SettingsManager
+import com.app.payables.data.ExchangeRate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,7 +74,28 @@ fun DashboardScreen(
     val repository = app.categoryRepository
     val payableRepository = app.payableRepository
     val customPaymentMethodRepository = app.customPaymentMethodRepository
+    val currencyExchangeRepository = app.currencyExchangeRepository
+    val settingsManager = remember { SettingsManager(context) }
     val coroutineScope = rememberCoroutineScope()
+    
+    // Main currency from settings
+    var mainCurrency by remember { mutableStateOf(settingsManager.getDefaultCurrency()) }
+    
+    // Exchange rates state
+    val exchangeRates by currencyExchangeRepository.getAllRates().collectAsState(initial = emptyList())
+    val exchangeRatesMap by remember {
+        derivedStateOf { 
+            android.util.Log.d("DashboardScreen", "Exchange rates loaded: ${exchangeRates.size} rates, base: ${exchangeRates.firstOrNull()?.baseCurrency}")
+            exchangeRates.associateBy { it.currencyCode }
+        }
+    }
+    
+    // Fetch exchange rates on startup and when mainCurrency changes
+    LaunchedEffect(mainCurrency) {
+        android.util.Log.d("DashboardScreen", "Fetching exchange rates for main currency: $mainCurrency")
+        val success = currencyExchangeRepository.ensureRatesUpdated(mainCurrency)
+        android.util.Log.d("DashboardScreen", "Exchange rate fetch result: $success")
+    }
     
     var showMenu by remember { mutableStateOf(false) }
     var showAddSheet by remember { mutableStateOf(false) }
@@ -137,49 +160,92 @@ fun DashboardScreen(
     // Load all payables - SINGLE SOURCE OF TRUTH
     val allPayablesEntities by payableRepository.getAllPayables().collectAsState(initial = emptyList())
     
-    // Derive UI models and lists in memory to ensure consistency
-    val allPayablesData = remember(allPayablesEntities) {
-        allPayablesEntities.map { it.toPayableItemData() }
+    // Derive UI models and lists in memory, enriched with currency conversion
+    // Using derivedStateOf to ensure proper reactivity when exchangeRatesMap changes
+    val allPayablesData by remember {
+        derivedStateOf {
+            android.util.Log.d("DashboardScreen", "Enriching ${allPayablesEntities.size} payables with conversions, ratesMap size: ${exchangeRatesMap.size}, mainCurrency: $mainCurrency")
+            allPayablesEntities.map { entity ->
+                val baseData = entity.toPayableItemData()
+                
+                // Enrich with converted amount if currency differs from main
+                if (baseData.currency != mainCurrency && exchangeRatesMap.isNotEmpty()) {
+                    val rate = exchangeRatesMap[baseData.currency]
+                    android.util.Log.d("DashboardScreen", "Payable ${baseData.name}: currency=${baseData.currency}, rate=${rate?.rate}, mainCurrency=$mainCurrency")
+                    if (rate != null) {
+                        val originalAmount = baseData.price.toDoubleOrNull() ?: 0.0
+                        // Convert: originalAmount in source currency to main currency
+                        // rate.rate is how many of source currency equals 1 main currency
+                        val convertedAmount = originalAmount / rate.rate
+                        val displayRate = 1.0 / rate.rate // 1 source = X main
+                        android.util.Log.d("DashboardScreen", "Conversion: $originalAmount ${baseData.currency} -> $convertedAmount $mainCurrency")
+                        baseData.copy(
+                            convertedPrice = convertedAmount,
+                            mainCurrency = mainCurrency,
+                            exchangeRate = displayRate
+                        )
+                    } else {
+                        android.util.Log.d("DashboardScreen", "No rate found for ${baseData.currency}")
+                        baseData.copy(mainCurrency = mainCurrency)
+                    }
+                } else {
+                    if (baseData.currency == mainCurrency) {
+                        android.util.Log.d("DashboardScreen", "Payable ${baseData.name}: same currency as main ($mainCurrency)")
+                    } else {
+                        android.util.Log.d("DashboardScreen", "Payable ${baseData.name}: no rates available (ratesMap empty)")
+                    }
+                    baseData.copy(mainCurrency = mainCurrency)
+                }
+            }
+        }
     }
     
     // Derived: Active Payables (Not paused, Not finished)
-    val activePayablesUI = remember(allPayablesEntities) {
-        allPayablesData.filter { !it.isPaused && !it.isFinished }
+    val activePayablesUI by remember { 
+        derivedStateOf { allPayablesData.filter { !it.isPaused && !it.isFinished } }
     }
     
     // Derived: Paused Payables
-    val pausedPayablesUI = remember(allPayablesEntities) {
-        allPayablesData.filter { it.isPaused }
+    val pausedPayablesUI by remember { 
+        derivedStateOf { allPayablesData.filter { it.isPaused } }
     }
     
     // Derived: Finished Payables
-    val finishedPayablesUI = remember(allPayablesEntities) {
-        allPayablesData.filter { it.isFinished }
+    val finishedPayablesUI by remember { 
+        derivedStateOf { allPayablesData.filter { it.isFinished } }
     }
     
     // Derived: Payables Due This Week
-    val payablesDueThisWeek = remember(activePayablesUI) {
-        val today = java.time.LocalDate.now()
-        val endOfWeek = today.plusDays(6)
-        val dateFormatter = java.time.format.DateTimeFormatter.ofPattern("MMMM dd, yyyy")
-        
-        activePayablesUI.filter {
-            val billingDate = java.time.LocalDate.parse(it.billingStartDate, dateFormatter)
-            val nextDueDate = com.app.payables.data.Payable.calculateNextDueDate(billingDate, it.billingCycle)
-            !nextDueDate.isBefore(today) && !nextDueDate.isAfter(endOfWeek)
+    val payablesDueThisWeek by remember { 
+        derivedStateOf {
+            val today = java.time.LocalDate.now()
+            val endOfWeek = today.plusDays(6)
+            val dateFormatter = java.time.format.DateTimeFormatter.ofPattern("MMMM dd, yyyy")
+            
+            activePayablesUI.filter {
+                try {
+                    val billingDate = java.time.LocalDate.parse(it.billingStartDate, dateFormatter)
+                    val nextDueDate = com.app.payables.data.Payable.calculateNextDueDate(billingDate, it.billingCycle)
+                    !nextDueDate.isBefore(today) && !nextDueDate.isAfter(endOfWeek)
+                } catch (_: Exception) { false }
+            }
         }
     }
     
     // Derived: Payables Due This Month
-    val payablesDueThisMonth = remember(activePayablesUI) {
-        val today = java.time.LocalDate.now()
-        val endOfMonth = today.withDayOfMonth(today.lengthOfMonth())
-        val dateFormatter = java.time.format.DateTimeFormatter.ofPattern("MMMM dd, yyyy")
-        
-        activePayablesUI.filter {
-            val billingDate = java.time.LocalDate.parse(it.billingStartDate, dateFormatter)
-            val nextDueDate = com.app.payables.data.Payable.calculateNextDueDate(billingDate, it.billingCycle)
-            !nextDueDate.isBefore(today) && !nextDueDate.isAfter(endOfMonth)
+    val payablesDueThisMonth by remember { 
+        derivedStateOf {
+            val today = java.time.LocalDate.now()
+            val endOfMonth = today.withDayOfMonth(today.lengthOfMonth())
+            val dateFormatter = java.time.format.DateTimeFormatter.ofPattern("MMMM dd, yyyy")
+            
+            activePayablesUI.filter {
+                try {
+                    val billingDate = java.time.LocalDate.parse(it.billingStartDate, dateFormatter)
+                    val nextDueDate = com.app.payables.data.Payable.calculateNextDueDate(billingDate, it.billingCycle)
+                    !nextDueDate.isBefore(today) && !nextDueDate.isAfter(endOfMonth)
+                } catch (_: Exception) { false }
+            }
         }
     }
     
@@ -607,8 +673,9 @@ fun DashboardScreen(
                         showViewPayableFullScreen = true
                     },
                     payables = filteredPayables,
-                    monthlyAmount = calculateTotalAmount(filteredPayables),
-                    screenTitle = selectedPayableFilter.displayTitle
+                    monthlyAmount = calculateTotalAmount(filteredPayables, mainCurrency),
+                    screenTitle = selectedPayableFilter.displayTitle,
+                    mainCurrency = mainCurrency
                 )
             }
             EditScreenState.ViewPayable -> {
@@ -1634,21 +1701,20 @@ private sealed class PayableFilter(val displayTitle: String) {
     data class Category(val categoryName: String) : PayableFilter(categoryName)
 }
 
-// Helper function to calculate total monthly amount from payables
-private fun calculateTotalAmount(payables: List<PayableItemData>): String {
+// Helper function to calculate total monthly amount from payables in main currency
+private fun calculateTotalAmount(payables: List<PayableItemData>, mainCurrency: String): String {
     if (payables.isEmpty()) return "0.00"
     
     try {
-        val total = payables
-            .filter { it.currency == "EUR" } // Filter by EUR for now - can be made dynamic later
-            .mapNotNull { 
-                try {
-                    it.price.toDoubleOrNull()
-                } catch (_: NumberFormatException) {
-                    null
-                }
+        val total = payables.sumOf { payable ->
+            if (payable.currency == mainCurrency) {
+                // Same currency as main, use original price
+                payable.price.toDoubleOrNull() ?: 0.0
+            } else {
+                // Different currency, use converted price if available
+                payable.convertedPrice ?: (payable.price.toDoubleOrNull() ?: 0.0)
             }
-            .sum()
+        }
         
         return String.format(java.util.Locale.US, "%.2f", total)
     } catch (_: Exception) {

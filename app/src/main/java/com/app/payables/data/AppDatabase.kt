@@ -56,15 +56,31 @@ class Migration7To8 : Migration(7, 8) {
     }
 }
 
+class Migration8To9 : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Create exchange_rates table for currency conversion caching
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS exchange_rates (
+                currencyCode TEXT NOT NULL,
+                rate REAL NOT NULL,
+                baseCurrency TEXT NOT NULL,
+                lastUpdatedAt INTEGER NOT NULL,
+                PRIMARY KEY(currencyCode)
+            )
+        """.trimIndent())
+    }
+}
+
 @Database(
-    entities = [Category::class, Payable::class, CustomPaymentMethod::class],
-    version = 8,
+    entities = [Category::class, Payable::class, CustomPaymentMethod::class, ExchangeRate::class],
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun categoryDao(): CategoryDao
     abstract fun payableDao(): PayableDao
     abstract fun customPaymentMethodDao(): CustomPaymentMethodDao
+    abstract fun exchangeRateDao(): ExchangeRateDao
 
     companion object {
         @Volatile
@@ -78,7 +94,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "payables_database"
                 )
                 .addCallback(DatabaseCallback())
-                .addMigrations(Migration5To6(), Migration6To7(), Migration7To8()) // Add new migration
+                .addMigrations(Migration5To6(), Migration6To7(), Migration7To8(), Migration8To9()) // Add new migration
                 .build() // Removed fallbackToDestructiveMigration for production stability
                 INSTANCE = instance
                 instance
