@@ -157,7 +157,7 @@ private fun BrandSearchTab(
                     errorMessage = null
                     searchResults = emptyList()
                     coroutineScope.launch {
-                        val results = LogoKitService.searchBrands(searchQuery)
+                        val results = LogoKitService.searchBrands(context, searchQuery)
                         searchResults = results
                         isLoading = false
                         if (results.isEmpty()) {

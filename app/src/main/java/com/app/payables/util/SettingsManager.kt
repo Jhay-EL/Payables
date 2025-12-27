@@ -109,6 +109,10 @@ class SettingsManager(context: Context) {
         const val BACKUP_FREQUENCY_ON_CHANGE = "on_change"
         const val BACKUP_FREQUENCY_DAILY = "daily"
         const val BACKUP_FREQUENCY_WEEKLY = "weekly"
+
+        // Custom API Keys
+        const val KEY_CUSTOM_BRANDFETCH_KEY = "custom_brandfetch_key"
+        const val KEY_CUSTOM_FREECURRENCY_KEY = "custom_freecurrency_key"
     }
 
     fun setDefaultCurrency(currencyCode: String) {
@@ -204,5 +208,22 @@ class SettingsManager(context: Context) {
 
     fun getLastCloudBackup(): Long {
         return prefs.getLong(KEY_LAST_CLOUD_BACKUP, 0L)
+    }
+
+    // Custom API Keys
+    fun setCustomBrandfetchKey(key: String) {
+        prefs.edit { putString(KEY_CUSTOM_BRANDFETCH_KEY, key) }
+    }
+
+    fun getCustomBrandfetchKey(): String {
+        return prefs.getString(KEY_CUSTOM_BRANDFETCH_KEY, "") ?: ""
+    }
+
+    fun setCustomFreecurrencyKey(key: String) {
+        prefs.edit { putString(KEY_CUSTOM_FREECURRENCY_KEY, key) }
+    }
+
+    fun getCustomFreecurrencyKey(): String {
+        return prefs.getString(KEY_CUSTOM_FREECURRENCY_KEY, "") ?: ""
     }
 }

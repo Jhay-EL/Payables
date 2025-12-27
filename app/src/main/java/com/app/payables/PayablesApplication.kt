@@ -36,7 +36,7 @@ class PayablesApplication : Application(), ImageLoaderFactory {
     val payableRepository by lazy { PayableRepository(database.payableDao(), this) }
     val customPaymentMethodRepository by lazy { CustomPaymentMethodRepository(database.customPaymentMethodDao()) }
     val currencyExchangeRepository by lazy { 
-        CurrencyExchangeRepository(database.exchangeRateDao(), currencyApiService) 
+        CurrencyExchangeRepository(database.exchangeRateDao(), currencyApiService, settingsManager) 
     }
     
     // Utility managers
