@@ -46,8 +46,9 @@ Payables is a modern Android app that helps you manage all your recurring expens
 | **🗂️ Smart Organization** | Group expenses with fully customizable categories—each with unique name, color, and icon. Manage payable lifecycle with `Active`, `Paused`, and `Finished` states. Advanced search and filtering. |
 | **🎨 Rich Customization** | Personalize each payable with custom background colors and icons from your gallery. Full support for **Light, Dark, and System** themes. Material Design 3 UI with smooth animations. |
 | **🔔 Smart Notifications** | Receive customizable reminders before bills are due. Configurable notification timing and quiet hours. Scheduled alarms with AlarmManager integration. |
-| **⚙️ Utilities & Data** | **Multi-currency support** with 150+ currencies and **real-time exchange rates**. Local **Backup/Restore** functionality. Secure, encrypted storage using Room database. Payment method tracking. |
-| **🌐 Smart Integrations** | **BrandFetch API** for automatic company logo fetching. **FreeCurrencyAPI** for live currency exchange rates with 24-hour caching. |
+| **☁️ Cloud Backup** | **Google Drive integration** for automatic cloud backups. Configurable backup frequency (manual, on change, daily, weekly). Seamless restore from cloud. Sign in with your Google account. |
+| **⚙️ Utilities & Data** | **Multi-currency support** with 150+ currencies and **real-time exchange rates**. Local **Backup/Restore** (JSON, CSV, PDF). Secure, encrypted storage using Room database. Payment method tracking. |
+| **🌐 Smart Integrations** | **BrandFetch API** for automatic company logo fetching. **FreeCurrencyAPI** for live currency exchange rates with 24-hour caching. **Google Drive API** for cloud backup. |
 
 <br>
 
@@ -139,6 +140,7 @@ This project is built with modern Android development best practices and librari
 | :--- | :--- | :--- |
 | **BrandFetch** | Fetches company logos and brand assets by domain | [brandfetch.com](https://brandfetch.com) |
 | **FreeCurrencyAPI** | Provides real-time exchange rates with 24-hour caching | [freecurrencyapi.com](https://freecurrencyapi.com) |
+| **Google Drive API** | Cloud backup and restore functionality | [developers.google.com/drive](https://developers.google.com/drive) |
 
 <br>
 
@@ -216,7 +218,8 @@ This project is built with modern Android development best practices and librari
 - **Notification Time:** Set preferred notification time
 - **Currency:** Choose from 150+ currencies
 - **Theme:** Light, Dark, or System default
-- **Backup/Restore:** Export and import your data
+- **Backup/Restore:** Export and import your data locally or to Google Drive
+- **Cloud Backup:** Sign in with Google to enable automatic cloud backups
 
 <br>
 
@@ -229,7 +232,7 @@ This project is built with modern Android development best practices and librari
 - ✅ Dark mode improvements
 
 **v1.2 (Q4 2025)**
-- 📋 Cloud backup integration (Google Drive)
+- ✅ Cloud backup integration (Google Drive)
 - ✅ Export to CSV/PDF
 - ✅ Advanced analytics dashboard
 - ✅ Recurring payment history
@@ -277,7 +280,8 @@ This project is built with modern Android development best practices and librari
 ### Data Protection
 
 - **Encrypted Storage:** All sensitive preferences use `EncryptedSharedPreferences` with AES-256-GCM encryption
-- **Local Only:** Data never leaves your device; no cloud storage by default
+- **Local First:** Data stored locally by default; optional Google Drive cloud backup
+- **Cloud Security:** Google Drive backups stored in app-specific folder, invisible to other apps
 - **Database Encryption:** Room database stored locally with no network transmission
 - **Permission Safety:** Minimal permissions requested; notification access is optional
 

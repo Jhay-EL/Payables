@@ -7,12 +7,15 @@ import com.app.payables.data.CustomPaymentMethodRepository
 import com.app.payables.data.PayableRepository
 import com.app.payables.data.CurrencyApiService
 import com.app.payables.data.CurrencyExchangeRepository
+import com.app.payables.util.GoogleDriveManager
+import com.app.payables.util.SettingsManager
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.decode.SvgDecoder
 import androidx.work.*
 import com.app.payables.work.PayableStatusWorker
 import com.app.payables.work.ExchangeRateSyncWorker
+import com.app.payables.work.CloudBackupSyncWorker
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -33,6 +36,10 @@ class PayablesApplication : Application(), ImageLoaderFactory {
     val currencyExchangeRepository by lazy { 
         CurrencyExchangeRepository(database.exchangeRateDao(), currencyApiService) 
     }
+    
+    // Utility managers
+    val settingsManager by lazy { SettingsManager(this) }
+    val googleDriveManager by lazy { GoogleDriveManager(this) }
     
     // Application-scoped coroutine scope for long-running operations
     // Uses SupervisorJob so one failed coroutine doesn't cancel all others
@@ -70,6 +77,25 @@ class PayablesApplication : Application(), ImageLoaderFactory {
             ExchangeRateSyncWorker.WORK_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
             exchangeRateSyncRequest
+        )
+        
+        // Cloud backup sync worker - runs daily by default, requires network
+        // Actual frequency is checked inside the worker based on user settings
+        val cloudBackupConstraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+            
+        val cloudBackupRequest = PeriodicWorkRequestBuilder<CloudBackupSyncWorker>(
+            24, TimeUnit.HOURS
+        )
+            .setConstraints(cloudBackupConstraints)
+            .setInitialDelay(5, TimeUnit.MINUTES)
+            .build()
+            
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            CloudBackupSyncWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            cloudBackupRequest
         )
     }
 

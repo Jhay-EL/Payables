@@ -96,6 +96,17 @@ class SettingsManager(context: Context) {
         const val KEY_PERMISSIONS_REQUESTED = "permissions_requested"
         const val KEY_PUSH_NOTIFICATIONS_ENABLED = "push_notifications_enabled"
         const val KEY_SHOW_ON_LOCKSCREEN = "show_on_lockscreen"
+        
+        // Cloud backup settings
+        const val KEY_CLOUD_BACKUP_ENABLED = "cloud_backup_enabled"
+        const val KEY_CLOUD_BACKUP_FREQUENCY = "cloud_backup_frequency"
+        const val KEY_LAST_CLOUD_BACKUP = "last_cloud_backup_timestamp"
+        
+        // Backup frequency options
+        const val BACKUP_FREQUENCY_NEVER = "never"
+        const val BACKUP_FREQUENCY_ON_CHANGE = "on_change"
+        const val BACKUP_FREQUENCY_DAILY = "daily"
+        const val BACKUP_FREQUENCY_WEEKLY = "weekly"
     }
 
     fun setDefaultCurrency(currencyCode: String) {
@@ -159,5 +170,37 @@ class SettingsManager(context: Context) {
 
     fun getShowOnLockscreen(): Boolean {
         return prefs.getBoolean(KEY_SHOW_ON_LOCKSCREEN, true) // Default to true
+    }
+
+    // Cloud Backup Settings
+    
+    fun setCloudBackupEnabled(enabled: Boolean) {
+        prefs.edit {
+            putBoolean(KEY_CLOUD_BACKUP_ENABLED, enabled)
+        }
+    }
+
+    fun isCloudBackupEnabled(): Boolean {
+        return prefs.getBoolean(KEY_CLOUD_BACKUP_ENABLED, false) // Default to disabled
+    }
+
+    fun setCloudBackupFrequency(frequency: String) {
+        prefs.edit {
+            putString(KEY_CLOUD_BACKUP_FREQUENCY, frequency)
+        }
+    }
+
+    fun getCloudBackupFrequency(): String {
+        return prefs.getString(KEY_CLOUD_BACKUP_FREQUENCY, BACKUP_FREQUENCY_NEVER) ?: BACKUP_FREQUENCY_NEVER
+    }
+
+    fun setLastCloudBackup(timestamp: Long) {
+        prefs.edit {
+            putLong(KEY_LAST_CLOUD_BACKUP, timestamp)
+        }
+    }
+
+    fun getLastCloudBackup(): Long {
+        return prefs.getLong(KEY_LAST_CLOUD_BACKUP, 0L)
     }
 }

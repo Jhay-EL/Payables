@@ -2,11 +2,18 @@
 
 package com.app.payables.ui.settings
 
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.PictureAsPdf
@@ -19,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
@@ -32,6 +40,8 @@ import com.app.payables.theme.fadeUpTransform
 import com.app.payables.theme.pressableCard
 import com.app.payables.theme.rememberFadeToTopBarProgress
 import com.app.payables.theme.windowYReporter
+import com.app.payables.util.GoogleDriveManager
+import com.app.payables.util.SettingsManager
 import com.google.gson.Gson
 import kotlinx.coroutines.launch
 import java.io.File
@@ -40,7 +50,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import android.os.Environment
-import android.widget.Toast
 import android.graphics.pdf.PdfDocument
 import android.graphics.Paint
 import android.graphics.Typeface
@@ -60,6 +69,8 @@ fun BackupScreen(
     val payableRepository = application.payableRepository
     val categoryRepository = application.categoryRepository
     val customPaymentMethodRepository = application.customPaymentMethodRepository
+    val settingsManager = remember { SettingsManager(context) }
+    val googleDriveManager = remember { GoogleDriveManager(context) }
 
     var titleInitialY by remember { mutableStateOf<Int?>(null) }
     var titleWindowY by remember { mutableIntStateOf(Int.MAX_VALUE) }
@@ -67,6 +78,32 @@ fun BackupScreen(
     val topBarAlpha = computeTopBarAlphaFromContentFade(fadeProgress, appearAfterFraction = 0.9f)
     val topBarContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp).copy(alpha = topBarAlpha)
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
+
+    // Google Sign-In state
+    var isSignedIn by remember { mutableStateOf(googleDriveManager.isSignedIn()) }
+    var signedInEmail by remember { mutableStateOf(googleDriveManager.getSignedInEmail()) }
+    var isBackingUp by remember { mutableStateOf(false) }
+    var lastBackupTime by remember { mutableLongStateOf(settingsManager.getLastCloudBackup()) }
+    
+    // Backup frequency state
+    var backupFrequency by remember { mutableStateOf(settingsManager.getCloudBackupFrequency()) }
+    var frequencyDropdownExpanded by remember { mutableStateOf(false) }
+
+    val signInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        // Google Sign-In can succeed regardless of result code, check the intent data
+        coroutineScope.launch {
+            val account = googleDriveManager.handleSignInResult(result.data)
+            if (account != null) {
+                isSignedIn = true
+                signedInEmail = account.email
+                Toast.makeText(context, "Signed in as ${account.email}", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "Sign-in failed", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -99,6 +136,7 @@ fun BackupScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(contentPadding)
+                .verticalScroll(rememberScrollState())
         ) {
             // Invisible anchor to track Y during scroll
             Box(modifier = Modifier.windowYReporter { currentY ->
@@ -123,12 +161,240 @@ fun BackupScreen(
 
             // Description
             Text(
-                text = "Export your payables data. Choose Excel, JSON, or PDF.",
+                text = "Export your payables data. Choose Excel, JSON, PDF, or sync to Google Drive.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = dims.spacing.section)
             )
 
+            // ===== Google Drive Section =====
+            Text(
+                text = "Google Drive",
+                style = LocalDashboardTheme.current.sectionHeaderTextStyle,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(bottom = dims.spacing.cardToHeader)
+            )
+
+            // Google Account Status Card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 2.dp),
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 5.dp, bottomEnd = 5.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(dims.spacing.card),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f), RoundedCornerShape(16.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Filled.Cloud,
+                            contentDescription = null,
+                            tint = if (isSignedIn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 16.dp)
+                    ) {
+                        Text(
+                            text = if (isSignedIn) "Google Account" else "Not signed in",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = signedInEmail ?: "Sign in to enable cloud backup",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+
+                    if (isSignedIn) {
+                        TextButton(
+                            onClick = {
+                                coroutineScope.launch {
+                                    googleDriveManager.signOut()
+                                    isSignedIn = false
+                                    signedInEmail = null
+                                    Toast.makeText(context, "Signed out", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        ) {
+                            Text("Sign out")
+                        }
+                    } else {
+                        Button(
+                            onClick = {
+                                signInLauncher.launch(googleDriveManager.getSignInIntent())
+                            }
+                        ) {
+                            Text("Sign in")
+                        }
+                    }
+                }
+            }
+
+            // Cloud Backup Card
+            val onCloudBackup = {
+                if (isSignedIn && !isBackingUp) {
+                    isBackingUp = true
+                    coroutineScope.launch {
+                        try {
+                            val payables = payableRepository.getAllPayablesList()
+                            val categories = categoryRepository.getNonDefaultCategoriesList()
+                            val customPaymentMethods = customPaymentMethodRepository.getAllCustomPaymentMethodsList()
+
+                            val backupData = BackupData(payables, categories, customPaymentMethods)
+                            val json = Gson().toJson(backupData)
+
+                            val success = googleDriveManager.uploadBackup(json)
+                            if (success) {
+                                val now = System.currentTimeMillis()
+                                settingsManager.setLastCloudBackup(now)
+                                lastBackupTime = now
+                                Toast.makeText(context, "Backup saved to Google Drive", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Backup failed", Toast.LENGTH_SHORT).show()
+                            }
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Backup failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                        } finally {
+                            isBackingUp = false
+                        }
+                    }
+                }
+            }
+
+            ExportOptionCard(
+                title = "Backup to Google Drive",
+                subtitle = if (lastBackupTime > 0) {
+                    "Last backup: ${SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()).format(Date(lastBackupTime))}"
+                } else {
+                    "No backups yet"
+                },
+                icon = {
+                    if (isBackingUp) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(Icons.Filled.CloudSync, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    }
+                },
+                onClick = { onCloudBackup() },
+                isFirst = false,
+                isLast = false,
+                enabled = isSignedIn && !isBackingUp
+            )
+
+            // Backup Frequency Card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 2.dp),
+                shape = RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp, bottomStart = 24.dp, bottomEnd = 24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(dims.spacing.card),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = "Backup frequency",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (isSignedIn) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        )
+                        Text(
+                            text = "Automatically backup when data changes",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (isSignedIn) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+
+                    Box {
+                        TextButton(
+                            onClick = { if (isSignedIn) frequencyDropdownExpanded = true },
+                            enabled = isSignedIn
+                        ) {
+                            Text(
+                                text = when (backupFrequency) {
+                                    SettingsManager.BACKUP_FREQUENCY_NEVER -> "Never"
+                                    SettingsManager.BACKUP_FREQUENCY_ON_CHANGE -> "On change"
+                                    SettingsManager.BACKUP_FREQUENCY_DAILY -> "Daily"
+                                    SettingsManager.BACKUP_FREQUENCY_WEEKLY -> "Weekly"
+                                    else -> "Never"
+                                }
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = frequencyDropdownExpanded,
+                            onDismissRequest = { frequencyDropdownExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Never") },
+                                onClick = {
+                                    backupFrequency = SettingsManager.BACKUP_FREQUENCY_NEVER
+                                    settingsManager.setCloudBackupFrequency(SettingsManager.BACKUP_FREQUENCY_NEVER)
+                                    frequencyDropdownExpanded = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("On every change") },
+                                onClick = {
+                                    backupFrequency = SettingsManager.BACKUP_FREQUENCY_ON_CHANGE
+                                    settingsManager.setCloudBackupFrequency(SettingsManager.BACKUP_FREQUENCY_ON_CHANGE)
+                                    frequencyDropdownExpanded = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Daily") },
+                                onClick = {
+                                    backupFrequency = SettingsManager.BACKUP_FREQUENCY_DAILY
+                                    settingsManager.setCloudBackupFrequency(SettingsManager.BACKUP_FREQUENCY_DAILY)
+                                    frequencyDropdownExpanded = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Weekly") },
+                                onClick = {
+                                    backupFrequency = SettingsManager.BACKUP_FREQUENCY_WEEKLY
+                                    settingsManager.setCloudBackupFrequency(SettingsManager.BACKUP_FREQUENCY_WEEKLY)
+                                    frequencyDropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(dims.spacing.section))
+
+            // ===== Local Export Section =====
             SectionHeader()
 
             val onJsonExport = {
@@ -350,7 +616,7 @@ fun BackupScreen(
 @Composable
 private fun SectionHeader() {
     Text(
-        text = "Export options",
+        text = "Local export",
         style = LocalDashboardTheme.current.sectionHeaderTextStyle,
         color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.padding(bottom = LocalAppDimensions.current.spacing.cardToHeader)
@@ -408,11 +674,15 @@ private fun ExportOptionCard(
                     .weight(1f)
                     .padding(start = 16.dp)
             ) {
-                Text(text = title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
@@ -460,6 +730,3 @@ private fun BackupScreenPreview() {
         BackupScreen()
     }
 }
-
-
-

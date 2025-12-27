@@ -8,7 +8,12 @@ import kotlinx.coroutines.flow.map
 import com.app.payables.ui.PayableItemData
 import com.app.payables.util.AlarmScheduler
 import com.app.payables.util.SettingsManager
+import com.app.payables.work.CloudBackupSyncWorker
 import androidx.compose.ui.graphics.Color
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
@@ -26,6 +31,30 @@ class PayableRepository(
 ) {
     private val alarmScheduler: AlarmScheduler? by lazy {
         context?.let { AlarmScheduler(it) }
+    }
+    
+    /**
+     * Trigger a cloud backup if the backup frequency is set to "on_change".
+     * Uses a OneTimeWorkRequest so it doesn't block the UI.
+     */
+    private fun triggerCloudBackupIfNeeded() {
+        context?.let { ctx ->
+            val settingsManager = SettingsManager(ctx)
+            val frequency = settingsManager.getCloudBackupFrequency()
+            
+            if (frequency == SettingsManager.BACKUP_FREQUENCY_ON_CHANGE) {
+                val constraints = Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+                    
+                val backupRequest = OneTimeWorkRequestBuilder<CloudBackupSyncWorker>()
+                    .setConstraints(constraints)
+                    .build()
+                    
+                WorkManager.getInstance(ctx).enqueue(backupRequest)
+                android.util.Log.d("PayableRepository", "Triggered on-change cloud backup")
+            }
+        }
     }
     
     // Get all payables as Flow of Payable entities
@@ -203,6 +232,9 @@ class PayableRepository(
         // Schedule notification for new payable
         scheduleNotificationForPayable(payable)
         
+        // Trigger cloud backup if enabled
+        triggerCloudBackupIfNeeded()
+        
         // Update category count if repository provided
         categoryRepository?.let { repo ->
             val currentCount = getPayablesCountByCategory(category)
@@ -218,6 +250,9 @@ class PayableRepository(
         if (!payable.isPaused && !payable.isFinished) {
             scheduleNotificationForPayable(payable)
         }
+        
+        // Trigger cloud backup if enabled
+        triggerCloudBackupIfNeeded()
     }
     
     // Update an existing payable
@@ -231,6 +266,9 @@ class PayableRepository(
         if (!payable.isPaused && !payable.isFinished) {
             scheduleNotificationForPayable(payable)
         }
+        
+        // Trigger cloud backup if enabled
+        triggerCloudBackupIfNeeded()
     }
     
     // Delete a payable by ID
@@ -242,6 +280,9 @@ class PayableRepository(
         alarmScheduler?.cancelAlarm(id)
         
         payableDao.deletePayableById(id)
+        
+        // Trigger cloud backup if enabled
+        triggerCloudBackupIfNeeded()
         
         // Update category count if repository provided
         payable?.let { p ->
