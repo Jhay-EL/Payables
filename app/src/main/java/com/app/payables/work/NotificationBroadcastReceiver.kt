@@ -9,8 +9,6 @@ import com.app.payables.util.AlarmScheduler
 import com.app.payables.util.AppNotificationManager
 import com.app.payables.util.NotificationErrorHandler
 import com.app.payables.util.SettingsManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class NotificationBroadcastReceiver : BroadcastReceiver() {

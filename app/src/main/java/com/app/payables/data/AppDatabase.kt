@@ -71,9 +71,16 @@ class Migration8To9 : Migration(8, 9) {
     }
 }
 
+class Migration9To10 : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Add pausedAtMillis column to track when a payable was paused
+        db.execSQL("ALTER TABLE payables ADD COLUMN pausedAtMillis INTEGER DEFAULT NULL")
+    }
+}
+
 @Database(
     entities = [Category::class, Payable::class, CustomPaymentMethod::class, ExchangeRate::class],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -94,7 +101,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "payables_database"
                 )
                 .addCallback(DatabaseCallback())
-                .addMigrations(Migration5To6(), Migration6To7(), Migration7To8(), Migration8To9()) // Add new migration
+                .addMigrations(Migration5To6(), Migration6To7(), Migration7To8(), Migration8To9(), Migration9To10()) // Add new migration
                 .build() // Removed fallbackToDestructiveMigration for production stability
                 INSTANCE = instance
                 instance

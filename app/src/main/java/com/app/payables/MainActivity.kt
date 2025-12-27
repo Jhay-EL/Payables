@@ -353,6 +353,8 @@ private fun routeDepth(route: AppRoute): Int = when (route) {
     AppRoute.Insights -> 1
 }
 
+@Suppress("unused")
 private enum class AppRoute { Dashboard, Settings, Notifications, Appearance, Currency, Widget, Backup, Restore, About, EraseData, CustomColor, AddCategory, CustomIcons, Insights }
 
+@Suppress("unused")
 private enum class CustomColorTarget { Background, Text }

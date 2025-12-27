@@ -77,7 +77,6 @@ fun CustomPaymentScreen(
     val paymentIcons = listOf(
         "CreditCard" to Icons.Filled.CreditCard,
         "AccountBalance" to Icons.Filled.AccountBalance,
-        "Payment" to Icons.Filled.Payment,
         "Money" to Icons.Filled.Money,
         "Savings" to Icons.Filled.Savings,
         "Home" to Icons.Filled.Home,

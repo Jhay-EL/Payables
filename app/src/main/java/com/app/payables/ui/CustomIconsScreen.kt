@@ -1,3 +1,5 @@
+@file:Suppress("AssignedValueIsNeverRead")
+
 package com.app.payables.ui
 
 import android.net.Uri
@@ -387,7 +389,7 @@ private fun CustomIconsTab(onPick: (Uri) -> Unit) {
                     // Copy the image to persistent internal storage
                     val savedPath = copyImageToInternalStorage(context, sourceUri)
                     savedPath?.let { path ->
-                        val fileUri = java.io.File(path).toUri()
+                        val fileUri = File(path).toUri()
                         ImportedIconsStore.addIcon(context, fileUri.toString())
                         importedIcons = ImportedIconsStore.getIcons(context)
                         onPick(fileUri)
@@ -416,7 +418,7 @@ private fun CustomIconsTab(onPick: (Uri) -> Unit) {
                 try {
                     val uri = iconUri.toUri()
                     if (uri.scheme == "file") {
-                        java.io.File(uri.path ?: "").delete()
+                        File(uri.path ?: "").delete()
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("CustomIconsTab", "Failed to delete file: ${e.message}")
@@ -537,8 +539,9 @@ private fun CustomIconsTab(onPick: (Uri) -> Unit) {
     
     // Delete confirmation dialog
     if (showDeleteDialog) {
+        val dismissDialog = { showDeleteDialog = false }
         AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
+            onDismissRequest = dismissDialog,
             title = { Text("Delete Icons") },
             text = { 
                 Text("Delete ${selectedIcons.size} selected icon${if (selectedIcons.size > 1) "s" else ""}? This cannot be undone.") 
@@ -546,7 +549,7 @@ private fun CustomIconsTab(onPick: (Uri) -> Unit) {
             confirmButton = {
                 TextButton(
                     onClick = {
-                        showDeleteDialog = false
+                        dismissDialog()
                         deleteSelectedIcons()
                     }
                 ) {
@@ -554,7 +557,7 @@ private fun CustomIconsTab(onPick: (Uri) -> Unit) {
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
+                TextButton(onClick = dismissDialog) {
                     Text("Cancel")
                 }
             }
@@ -573,9 +576,9 @@ private suspend fun copyImageToInternalStorage(context: android.content.Context,
             
             // Generate unique filename
             val fileName = "imported_${System.currentTimeMillis()}.png"
-            val iconsDir = java.io.File(context.filesDir, "brand_logos")
+            val iconsDir = File(context.filesDir, "brand_logos")
             iconsDir.mkdirs()
-            val outputFile = java.io.File(iconsDir, fileName)
+            val outputFile = File(iconsDir, fileName)
             
             // Copy the file
             inputStream.use { input ->

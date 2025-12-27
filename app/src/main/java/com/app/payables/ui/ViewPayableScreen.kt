@@ -1,4 +1,4 @@
-@file:Suppress("AssignedValueIsNeverRead")
+@file:Suppress("AssignedValueIsNeverRead", "COMPOSE_APPLIER_CALL_MISMATCH")
 
 package com.app.payables.ui
 
@@ -176,6 +176,7 @@ fun ViewPayableScreen(
             )
         }
     ) { paddingValues ->
+        @Suppress("COMPOSABLE_INVOCATION_KIND_NOT_INFERRED")
         BoxWithConstraints(modifier = Modifier.padding(paddingValues)) {
             val viewportHeight = this.maxHeight
 
@@ -315,9 +316,9 @@ fun ViewPayableScreen(
                             )
                             
                             // Exchange rate (show as 1 main currency = X payable currency)
-                            if (payable.exchangeRate != null) {
+                            payable.exchangeRate?.let { rate ->
                                 Spacer(modifier = Modifier.height(dims.spacing.sm))
-                                val invertedRate = 1.0 / payable.exchangeRate!!
+                                val invertedRate = 1.0 / rate
                                 PayableDetailRow(
                                     label = "Exchange rate:",
                                     value = "1 ${payable.mainCurrency} = ${String.format(java.util.Locale.US, "%.2f", invertedRate)} ${payable.currency}",
@@ -597,6 +598,7 @@ private fun calculateSubscribedSince(payable: PayableItemData): String {
 }
 
 // Helper function to calculate total amount paid (in main currency if available)
+// If payable is currently paused, only counts cycles up to the pause date
 private fun calculateTotalPaid(payable: PayableItemData): String {
     try {
         // Parse the actual billing start date from payable data
@@ -611,20 +613,26 @@ private fun calculateTotalPaid(payable: PayableItemData): String {
             // Fallback to 6 months ago if no billing start date
             LocalDate.now().minusMonths(6)
         }
-        val currentDate = LocalDate.now()
+        
+        // If currently paused, use pause date as end date; otherwise use today
+        val endDate = if (payable.isPaused && payable.pausedAtMillis != null) {
+            LocalDate.ofEpochDay(payable.pausedAtMillis / 86_400_000L)
+        } else {
+            LocalDate.now()
+        }
         
         // Calculate the number of billing cycles elapsed based on actual billing cycle
         // Add 1 because the first payment is made on the start date
         val billingCycleLower = payable.billingCycle.lowercase()
         val cyclesElapsed = 1 + when (billingCycleLower) {
-            "weekly" -> ChronoUnit.WEEKS.between(startDate, currentDate)
-            "monthly" -> ChronoUnit.MONTHS.between(startDate, currentDate)
-            "quarterly" -> ChronoUnit.MONTHS.between(startDate, currentDate) / 3
-            "yearly" -> ChronoUnit.YEARS.between(startDate, currentDate)
+            "weekly" -> ChronoUnit.WEEKS.between(startDate, endDate)
+            "monthly" -> ChronoUnit.MONTHS.between(startDate, endDate)
+            "quarterly" -> ChronoUnit.MONTHS.between(startDate, endDate) / 3
+            "yearly" -> ChronoUnit.YEARS.between(startDate, endDate)
             else -> {
                 // Debug: Log unexpected billing cycle
                 println("DEBUG: Unexpected billing cycle: '${payable.billingCycle}' -> '$billingCycleLower'")
-                ChronoUnit.MONTHS.between(startDate, currentDate) // Default to monthly
+                ChronoUnit.MONTHS.between(startDate, endDate) // Default to monthly
             }
         }
         
@@ -659,7 +667,8 @@ private fun calculateTotalPaid(payable: PayableItemData): String {
     }
 }
 
-// Helper function to calculate all payment dates from subscription start to present
+// Helper function to calculate all payment dates from subscription start to present (or pause date)
+// If payable is currently paused, only shows payment dates up to the pause date
 private fun calculatePaymentDates(payable: PayableItemData): List<String> {
     try {
         // Parse the actual billing start date from payable data
@@ -674,14 +683,21 @@ private fun calculatePaymentDates(payable: PayableItemData): List<String> {
             // Fallback to 6 months ago if no billing start date
             LocalDate.now().minusMonths(6)
         }
-        val today = LocalDate.now()
+        
+        // If currently paused, use pause date as end date; otherwise use today
+        val endDate = if (payable.isPaused && payable.pausedAtMillis != null) {
+            LocalDate.ofEpochDay(payable.pausedAtMillis / 86_400_000L)
+        } else {
+            LocalDate.now()
+        }
+        
         val paymentDates = mutableListOf<String>()
         val formatter = DateTimeFormatter.ofPattern("MMMM dd, yyyy")
         
         var currentDate = subscriptionStart
         
-        // Generate payment dates based on billing cycle
-        while (currentDate <= today) {
+        // Generate payment dates based on billing cycle, up to the end date
+        while (currentDate <= endDate) {
             paymentDates.add(currentDate.format(formatter))
             
             // Calculate next payment date based on actual billing cycle

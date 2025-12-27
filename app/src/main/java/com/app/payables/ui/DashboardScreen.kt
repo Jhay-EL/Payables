@@ -57,7 +57,6 @@ import com.app.payables.PayablesApplication
 import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.launch
 import com.app.payables.util.SettingsManager
-import com.app.payables.data.ExchangeRate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

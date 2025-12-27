@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.app.payables.data
 
 import android.content.Context
@@ -265,6 +267,7 @@ class PayableRepository(
             
             val pausedPayable = p.copy(
                 isPaused = true,
+                pausedAtMillis = System.currentTimeMillis(), // Track when paused
                 updatedAt = System.currentTimeMillis()
             )
             payableDao.updatePayable(pausedPayable)
@@ -272,11 +275,17 @@ class PayableRepository(
     }
 
     // Unpause a payable by ID
+    // When unpausing, the billing cycle restarts from today to exclude paused periods from payment history
     suspend fun unpausePayable(id: String) {
         val payable = payableDao.getPayableById(id)
         payable?.let { p ->
+            // Reset billing date to today so the cycle starts fresh
+            val todayMillis = LocalDate.now().toEpochDay() * Payable.MILLIS_PER_DAY
+            
             val unpausedPayable = p.copy(
                 isPaused = false,
+                pausedAtMillis = null, // Clear pause timestamp
+                billingDateMillis = todayMillis, // Reset billing date to today
                 updatedAt = System.currentTimeMillis()
             )
             payableDao.updatePayable(unpausedPayable)

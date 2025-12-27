@@ -902,7 +902,9 @@ data class PayableItemData(
     // Currency conversion fields
     val convertedPrice: Double? = null, // Amount in main currency (null if same currency or unavailable)
     val mainCurrency: String? = null,   // The user's main currency code
-    val exchangeRate: Double? = null    // Exchange rate used for conversion (1 source = X main)
+    val exchangeRate: Double? = null,   // Exchange rate used for conversion (1 source = X main)
+    // Pause tracking
+    val pausedAtMillis: Long? = null    // Timestamp when payable was paused (null = never paused or currently active)
 )
 
 enum class SortOption {

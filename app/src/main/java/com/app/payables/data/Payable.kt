@@ -39,6 +39,7 @@ data class Payable(
     val colorValue: Long = Color(0xFF2196F3).value.toLong(), // Store color as Long
     val iconColorValue: Long = Color(0xFF1976D2).value.toLong(), // Icon background color
     val isPaused: Boolean = false, // Whether the payable is paused (hidden from main view)
+    val pausedAtMillis: Long? = null, // Timestamp when payable was paused (null = never paused or currently active)
     val isFinished: Boolean = false, // Whether the payable is finished (completed or expired)
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
@@ -72,7 +73,8 @@ data class Payable(
             endDate = endDateFormatted,
             createdAt = createdAt,
             billingDateMillis = billingDateMillis,
-            nextDueDateMillis = dueDate.toEpochDay() * MILLIS_PER_DAY
+            nextDueDateMillis = dueDate.toEpochDay() * MILLIS_PER_DAY,
+            pausedAtMillis = pausedAtMillis
         )
     }
     
