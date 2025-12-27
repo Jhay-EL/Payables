@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import java.util.Locale
@@ -54,6 +55,43 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.ui.window.PopupProperties
 import androidx.activity.compose.BackHandler
+import com.app.payables.util.SettingsManager
+
+// Helper function to get currency symbol
+private fun getCurrencySymbol(currency: String): String {
+    return when (currency) {
+        "EUR" -> "€"
+        "USD" -> "$"
+        "GBP" -> "£"
+        "JPY" -> "¥"
+        "PHP" -> "₱"
+        "CHF" -> "CHF "
+        "CAD" -> "C$"
+        "AUD" -> "A$"
+        "NZD" -> "NZ$"
+        "CNY" -> "¥"
+        "INR" -> "₹"
+        "KRW" -> "₩"
+        "BRL" -> "R$"
+        "MXN" -> "MX$"
+        "SGD" -> "S$"
+        "HKD" -> "HK$"
+        "SEK" -> "kr "
+        "NOK" -> "kr "
+        "DKK" -> "kr "
+        "PLN" -> "zł "
+        "THB" -> "฿"
+        "MYR" -> "RM "
+        "IDR" -> "Rp "
+        "VND" -> "₫"
+        "RUB" -> "₽"
+        "TRY" -> "₺"
+        "ZAR" -> "R "
+        "AED" -> "د.إ "
+        "SAR" -> "﷼ "
+        else -> "$currency "
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,20 +102,69 @@ fun InsightsScreen(
     val context = LocalContext.current
     val payableRepository = (context.applicationContext as PayablesApplication).payableRepository
     val categoryRepository = (context.applicationContext as PayablesApplication).categoryRepository
+    val currencyExchangeRepository = (context.applicationContext as PayablesApplication).currencyExchangeRepository
+    val settingsManager = remember { SettingsManager(context) }
+    val mainCurrency = settingsManager.getDefaultCurrency()
 
     var spendingTimeframe by remember { mutableStateOf(SpendingTimeframe.Monthly) }
     var avgCostTimeframe by remember { mutableStateOf(SpendingTimeframe.Monthly) }
 
-    val avgCost by remember(avgCostTimeframe) {
-        payableRepository.getAverageCost(avgCostTimeframe)
+    // Ensure exchange rates are loaded when screen opens
+    LaunchedEffect(mainCurrency) {
+        currencyExchangeRepository.ensureRatesUpdated(mainCurrency)
+    }
+
+    // Fetch exchange rates
+    val exchangeRates by currencyExchangeRepository.getAllRates().collectAsState(initial = emptyList())
+    val exchangeRatesMap: Map<String, Double> by remember(exchangeRates) { 
+        derivedStateOf { exchangeRates.associate { it.currencyCode to it.rate } } 
+    }
+
+    val avgCost by remember(avgCostTimeframe, exchangeRatesMap) {
+        payableRepository.getAverageCostConverted(avgCostTimeframe, mainCurrency, exchangeRatesMap)
     }.collectAsState(initial = 0.0)
     
-    val spendingPerCategory by remember(spendingTimeframe) {
-        payableRepository.getSpendingPerCategory(spendingTimeframe)
+    val spendingPerCategory by remember(spendingTimeframe, exchangeRatesMap) {
+        payableRepository.getSpendingPerCategoryConverted(spendingTimeframe, mainCurrency, exchangeRatesMap)
     }.collectAsState(initial = null)
     val categories by categoryRepository.getAllCategories().collectAsState(initial = emptyList())
-    val upcomingPayments by payableRepository.getUpcomingPayments().collectAsState(initial = null)
-    val topFiveMostExpensive by payableRepository.getTopFiveMostExpensive().collectAsState(initial = null)
+    
+    // Get raw payables and enrich with converted amounts
+    val rawUpcomingPayments by payableRepository.getUpcomingPayments().collectAsState(initial = null)
+    val rawTopFiveMostExpensive by payableRepository.getTopFiveMostExpensive().collectAsState(initial = null)
+    
+    // Enrich payables with converted amounts
+    val upcomingPayments: List<PayableItemData>? by remember(rawUpcomingPayments, exchangeRatesMap) { 
+        derivedStateOf {
+            rawUpcomingPayments?.map { payable ->
+                if (payable.currency != mainCurrency && exchangeRatesMap.isNotEmpty()) {
+                    val fromRate = exchangeRatesMap[payable.currency] ?: 1.0
+                    val toRate = exchangeRatesMap[mainCurrency] ?: 1.0
+                    val originalAmount = payable.price.toDoubleOrNull() ?: 0.0
+                    val convertedAmount = originalAmount * (toRate / fromRate)
+                    payable.copy(convertedPrice = convertedAmount, mainCurrency = mainCurrency)
+                } else {
+                    payable
+                }
+            }
+        }
+    }
+    
+    val topFiveMostExpensive: List<PayableItemData>? by remember(rawTopFiveMostExpensive, exchangeRatesMap) { 
+        derivedStateOf {
+            rawTopFiveMostExpensive?.map { payable ->
+                if (payable.currency != mainCurrency && exchangeRatesMap.isNotEmpty()) {
+                    val fromRate = exchangeRatesMap[payable.currency] ?: 1.0
+                    val toRate = exchangeRatesMap[mainCurrency] ?: 1.0
+                    val originalAmount = payable.price.toDoubleOrNull() ?: 0.0
+                    val convertedAmount = originalAmount * (toRate / fromRate)
+                    payable.copy(convertedPrice = convertedAmount, mainCurrency = mainCurrency)
+                } else {
+                    payable
+                }
+            }
+        }
+    }
 
     InsightsScreenContent(
         onBack = onBack,
@@ -90,7 +177,8 @@ fun InsightsScreen(
         topFiveMostExpensive = topFiveMostExpensive,
         onTimeframeSelected = { spendingTimeframe = it },
         onAvgCostTimeframeSelected = { avgCostTimeframe = it },
-        spendingTimeframe = spendingTimeframe
+        spendingTimeframe = spendingTimeframe,
+        mainCurrency = mainCurrency
     )
 }
 
@@ -107,7 +195,8 @@ fun InsightsScreenContent(
     topFiveMostExpensive: List<PayableItemData>?,
     onTimeframeSelected: (SpendingTimeframe) -> Unit,
     onAvgCostTimeframeSelected: (SpendingTimeframe) -> Unit,
-    spendingTimeframe: SpendingTimeframe
+    spendingTimeframe: SpendingTimeframe,
+    mainCurrency: String = "EUR"
 ) {
     val dims = LocalAppDimensions.current
 
@@ -164,6 +253,7 @@ fun InsightsScreenContent(
                 SummaryCard(
                     title = summaryTitle,
                     amount = avgCost,
+                    mainCurrency = mainCurrency
                 )
             }
 
@@ -189,19 +279,22 @@ fun InsightsScreenContent(
                     spendingPerCategory = spendingPerCategory,
                     categories = categories,
                     onTimeframeSelected = onTimeframeSelected,
-                    spendingTimeframe = spendingTimeframe
+                    spendingTimeframe = spendingTimeframe,
+                    mainCurrency = mainCurrency
                 )
             }
 
             item {
                 UpcomingPaymentsCard(
-                    upcomingPayments = upcomingPayments
+                    upcomingPayments = upcomingPayments,
+                    mainCurrency = mainCurrency
                 )
             }
 
             item {
                 TopFiveCard(
-                    topFivePayables = topFiveMostExpensive
+                    topFivePayables = topFiveMostExpensive,
+                    mainCurrency = mainCurrency
                 )
             }
 
@@ -287,7 +380,8 @@ private fun InsightsScreenPreview() {
 
 @Composable
 private fun TopFiveCard(
-    topFivePayables: List<PayableItemData>?
+    topFivePayables: List<PayableItemData>?,
+    mainCurrency: String = "EUR"
 ) {
     val dims = LocalAppDimensions.current
     Column(
@@ -343,7 +437,8 @@ private fun TopFiveCard(
                             key(payable.id) {
                                 TopFiveItem(
                                     payable = payable,
-                                    rank = index + 1
+                                    rank = index + 1,
+                                    mainCurrency = mainCurrency
                                 )
                             }
                         }
@@ -357,9 +452,11 @@ private fun TopFiveCard(
 @Composable
 private fun TopFiveItem(
     payable: PayableItemData,
-    rank: Int
+    rank: Int,
+    mainCurrency: String = "EUR"
 ) {
     val dims = LocalAppDimensions.current
+    val currencySymbol = getCurrencySymbol(mainCurrency)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -386,8 +483,10 @@ private fun TopFiveItem(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+        // Use converted price if available, otherwise fall back to original
+        val displayAmount = payable.convertedPrice ?: (payable.price.toDoubleOrNull() ?: 0.0)
         Text(
-            text = String.format(Locale.US, "€%.2f", payable.price.toDoubleOrNull() ?: 0.0),
+            text = String.format(Locale.US, "%s%.2f", currencySymbol, displayAmount),
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontWeight = FontWeight.Medium
             ),
@@ -398,7 +497,8 @@ private fun TopFiveItem(
 
 @Composable
 private fun UpcomingPaymentsCard(
-    upcomingPayments: List<PayableItemData>?
+    upcomingPayments: List<PayableItemData>?,
+    mainCurrency: String = "EUR"
 ) {
     val dims = LocalAppDimensions.current
     Column(
@@ -454,7 +554,8 @@ private fun UpcomingPaymentsCard(
                             key(payable.id) {
                                 UpcomingPaymentItem(
                                     payable = payable,
-                                    isLast = index == upcomingPayments.lastIndex
+                                    isLast = index == upcomingPayments.lastIndex,
+                                    mainCurrency = mainCurrency
                                 )
                             }
                         }
@@ -468,10 +569,12 @@ private fun UpcomingPaymentsCard(
 @Composable
 private fun UpcomingPaymentItem(
     payable: PayableItemData,
-    isLast: Boolean
+    isLast: Boolean,
+    mainCurrency: String = "EUR"
 ) {
     val dims = LocalAppDimensions.current
     val timelineColor = MaterialTheme.colorScheme.primary
+    val currencySymbol = getCurrencySymbol(mainCurrency)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -513,8 +616,10 @@ private fun UpcomingPaymentItem(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+        // Use converted price if available, otherwise fall back to original
+        val displayAmount = payable.convertedPrice ?: (payable.price.toDoubleOrNull() ?: 0.0)
         Text(
-            text = String.format(Locale.US, "€%.2f", payable.price.toDoubleOrNull() ?: 0.0),
+            text = String.format(Locale.US, "%s%.2f", currencySymbol, displayAmount),
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontWeight = FontWeight.Medium
             ),
@@ -528,7 +633,8 @@ private fun SpendingBreakdownCard(
     spendingPerCategory: Map<String, Double>?,
     categories: List<CategoryData>,
     onTimeframeSelected: (SpendingTimeframe) -> Unit,
-    spendingTimeframe: SpendingTimeframe
+    spendingTimeframe: SpendingTimeframe,
+    mainCurrency: String = "EUR"
 ) {
     val dims = LocalAppDimensions.current
     var showMenu by remember { mutableStateOf(false) }
@@ -619,6 +725,7 @@ private fun SpendingBreakdownCard(
                             spendingPerCategory = spendingPerCategory,
                             categories = categories,
                             spendingTimeframe = spendingTimeframe,
+                            mainCurrency = mainCurrency,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(150.dp)
@@ -649,7 +756,7 @@ private fun SpendingBreakdownCard(
                                             modifier = Modifier.weight(1f)
                                         )
                                         Text(
-                                            text = String.format(Locale.US, "€%.2f", spendingPerCategory[categoryName]),
+                                            text = String.format(Locale.US, "%s%.2f", getCurrencySymbol(mainCurrency), spendingPerCategory[categoryName]),
                                             style = MaterialTheme.typography.bodySmall,
                                             fontWeight = FontWeight.Medium
                                         )
@@ -675,13 +782,15 @@ private fun ColumnChart(
     spendingPerCategory: Map<String, Double>,
     categories: List<CategoryData>,
     spendingTimeframe: SpendingTimeframe,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    mainCurrency: String = "EUR"
 ) {
+    val currencySymbol = getCurrencySymbol(mainCurrency)
     val maxSpending = spendingPerCategory.values.maxOrNull() ?: 0.0
     val yAxisLabelCount = 5
     val yAxisLabels = List(yAxisLabelCount) { i ->
         val value = maxSpending * (i.toFloat() / (yAxisLabelCount - 1))
-        String.format(Locale.US, "€%.0f", value)
+        String.format(Locale.US, "%s%.0f", currencySymbol, value)
     }
 
     val animatables = spendingPerCategory.keys.associateWith {
@@ -755,8 +864,10 @@ private fun YAxis(
 private fun SummaryCard(
     title: String,
     amount: Double,
+    mainCurrency: String = "EUR"
 ) {
     val dims = LocalAppDimensions.current
+    val currencySymbol = getCurrencySymbol(mainCurrency)
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -766,7 +877,7 @@ private fun SummaryCard(
         )
         Spacer(modifier = Modifier.height(dims.spacing.xs))
         Text(
-            text = String.format(Locale.US, "€%.2f", amount),
+            text = String.format(Locale.US, "%s%.2f", currencySymbol, amount),
             style = MaterialTheme.typography.displaySmall.copy(
                 fontWeight = FontWeight.Medium
             ),

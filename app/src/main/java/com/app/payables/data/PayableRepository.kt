@@ -382,6 +382,81 @@ class PayableRepository(
         }
     }
 
+    // Get average cost converted to main currency
+    fun getAverageCostConverted(
+        timeframe: SpendingTimeframe, 
+        mainCurrency: String, 
+        exchangeRates: Map<String, Double>
+    ): Flow<Double> {
+        return getActivePayables().map { payables ->
+            payables.sumOf {
+                val originalAmount = it.price.toDoubleOrNull() ?: 0.0
+                
+                // Convert to main currency if needed
+                val amount = if (it.currency != mainCurrency && exchangeRates.isNotEmpty()) {
+                    val fromRate = exchangeRates[it.currency] ?: 1.0
+                    val toRate = exchangeRates[mainCurrency] ?: 1.0
+                    originalAmount * (toRate / fromRate)
+                } else {
+                    originalAmount
+                }
+                
+                val dailyAmount = when (it.billingCycle) {
+                    "Weekly" -> amount / 7
+                    "Monthly" -> amount / 30.4375
+                    "Quarterly" -> amount / 91.3125
+                    "Yearly" -> amount / 365.25
+                    else -> amount
+                }
+                when (timeframe) {
+                    SpendingTimeframe.Daily -> dailyAmount
+                    SpendingTimeframe.Weekly -> dailyAmount * 7
+                    SpendingTimeframe.Monthly -> dailyAmount * 30.4375
+                    SpendingTimeframe.Yearly -> dailyAmount * 365.25
+                }
+            }
+        }
+    }
+
+    // Get spending per category converted to main currency
+    fun getSpendingPerCategoryConverted(
+        timeframe: SpendingTimeframe, 
+        mainCurrency: String, 
+        exchangeRates: Map<String, Double>
+    ): Flow<Map<String, Double>> {
+        return getActivePayables().map { payables ->
+            payables.groupBy { it.category }
+                .mapValues { (_, payables) ->
+                    payables.sumOf {
+                        val originalAmount = it.price.toDoubleOrNull() ?: 0.0
+                        
+                        // Convert to main currency if needed
+                        val amount = if (it.currency != mainCurrency && exchangeRates.isNotEmpty()) {
+                            val fromRate = exchangeRates[it.currency] ?: 1.0
+                            val toRate = exchangeRates[mainCurrency] ?: 1.0
+                            originalAmount * (toRate / fromRate)
+                        } else {
+                            originalAmount
+                        }
+                        
+                        val dailyAmount = when (it.billingCycle) {
+                            "Weekly" -> amount / 7
+                            "Monthly" -> amount / 30.4375
+                            "Quarterly" -> amount / 91.3125
+                            "Yearly" -> amount / 365.25
+                            else -> amount
+                        }
+                        when (timeframe) {
+                            SpendingTimeframe.Daily -> dailyAmount
+                            SpendingTimeframe.Weekly -> dailyAmount * 7
+                            SpendingTimeframe.Monthly -> dailyAmount * 30.4375
+                            SpendingTimeframe.Yearly -> dailyAmount * 365.25
+                        }
+                    }
+                }
+        }
+    }
+
     fun getUpcomingPayments(limit: Int = 5): Flow<List<PayableItemData>> {
         return getActivePayables().map { payables ->
             payables.sortedBy { it.nextDueDateMillis }
