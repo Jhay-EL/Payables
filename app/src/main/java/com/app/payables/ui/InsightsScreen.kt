@@ -14,6 +14,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.TrendingFlat
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.derivedStateOf
@@ -38,7 +43,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,8 +52,11 @@ import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Brush
-import com.app.payables.data.SpendingTimeframe
+import androidx.compose.ui.graphics.Brush
+import kotlinx.coroutines.delay
+import androidx.compose.animation.core.*
 import androidx.compose.ui.text.TextStyle
+import com.app.payables.data.SpendingTimeframe
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -132,6 +139,7 @@ fun InsightsScreen(
     // Get raw payables and enrich with converted amounts
     val rawUpcomingPayments by payableRepository.getUpcomingPayments().collectAsState(initial = null)
     val rawTopFiveMostExpensive by payableRepository.getTopFiveMostExpensive().collectAsState(initial = null)
+    val rawActivePayables by payableRepository.getActivePayables().collectAsState(initial = emptyList())
     
     // Enrich payables with converted amounts
     val upcomingPayments: List<PayableItemData>? by remember(rawUpcomingPayments, exchangeRatesMap) { 
@@ -166,6 +174,22 @@ fun InsightsScreen(
         }
     }
 
+    val activePayables: List<PayableItemData> by remember(rawActivePayables, exchangeRatesMap) {
+        derivedStateOf {
+            rawActivePayables.map { payable ->
+                if (payable.currency != mainCurrency && exchangeRatesMap.isNotEmpty()) {
+                    val fromRate = exchangeRatesMap[payable.currency] ?: 1.0
+                    val toRate = exchangeRatesMap[mainCurrency] ?: 1.0
+                    val originalAmount = payable.price.toDoubleOrNull() ?: 0.0
+                    val convertedAmount = originalAmount * (toRate / fromRate)
+                    payable.copy(convertedPrice = convertedAmount, mainCurrency = mainCurrency)
+                } else {
+                    payable
+                }
+            }
+        }
+    }
+
     InsightsScreenContent(
         onBack = onBack,
         summaryTitle = "Average ${avgCostTimeframe.name} Cost",
@@ -175,6 +199,7 @@ fun InsightsScreen(
         categories = categories,
         upcomingPayments = upcomingPayments,
         topFiveMostExpensive = topFiveMostExpensive,
+        activePayables = activePayables,
         onTimeframeSelected = { spendingTimeframe = it },
         onAvgCostTimeframeSelected = { avgCostTimeframe = it },
         spendingTimeframe = spendingTimeframe,
@@ -193,6 +218,7 @@ fun InsightsScreenContent(
     categories: List<CategoryData>,
     upcomingPayments: List<PayableItemData>?,
     topFiveMostExpensive: List<PayableItemData>?,
+    activePayables: List<PayableItemData> = emptyList(),
     onTimeframeSelected: (SpendingTimeframe) -> Unit,
     onAvgCostTimeframeSelected: (SpendingTimeframe) -> Unit,
     spendingTimeframe: SpendingTimeframe,
@@ -285,6 +311,13 @@ fun InsightsScreenContent(
             }
 
             item {
+                SpendingForecastCard(
+                    payables = activePayables,
+                    mainCurrency = mainCurrency
+                )
+            }
+
+            item {
                 UpcomingPaymentsCard(
                     upcomingPayments = upcomingPayments,
                     mainCurrency = mainCurrency
@@ -371,6 +404,30 @@ private fun InsightsScreenPreview() {
                     billingCycle = "Monthly"
                 )
             ),
+            activePayables = listOf(
+                PayableItemData(
+                    id = "1",
+                    name = "Netflix",
+                    planType = "Premium",
+                    price = "19.99",
+                    currency = "USD",
+                    dueDate = "in 3 days",
+                    icon = Icons.Default.Movie,
+                    backgroundColor = Color(0xFFE50914),
+                    billingCycle = "Monthly"
+                ),
+                PayableItemData(
+                    id = "2",
+                    name = "Spotify",
+                    planType = "Family",
+                    price = "14.99",
+                    currency = "USD",
+                    dueDate = "in 5 days",
+                    icon = Icons.Default.MusicNote,
+                    backgroundColor = Color(0xFF1DB954),
+                    billingCycle = "Monthly"
+                )
+            ),
             onTimeframeSelected = {},
             onAvgCostTimeframeSelected = {},
             spendingTimeframe = SpendingTimeframe.Monthly
@@ -394,30 +451,31 @@ private fun TopFiveCard(
             style = MaterialTheme.typography.headlineSmall,
             modifier = Modifier.padding(bottom = dims.spacing.md)
         )
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(dims.spacing.md),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-            )
-        ) {
-            when {
-                topFivePayables == null -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(250.dp)
-                            .padding(dims.spacing.card),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
+
+        when {
+            topFivePayables == null -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(250.dp)
+                        .padding(dims.spacing.card),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
                 }
-                topFivePayables.isEmpty() -> {
+            }
+            topFivePayables.isEmpty() -> {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(dims.spacing.md),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    )
+                ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(250.dp)
+                            .height(100.dp)
                             .padding(dims.spacing.card),
                         contentAlignment = Alignment.Center
                     ) {
@@ -427,20 +485,19 @@ private fun TopFiveCard(
                         )
                     }
                 }
-                else -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(dims.spacing.card)
-                    ) {
-                        topFivePayables.forEachIndexed { index, payable ->
-                            key(payable.id) {
-                                TopFiveItem(
-                                    payable = payable,
-                                    rank = index + 1,
-                                    mainCurrency = mainCurrency
-                                )
-                            }
+            }
+            else -> {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(dims.spacing.sm)
+                ) {
+                    topFivePayables.forEachIndexed { index, payable ->
+                        key(payable.id) {
+                            EnhancedTopFiveItem(
+                                payable = payable,
+                                rank = index + 1,
+                                delayMillis = index * 100,
+                                mainCurrency = mainCurrency
+                            )
                         }
                     }
                 }
@@ -450,48 +507,90 @@ private fun TopFiveCard(
 }
 
 @Composable
-private fun TopFiveItem(
+private fun EnhancedTopFiveItem(
     payable: PayableItemData,
     rank: Int,
-    mainCurrency: String = "EUR"
+    delayMillis: Int,
+    mainCurrency: String
 ) {
     val dims = LocalAppDimensions.current
-    val currencySymbol = getCurrencySymbol(mainCurrency)
-    Row(
+    
+    // Animation
+    val alpha = remember { Animatable(0f) }
+    val slideY = remember { Animatable(20f) }
+    
+    LaunchedEffect(Unit) {
+        delay(delayMillis.toLong())
+        launch { alpha.animateTo(1f, tween(300, easing = LinearOutSlowInEasing)) }
+        launch { slideY.animateTo(0f, tween(400, easing = LinearOutSlowInEasing)) }
+    }
+    
+    // Rank Color Logic
+    val rankColor = when(rank) {
+        1 -> Color(0xFFFFD700) // Gold
+        2 -> Color(0xFFC0C0C0) // Silver
+        3 -> Color(0xFFCD7F32) // Bronze
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = dims.spacing.sm),
-        verticalAlignment = Alignment.CenterVertically
+            .graphicsLayer {
+                this.alpha = alpha.value
+                this.translationY = slideY.value
+            },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        shape = RoundedCornerShape(dims.spacing.md)
     ) {
-        Text(
-            text = "$rank.",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.width(32.dp)
-        )
-        Column(
-            modifier = Modifier.weight(1f)
+        Row(
+            modifier = Modifier
+                .padding(dims.spacing.md)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            // Rank Badge
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(rankColor.copy(alpha = 0.1f), CircleShape)
+                    .border(1.dp, rankColor.copy(alpha = 0.5f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "#$rank",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = rankColor
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(dims.spacing.md))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = payable.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = payable.planType,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            val displayAmount = payable.convertedPrice ?: (payable.price.toDoubleOrNull() ?: 0.0)
+            val currencySymbol = getCurrencySymbol(mainCurrency)
             Text(
-                text = payable.name,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = payable.planType,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = String.format(Locale.US, "%s%.2f", currencySymbol, displayAmount),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.primary
             )
         }
-        // Use converted price if available, otherwise fall back to original
-        val displayAmount = payable.convertedPrice ?: (payable.price.toDoubleOrNull() ?: 0.0)
-        Text(
-            text = String.format(Locale.US, "%s%.2f", currencySymbol, displayAmount),
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontWeight = FontWeight.Medium
-            ),
-            color = MaterialTheme.colorScheme.primary
-        )
     }
 }
 
@@ -511,53 +610,49 @@ private fun UpcomingPaymentsCard(
             style = MaterialTheme.typography.headlineSmall,
             modifier = Modifier.padding(bottom = dims.spacing.md)
         )
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(dims.spacing.md),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-            )
-        ) {
-            when {
-                upcomingPayments == null -> {
+
+        when {
+            upcomingPayments == null -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp)
+                        .padding(dims.spacing.card),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+            upcomingPayments.isEmpty() -> {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(dims.spacing.md),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    )
+                ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(150.dp)
+                            .height(100.dp)
                             .padding(dims.spacing.card),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator()
+                        Text("No upcoming payments.", style = MaterialTheme.typography.bodyLarge)
                     }
                 }
-                upcomingPayments.isEmpty() -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(150.dp)
-                            .padding(dims.spacing.card),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No upcoming payments.",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    }
-                }
-                else -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(dims.spacing.card)
-                    ) {
-                        upcomingPayments.forEachIndexed { index, payable ->
-                            key(payable.id) {
-                                UpcomingPaymentItem(
-                                    payable = payable,
-                                    isLast = index == upcomingPayments.lastIndex,
-                                    mainCurrency = mainCurrency
-                                )
-                            }
+            }
+            else -> {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(dims.spacing.sm)
+                ) {
+                    upcomingPayments.forEachIndexed { index, payable ->
+                        key(payable.id) {
+                            EnhancedUpcomingPaymentItem(
+                                payable = payable,
+                                delayMillis = index * 100,
+                                mainCurrency = mainCurrency
+                            )
                         }
                     }
                 }
@@ -567,65 +662,110 @@ private fun UpcomingPaymentsCard(
 }
 
 @Composable
-private fun UpcomingPaymentItem(
+private fun EnhancedUpcomingPaymentItem(
     payable: PayableItemData,
-    isLast: Boolean,
-    mainCurrency: String = "EUR"
+    delayMillis: Int,
+    mainCurrency: String
 ) {
     val dims = LocalAppDimensions.current
-    val timelineColor = MaterialTheme.colorScheme.primary
-    val currencySymbol = getCurrencySymbol(mainCurrency)
-    Row(
+    
+    // Animation states
+    val alpha = remember { Animatable(0f) }
+    val slideY = remember { Animatable(20f) }
+    
+    LaunchedEffect(Unit) {
+        delay(delayMillis.toLong())
+        launch { 
+            alpha.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 300, easing = LinearOutSlowInEasing)
+            )
+        }
+        launch {
+            slideY.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(durationMillis = 400, easing = LinearOutSlowInEasing)
+            )
+        }
+    }
+    
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(IntrinsicSize.Min)
+            .graphicsLayer {
+                this.alpha = alpha.value
+                this.translationY = slideY.value
+            },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        shape = RoundedCornerShape(dims.spacing.md)
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.width(40.dp)
+        Row(
+            modifier = Modifier
+                .padding(dims.spacing.md)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(12.dp)
-                    .background(timelineColor, shape = RoundedCornerShape(4.dp))
-            )
-            if (!isLast) {
-                Box(
-                    modifier = Modifier
-                        .width(2.dp)
-                        .fillMaxHeight()
-                        .background(timelineColor)
+            // Date Badge
+            DateBadge(payable.nextDueDateMillis)
+            
+            Spacer(modifier = Modifier.width(dims.spacing.md))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = payable.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = payable.dueDate,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-        }
-        Spacer(modifier = Modifier.width(dims.spacing.md))
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(bottom = if (isLast) 0.dp else dims.spacing.lg)
-        ) {
+            
+             // Use converted price if available
+            val displayAmount = payable.convertedPrice ?: (payable.price.toDoubleOrNull() ?: 0.0)
+            val currencySymbol = getCurrencySymbol(mainCurrency)
+            
             Text(
-                text = payable.name,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = payable.dueDate,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = String.format(Locale.US, "%s%.2f", currencySymbol, displayAmount),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.primary
             )
         }
-        // Use converted price if available, otherwise fall back to original
-        val displayAmount = payable.convertedPrice ?: (payable.price.toDoubleOrNull() ?: 0.0)
-        Text(
-            text = String.format(Locale.US, "%s%.2f", currencySymbol, displayAmount),
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontWeight = FontWeight.Medium
-            ),
-            color = MaterialTheme.colorScheme.primary
-        )
     }
+}
+
+@Composable
+private fun DateBadge(dateMillis: Long) {
+      // Fallback if dateMillis is 0
+     if (dateMillis == 0L) return
+
+     val date = java.util.Date(dateMillis)
+     val dayFormat = java.text.SimpleDateFormat("dd", Locale.getDefault())
+     val monthFormat = java.text.SimpleDateFormat("MMM", Locale.getDefault())
+     
+     Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+     ) {
+         Text(
+             text = dayFormat.format(date),
+             style = MaterialTheme.typography.titleMedium,
+             fontWeight = FontWeight.Bold,
+             color = MaterialTheme.colorScheme.onSurface
+         )
+         Text(
+             text = monthFormat.format(date).uppercase(),
+             style = MaterialTheme.typography.labelSmall,
+             color = MaterialTheme.colorScheme.onSurfaceVariant
+         )
+     }
 }
 
 @Composable
@@ -882,6 +1022,237 @@ private fun SummaryCard(
                 fontWeight = FontWeight.Medium
             ),
             color = MaterialTheme.colorScheme.primary
+        )
+    }
+}
+
+@Composable
+private fun SpendingForecastCard(
+    payables: List<PayableItemData>,
+    mainCurrency: String
+) {
+    val dims = LocalAppDimensions.current
+    
+    // Calculate forecasts
+    val monthlyTotal = remember(payables) {
+        payables.sumOf { payable ->
+            val amount = payable.convertedPrice ?: (payable.price.toDoubleOrNull() ?: 0.0)
+            when (payable.billingCycle) {
+                "Weekly" -> amount * 4.345
+                "Monthly" -> amount
+                "Quarterly" -> amount / 3
+                "Yearly" -> amount / 12
+                else -> amount
+            }
+        }
+    }
+
+    val forecast3m = monthlyTotal * 3
+    val forecast6m = monthlyTotal * 6
+    val forecast1y = monthlyTotal * 12
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = dims.spacing.section)
+    ) {
+        Text(
+            text = "Spending Forecast",
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(bottom = dims.spacing.md)
+        )
+        
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(dims.spacing.md),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(dims.spacing.card)
+            ) {
+                if (payables.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No active subscriptions to forecast.",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                } else {
+                    ForecastBarChart(
+                        value1 = forecast3m,
+                        value2 = forecast6m,
+                        value3 = forecast1y
+                    )
+                    
+                    Spacer(modifier = Modifier.height(dims.spacing.lg))
+                    
+                    Column(verticalArrangement = Arrangement.spacedBy(dims.spacing.sm)) {
+                        ForecastPeriodItem(
+                            label = "Next 3 Months",
+                            amount = forecast3m,
+                            mainCurrency = mainCurrency,
+                            trend = "Stable",
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                        ForecastPeriodItem(
+                            label = "Next 6 Months",
+                            amount = forecast6m,
+                            mainCurrency = mainCurrency,
+                            trend = "Stable",
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                        ForecastPeriodItem(
+                            label = "Next 1 Year",
+                            amount = forecast1y,
+                            mainCurrency = mainCurrency,
+                            trend = "Stable",
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ForecastBarChart(
+    value1: Double,
+    value2: Double,
+    value3: Double
+) {
+    val maxValue = value3.coerceAtLeast(1.0)
+    val anim1 = remember { Animatable(0f) }
+    val anim2 = remember { Animatable(0f) }
+    val anim3 = remember { Animatable(0f) }
+
+    LaunchedEffect(value1, value2, value3) {
+        anim1.animateTo((value1 / maxValue).toFloat(), tween(800, delayMillis = 0))
+        anim2.animateTo((value2 / maxValue).toFloat(), tween(800, delayMillis = 200))
+        anim3.animateTo((value3 / maxValue).toFloat(), tween(800, delayMillis = 400))
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(120.dp),
+        verticalArrangement = Arrangement.SpaceEvenly
+    ) {
+        ForecastBar(
+            progress = anim1.value,
+            color = MaterialTheme.colorScheme.tertiary,
+            label = "3M"
+        )
+        ForecastBar(
+            progress = anim2.value,
+            color = MaterialTheme.colorScheme.secondary,
+            label = "6M"
+        )
+        ForecastBar(
+            progress = anim3.value,
+            color = MaterialTheme.colorScheme.primary,
+            label = "1Y"
+        )
+    }
+}
+
+@Composable
+private fun ForecastBar(
+    progress: Float,
+    color: Color,
+    label: String
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.width(28.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(24.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    shape = RoundedCornerShape(12.dp)
+                )
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(progress.coerceIn(0f, 1f))
+                    .fillMaxHeight()
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                color.copy(alpha = 0.7f),
+                                color
+                            )
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+            )
+        }
+    }
+}
+
+@Composable
+private fun ForecastPeriodItem(
+    label: String,
+    amount: Double,
+    mainCurrency: String,
+    trend: String,
+    color: Color
+) {
+    val currencySymbol = getCurrencySymbol(mainCurrency)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .background(color, RoundedCornerShape(4.dp))
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f)
+        )
+        
+        val icon = when (trend) {
+            "Up" -> Icons.AutoMirrored.Filled.TrendingUp
+            "Down" -> Icons.AutoMirrored.Filled.TrendingDown
+            else -> Icons.AutoMirrored.Filled.TrendingFlat
+        }
+        
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+        )
+        
+        Spacer(modifier = Modifier.width(8.dp))
+        
+        Text(
+            text = String.format(Locale.US, "%s%.2f", currencySymbol, amount),
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
         )
     }
 }
