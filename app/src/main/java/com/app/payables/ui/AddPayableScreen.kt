@@ -204,6 +204,38 @@ fun AddPayableScreen(
                     val iconName = "Payment" // Always use default for now since we have customIconUri
                     val customIconUri = selectedIcon?.toString() // Convert Uri to String for storage
                     
+                    // Fetch exchange rate data for currency conversion
+                    val mainCurrency = settingsManager.getDefaultCurrency()
+                    var savedMainCurrency: String? = null
+                    var savedExchangeRate: Double? = null
+                    var savedConvertedPrice: Double? = null
+                    
+                    // Only calculate conversion if payable currency differs from main currency
+                    if (selectedCurrency != mainCurrency) {
+                        try {
+                            val app = context.applicationContext as? com.app.payables.PayablesApplication
+                            val currencyExchangeRepository = app?.currencyExchangeRepository
+                            if (currencyExchangeRepository != null) {
+                                // Ensure rates are updated
+                                currencyExchangeRepository.ensureRatesUpdated(mainCurrency)
+                                
+                                // Get the rate for the payable's currency
+                                val rate = currencyExchangeRepository.getExchangeRate(selectedCurrency, mainCurrency)
+                                if (rate != null) {
+                                    val amountValue = amount.text.trim().toDoubleOrNull() ?: 0.0
+                                    // rate is how many of source currency equals 1 main currency
+                                    // So convertedPrice = amountValue / rate
+                                    savedMainCurrency = mainCurrency
+                                    savedExchangeRate = 1.0 / rate // 1 payable currency = X main currency
+                                    savedConvertedPrice = amountValue / rate
+                                }
+                            }
+                        } catch (e: Exception) {
+                            // If exchange rate fetch fails, continue without it
+                            android.util.Log.e("AddPayableScreen", "Failed to fetch exchange rate", e)
+                        }
+                    }
+                    
                     if (editingPayable != null) {
                         // Update existing payable
                         val updatedPayable = com.app.payables.data.Payable.create(
@@ -223,7 +255,10 @@ fun AddPayableScreen(
                             iconName = iconName,
                             customIconUri = customIconUri,
                             color = selectedColor,
-                            iconColor = tempColor
+                            iconColor = tempColor,
+                            savedMainCurrency = savedMainCurrency,
+                            savedExchangeRate = savedExchangeRate,
+                            savedConvertedPrice = savedConvertedPrice
                         )
                         payableRepository.updatePayable(updatedPayable)
                     } else {
@@ -246,7 +281,10 @@ fun AddPayableScreen(
                             customIconUri = customIconUri,
                             color = selectedColor,
                             iconColor = tempColor,
-                            categoryRepository = categoryRepository
+                            categoryRepository = categoryRepository,
+                            savedMainCurrency = savedMainCurrency,
+                            savedExchangeRate = savedExchangeRate,
+                            savedConvertedPrice = savedConvertedPrice
                         )
                     }
                     onSave() // Call the callback after successful save

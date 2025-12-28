@@ -90,6 +90,76 @@ class SettingsManager(context: Context) {
         }
     }
 
+
+    // Widget Settings
+    fun setWidgetTransparency(transparency: Float) {
+        prefs.edit { putFloat(KEY_WIDGET_TRANSPARENCY, transparency) }
+    }
+
+    fun getWidgetTransparency(): Float {
+        return prefs.getFloat(KEY_WIDGET_TRANSPARENCY, 0.15f)
+    }
+
+    fun setWidgetBackgroundColor(color: Long) {
+        prefs.edit { putLong(KEY_WIDGET_BACKGROUND_COLOR, color) }
+    }
+
+    fun getWidgetBackgroundColor(): Long {
+        // Default to MaterialTheme.colorScheme.primaryContainer (approximate default if not set)
+        // We can't access MaterialTheme here easily, so use a hardcoded fallback or 0
+        // 0 usually indicates "not set" or transparent, but here we want a valid color.
+        // Let's use a standard default (e.g., surface color)
+        return prefs.getLong(KEY_WIDGET_BACKGROUND_COLOR, 0xFFE7E0EC) // 0xFFE7E0EC is often surface variant light
+    }
+
+    fun setWidgetTextColor(color: Long) {
+        prefs.edit { putLong(KEY_WIDGET_TEXT_COLOR, color) }
+    }
+
+    fun getWidgetTextColor(): Long {
+        return prefs.getLong(KEY_WIDGET_TEXT_COLOR, 0xFF1D1B20) // 0xFF1D1B20 is often onSurface light
+    }
+
+    fun setWidgetBackgroundImageUri(uri: String?) {
+        prefs.edit { putString(KEY_WIDGET_BACKGROUND_IMAGE_URI, uri) }
+    }
+
+    fun getWidgetBackgroundImageUri(): String? {
+        return prefs.getString(KEY_WIDGET_BACKGROUND_IMAGE_URI, null)
+    }
+
+    fun setWidgetBackgroundBlur(blur: Float) {
+        prefs.edit { putFloat(KEY_WIDGET_BACKGROUND_BLUR, blur) }
+    }
+
+    fun getWidgetBackgroundBlur(): Float {
+        return prefs.getFloat(KEY_WIDGET_BACKGROUND_BLUR, 0f)
+    }
+
+    fun setWidgetShowTomorrow(show: Boolean) {
+        prefs.edit { putBoolean(KEY_WIDGET_SHOW_TOMORROW, show) }
+    }
+
+    fun getWidgetShowTomorrow(): Boolean {
+        return prefs.getBoolean(KEY_WIDGET_SHOW_TOMORROW, true)
+    }
+
+    fun setWidgetShowUpcoming(show: Boolean) {
+        prefs.edit { putBoolean(KEY_WIDGET_SHOW_UPCOMING, show) }
+    }
+
+    fun getWidgetShowUpcoming(): Boolean {
+        return prefs.getBoolean(KEY_WIDGET_SHOW_UPCOMING, true)
+    }
+
+    fun setWidgetShowCount(show: Boolean) {
+        prefs.edit { putBoolean(KEY_WIDGET_SHOW_COUNT, show) }
+    }
+
+    fun getWidgetShowCount(): Boolean {
+        return prefs.getBoolean(KEY_WIDGET_SHOW_COUNT, true)
+    }
+
     companion object {
         const val KEY_DEFAULT_CURRENCY = "default_currency"
         const val KEY_NOTIFICATION_HOUR = "notification_hour"
@@ -113,6 +183,16 @@ class SettingsManager(context: Context) {
         // Custom API Keys
         const val KEY_CUSTOM_BRANDFETCH_KEY = "custom_brandfetch_key"
         const val KEY_CUSTOM_FREECURRENCY_KEY = "custom_freecurrency_key"
+
+        // Widget Settings
+        const val KEY_WIDGET_TRANSPARENCY = "widget_transparency"
+        const val KEY_WIDGET_BACKGROUND_COLOR = "widget_background_color"
+        const val KEY_WIDGET_TEXT_COLOR = "widget_text_color"
+        const val KEY_WIDGET_BACKGROUND_IMAGE_URI = "widget_background_image_uri"
+        const val KEY_WIDGET_BACKGROUND_BLUR = "widget_background_blur"
+        const val KEY_WIDGET_SHOW_TOMORROW = "widget_show_tomorrow"
+        const val KEY_WIDGET_SHOW_UPCOMING = "widget_show_upcoming"
+        const val KEY_WIDGET_SHOW_COUNT = "widget_show_count"
     }
 
     fun setDefaultCurrency(currencyCode: String) {

@@ -139,6 +139,23 @@ fun DashboardScreen(
                 }
             }
         }
+        
+        // Handle deep link from widget (2x1)
+        val activity = context as? android.app.Activity
+        val widgetPayableId = activity?.intent?.getStringExtra("widget_payable_id")
+        if (widgetPayableId != null) {
+            // Clear the extra to avoid reopening on config change
+            activity.intent?.removeExtra("widget_payable_id")
+            
+            // Fetch the payable and open ViewPayableScreen
+            coroutineScope.launch {
+                val payable = payableRepository.getPayableById(widgetPayableId)
+                payable?.let {
+                    selectedPayable = it.toPayableItemData()
+                    showViewPayableFullScreen = true
+                }
+            }
+        }
     }
     
     // State for animated deletion

@@ -45,10 +45,12 @@ Payables is a modern Android app that helps you manage all your recurring expens
 | **📊 Powerful Dashboard** | Real-time overview of total payables, spend trends, and category breakdowns. Filtered views for items due "This Week" and "This Month". Visual insights into spending patterns. |
 | **🗂️ Smart Organization** | Group expenses with fully customizable categories—each with unique name, color, and icon. Manage payable lifecycle with `Active`, `Paused`, and `Finished` states. Advanced search and filtering. |
 | **🎨 Rich Customization** | Personalize each payable with custom background colors and icons from your gallery. Full support for **Light, Dark, and System** themes. Material Design 3 UI with smooth animations. |
+| **📈 Spending Insights** | Visualize your financial future with **Spending Forecasts** (3, 6, 12 months) based on active payables. View "Top 5 Most Expensive" expenses and "Upcoming Payments" with a modern, animated card-based UI. |
 | **🔔 Smart Notifications** | Receive customizable reminders before bills are due. Configurable notification timing and quiet hours. Scheduled alarms with AlarmManager integration. |
 | **☁️ Cloud Backup** | **Google Drive integration** for automatic cloud backups. Configurable backup frequency (manual, on change, daily, weekly). Seamless restore from cloud. Sign in with your Google account. |
 | **⚙️ Utilities & Data** | **Multi-currency support** with 150+ currencies and **real-time exchange rates**. Local **Backup/Restore** (JSON, CSV, PDF). Secure, encrypted storage using Room database. Payment method tracking. |
 | **🌐 Smart Integrations** | **BrandFetch API** for automatic company logo fetching. **FreeCurrencyAPI** for live currency exchange rates with 24-hour caching. **Google Drive API** for cloud backup. |
+| **🔒 Advanced Privacy** | **Privacy First** design with GDPR-aligned policy. "App API" configuration allows using your own **Brandfetch** and **FreecurrencyAPI** keys to bypass default limits. Zero data collection on external servers. |
 
 <br>
 
@@ -290,7 +292,7 @@ This project is built with modern Android development best practices and librari
 - ✅ Immutable PendingIntent flags in notifications
 - ✅ Safe exception handling in background tasks
 - ✅ Input validation on all user entries
-- ✅ No hardcoded secrets or API keys
+- ✅ No hardcoded secrets
 - ✅ Compliant with Android security best practices
 
 ### Privacy Policy

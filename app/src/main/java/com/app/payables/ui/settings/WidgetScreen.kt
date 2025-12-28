@@ -1,4 +1,4 @@
-@file:Suppress("AssignedValueIsNeverRead")
+@file:Suppress("AssignedValueIsNeverRead", "unused")
 
 package com.app.payables.ui.settings
 
@@ -41,24 +41,23 @@ import androidx.compose.animation.core.tween
 import androidx.compose.ui.text.style.TextAlign
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import android.Manifest
-import android.os.Build
-import android.content.pm.PackageManager
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
 import android.net.Uri
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.viewinterop.AndroidView
-import android.widget.ImageView
-import androidx.core.net.toUri
 import androidx.compose.ui.draw.blur
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.animation.core.animateFloatAsState
+import com.app.payables.PayablesApplication
+import android.content.Intent
+import java.util.Locale
 
 @Suppress("unused")
 private enum class WidgetSize { FourByTwo, TwoByTwo, TwoByOne }
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("unused")
 @Composable
 fun WidgetScreen(
     onBack: () -> Unit = {},
@@ -69,6 +68,27 @@ fun WidgetScreen(
     textColor: Color? = null,
     onTextColorChange: ((Color) -> Unit)? = null
 ) {
+    val context = LocalContext.current
+    val app = context.applicationContext as PayablesApplication
+    val settingsManager = app.settingsManager
+    val repository = app.payableRepository
+    val currencyExchangeRepository = app.currencyExchangeRepository
+    
+    // Fetch real data for preview
+    val payables by repository.getActivePayablesList().collectAsState(initial = emptyList())
+    val mainCurrency = remember { settingsManager.getDefaultCurrency() }
+    
+    // Ensure exchange rates are loaded
+    LaunchedEffect(mainCurrency) {
+        currencyExchangeRepository.ensureRatesUpdated(mainCurrency)
+    }
+    
+    // Fetch exchange rates
+    val exchangeRates by currencyExchangeRepository.getAllRates().collectAsState(initial = emptyList())
+    val exchangeRatesMap: Map<String, Double> by remember(exchangeRates) { 
+        derivedStateOf { exchangeRates.associate { it.currencyCode to it.rate } } 
+    }
+    
     val dims = LocalAppDimensions.current
     var titleInitialY by remember { mutableStateOf<Int?>(null) }
     var titleWindowY by remember { mutableIntStateOf(Int.MAX_VALUE) }
@@ -77,17 +97,81 @@ fun WidgetScreen(
     val topBarContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp).copy(alpha = topBarAlpha)
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
-    // Local UI-only state
-    val initialBackgroundColor = MaterialTheme.colorScheme.primaryContainer
-    val initialTextColor = MaterialTheme.colorScheme.onSurface
+    // Load initial values from SettingsManager
+    val initialBackgroundColor = remember { Color(settingsManager.getWidgetBackgroundColor().toULong()) }
+    val initialTextColor = remember { Color(settingsManager.getWidgetTextColor().toULong()) }
+    val initialTransparency = remember { settingsManager.getWidgetTransparency() }
+    val initialBackgroundBlur = remember { settingsManager.getWidgetBackgroundBlur() }
+    val initialBackgroundImageUri = remember { settingsManager.getWidgetBackgroundImageUri() }
+    val initialShowTomorrow = remember { settingsManager.getWidgetShowTomorrow() }
+    val initialShowUpcoming = remember { settingsManager.getWidgetShowUpcoming() }
+    val initialShowCount = remember { settingsManager.getWidgetShowCount() }
+
+    // Local UI-only state (seeded from settings)
     var backgroundColorLocal by remember { mutableStateOf(initialBackgroundColor) }
-    var transparency by remember { mutableFloatStateOf(0.15f) }
+    var transparency by remember { mutableFloatStateOf(initialTransparency) }
     var textColorLocal by remember { mutableStateOf(initialTextColor) }
-    var showTomorrow by remember { mutableStateOf(true) }
-    var showUpcoming by remember { mutableStateOf(true) }
-    var showPayablesCount by remember { mutableStateOf(true) }
-    var customBackground by rememberSaveable { mutableStateOf<String?>(null) }
-    var backgroundBlur by rememberSaveable { mutableFloatStateOf(0f) } // 0f..25f in dp
+    var showTomorrow by remember { mutableStateOf(initialShowTomorrow) }
+    var showUpcoming by remember { mutableStateOf(initialShowUpcoming) }
+    var showPayablesCount by remember { mutableStateOf(initialShowCount) }
+    var customBackground by rememberSaveable { mutableStateOf(initialBackgroundImageUri) }
+    var backgroundBlur by rememberSaveable { mutableFloatStateOf(initialBackgroundBlur) } // 0f..25f in dp
+
+    // Helper to request widget update
+    fun updateWidget() {
+        val intent = Intent("com.app.payables.ACTION_WIDGET_UPDATE")
+        intent.setPackage(context.packageName)
+        context.sendBroadcast(intent)
+    }
+
+    // Persist changes
+    LaunchedEffect(backgroundColorLocal) {
+        settingsManager.setWidgetBackgroundColor(backgroundColorLocal.value.toLong())
+        updateWidget()
+    }
+    LaunchedEffect(textColorLocal) {
+        settingsManager.setWidgetTextColor(textColorLocal.value.toLong())
+        updateWidget()
+    }
+    LaunchedEffect(transparency) {
+        settingsManager.setWidgetTransparency(transparency)
+        updateWidget()
+    }
+    LaunchedEffect(backgroundBlur) {
+        settingsManager.setWidgetBackgroundBlur(backgroundBlur)
+        updateWidget()
+    }
+    LaunchedEffect(customBackground) {
+        settingsManager.setWidgetBackgroundImageUri(customBackground)
+        updateWidget()
+    }
+    LaunchedEffect(showTomorrow) {
+        settingsManager.setWidgetShowTomorrow(showTomorrow)
+        updateWidget()
+    }
+    LaunchedEffect(showUpcoming) {
+        settingsManager.setWidgetShowUpcoming(showUpcoming)
+        updateWidget()
+    }
+    LaunchedEffect(showPayablesCount) {
+        settingsManager.setWidgetShowCount(showPayablesCount)
+        updateWidget()
+    }
+    
+    // Also handle external color changes (from picker)
+    LaunchedEffect(backgroundColor) {
+        if (backgroundColor != null) {
+            settingsManager.setWidgetBackgroundColor(backgroundColor.value.toLong())
+            updateWidget()
+        }
+    }
+    LaunchedEffect(textColor) {
+        if (textColor != null) {
+            settingsManager.setWidgetTextColor(textColor.value.toLong())
+            updateWidget()
+        }
+    }
+
 
     // Widget size selector (affects preview aspect ratio and width)
     var widgetSize by remember { mutableStateOf(WidgetSize.FourByTwo) }
@@ -193,7 +277,10 @@ fun WidgetScreen(
                         pillColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
                         showTomorrow = showTomorrow,
                         showUpcoming = showUpcoming,
-                        showPayablesCount = showPayablesCount
+                        showPayablesCount = showPayablesCount,
+                        payables = payables,
+                        mainCurrency = mainCurrency,
+                        exchangeRatesMap = exchangeRatesMap
                     )
                 }
             }
@@ -229,19 +316,30 @@ fun WidgetScreen(
                     isFirst = true,
                     isLast = false
                 ) {
-                    val context = LocalContext.current
-                    val permission = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_IMAGES else Manifest.permission.READ_EXTERNAL_STORAGE
-                    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-                        customBackground = uri?.toString()
-                    }
-                    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-                        if (granted) imagePicker.launch("image/*")
+                    val imageContext = LocalContext.current
+                    val contentResolver = imageContext.contentResolver
+                    
+                    // Use OpenDocument to get persistent access to the file
+                    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+                        if (uri != null) {
+                            try {
+                                // Take persistent read permission for the URI
+                                contentResolver.takePersistableUriPermission(
+                                    uri,
+                                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                )
+                                customBackground = uri.toString()
+                            } catch (e: SecurityException) {
+                                // Fallback if persistent permission fails
+                                customBackground = uri.toString()
+                            }
+                        }
                     }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Button(onClick = {
-                            val hasPermission = ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
-                            if (hasPermission) imagePicker.launch("image/*") else permissionLauncher.launch(permission)
+                            // OpenDocument doesn't require read permission - the system handles it
+                            imagePicker.launch(arrayOf("image/*"))
                         }) { Text(if (customBackground != null) "Change image" else "Choose image") }
                         if (customBackground != null) {
                             var pop by remember { mutableStateOf(false) }
@@ -399,8 +497,8 @@ private fun CustomizationCard(
         onClick = {},
         enabled = false,
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 2.dp),
+        .fillMaxWidth()
+        .padding(bottom = 2.dp),
         shape = corners,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
@@ -428,24 +526,24 @@ private fun ColorSwatchesRow(
             val border = if (option == selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
             Box(
                 modifier = Modifier
-                    .size(36.dp)
-                    .background(option, RoundedCornerShape(18.dp))
-                    .border(width = 2.dp, color = border, shape = RoundedCornerShape(18.dp))
-                    .clickable { onSelect(option) },
+                .size(36.dp)
+                .background(option, RoundedCornerShape(18.dp))
+                .border(width = 2.dp, color = border, shape = RoundedCornerShape(18.dp))
+                .clickable { onSelect(option) },
             )
         }
         if (onOpenCustom != null) {
             // Custom color button
             Box(
                 modifier = Modifier
-                    .size(36.dp)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
-                    .border(
-                        width = 2.dp,
-                        color = MaterialTheme.colorScheme.primary,
-                        shape = RoundedCornerShape(18.dp)
-                    )
-                    .clickable { onOpenCustom() },
+                .size(36.dp)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
+                .border(
+                    width = 2.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = RoundedCornerShape(18.dp)
+                )
+                .clickable { onOpenCustom() },
                 contentAlignment = Alignment.Center
             ) {
                 Text("+", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium)
@@ -473,9 +571,9 @@ private fun OptionToggleCard(
     Card(
         onClick = { onCheckedChange(!checked) },
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 2.dp)
-            .pressableCard(interactionSource = interaction),
+        .fillMaxWidth()
+        .padding(bottom = 2.dp)
+        .pressableCard(interactionSource = interaction),
         shape = corners,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f),
@@ -488,8 +586,8 @@ private fun OptionToggleCard(
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(LocalAppDimensions.current.spacing.card),
+            .fillMaxWidth()
+            .padding(LocalAppDimensions.current.spacing.card),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -522,122 +620,227 @@ private fun WidgetLivePreview(
     cardColor: Color,
     backgroundImageUri: String? = null,
     backgroundBlur: Float = 0f,
-    pillColor: Color,
-    showTomorrow: Boolean,
-    showUpcoming: Boolean,
-    showPayablesCount: Boolean
+    @Suppress("UNUSED_PARAMETER") pillColor: Color,
+    @Suppress("UNUSED_PARAMETER") showTomorrow: Boolean,
+    @Suppress("UNUSED_PARAMETER") showUpcoming: Boolean,
+    @Suppress("UNUSED_PARAMETER") showPayablesCount: Boolean,
+    payables: List<com.app.payables.data.Payable> = emptyList(),
+    mainCurrency: String = "EUR",
+    exchangeRatesMap: Map<String, Double> = emptyMap()
 ) {
     val innerShape = RoundedCornerShape(22.dp)
+    val today = java.time.LocalDate.now()
+    val tomorrow = today.plusDays(1)
 
     Box(
         modifier = modifier
-            .aspectRatio(aspectRatio)
-            .clip(innerShape)
-            .background(cardColor)
+        .aspectRatio(aspectRatio)
+        .clip(innerShape)
+        .background(cardColor)
     ) {
         // Full-bleed background image if provided
         if (backgroundImageUri != null) {
-            @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
-            AndroidView(
-                factory = { ctx ->
-                    ImageView(ctx).apply { scaleType = ImageView.ScaleType.CENTER_CROP }
-                },
-                update = { it.setImageURI(backgroundImageUri.toUri()) },
+            AsyncImage(
+                model = backgroundImageUri,
+                contentDescription = "Widget background",
+                contentScale = ContentScale.Crop,
                 modifier = Modifier.matchParentSize().blur(backgroundBlur.dp)
             )
-            // Dim overlay using cardColor alpha handled outside when composing cardColor
+            // Dim overlay using cardColor alpha
             Box(modifier = Modifier.matchParentSize().background(cardColor))
         }
 
-        // Foreground content with inner padding
-        Box(modifier = Modifier
-            .fillMaxSize()
-            .padding(18.dp)) {
+        // Content - matches the simplified widget layout
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
             when (widgetSize) {
                 WidgetSize.FourByTwo -> {
-                    Row(modifier = Modifier.fillMaxSize()) {
-                        // Left
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
-                            verticalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            if (showTomorrow) {
-                                Column {
-                                    Text("Tomorrow", color = textColor, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
-                                    Spacer(Modifier.height(8.dp))
-                                    Text(
-                                        text = "€ 42.96",
-                                        color = textColor,
-                                        style = MaterialTheme.typography.headlineLarge,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                            }
-                            if (showPayablesCount) {
-                                Box(
-                                    modifier = Modifier
-                                        .padding(bottom = 4.dp)
-                                        .background(pillColor, RoundedCornerShape(12.dp))
-                                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                                ) {
-                                    Text("4 This Week", color = textColor, style = MaterialTheme.typography.bodyMedium)
-                                }
-                            }
+                    // 4x2 Widget: "Tomorrow" label + total amount due tomorrow
+                    val tomorrowPayables = payables.filter {
+                        val dueDate = com.app.payables.data.Payable.calculateNextDueDate(
+                            java.time.LocalDate.ofEpochDay(it.billingDateMillis / com.app.payables.data.Payable.MILLIS_PER_DAY),
+                            it.billingCycle
+                        )
+                        dueDate.isEqual(tomorrow)
+                    }
+                    
+                    val totalTomorrow = tomorrowPayables.sumOf { payable ->
+                        val originalAmount = payable.amount.toDoubleOrNull() ?: 0.0
+                        if (payable.currency != mainCurrency && exchangeRatesMap.isNotEmpty()) {
+                            val fromRate = exchangeRatesMap[payable.currency] ?: 1.0
+                            val toRate = exchangeRatesMap[mainCurrency] ?: 1.0
+                            originalAmount * (toRate / fromRate)
+                        } else {
+                            originalAmount
                         }
+                    }
+                    
+                    val currencySymbol = getCurrencySymbol(mainCurrency)
 
-                        // Right
-                        if (showUpcoming) {
-                            Column(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight(),
-                                verticalArrangement = Arrangement.Top
-                            ) {
-                                Text(
-                                    "Upcoming",
-                                    color = textColor,
-                                    fontWeight = FontWeight.SemiBold,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    modifier = Modifier.align(Alignment.End)
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                Column(
-                                    modifier = Modifier.align(Alignment.End),
-                                    horizontalAlignment = Alignment.Start
-                                ) {
-                                    WidgetRow("Spotify", "€ 11.99", textColor)
-                                    WidgetRow("Amazon", "€ 4,99", textColor)
-                                    WidgetRow("Youtube", "€ 15.99", textColor)
-                                    WidgetRow("Crunchyroll", "€ 9.99", textColor)
-                                }
-                                Spacer(Modifier.height(8.dp))
-                            }
-                        }
-                    }
-                }
-                WidgetSize.TwoByTwo -> {
                     Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text("€ 11.99", color = textColor, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(6.dp))
-                        Text("Spotify", color = textColor, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(2.dp))
-                        Text("Due in 3 days", color = textColor, style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-                WidgetSize.TwoByOne -> {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Text("Tomorrow", color = textColor, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
-                        Spacer(Modifier.height(6.dp))
-                        Text("€ 3.03", color = textColor, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            text = "Tomorrow",
+                            color = textColor,
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = "$currencySymbol ${String.format(Locale.getDefault(), "%.2f", totalTomorrow)}",
+                            color = textColor,
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                
+                WidgetSize.TwoByTwo -> {
+                    // 2x2 Widget: Amount + Title + Due date for next payable
+                    val nextDue = payables.minByOrNull { 
+                        com.app.payables.data.Payable.calculateNextDueDate(
+                            java.time.LocalDate.ofEpochDay(it.billingDateMillis / com.app.payables.data.Payable.MILLIS_PER_DAY),
+                            it.billingCycle
+                        ).toEpochDay()
+                    }
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        if (nextDue != null) {
+                            val dueDate = com.app.payables.data.Payable.calculateNextDueDate(
+                                java.time.LocalDate.ofEpochDay(nextDue.billingDateMillis / com.app.payables.data.Payable.MILLIS_PER_DAY),
+                                nextDue.billingCycle
+                            )
+                            val daysUntil = java.time.temporal.ChronoUnit.DAYS.between(today, dueDate)
+                            
+                            // Convert to main currency
+                            val originalAmount = nextDue.amount.toDoubleOrNull() ?: 0.0
+                            val convertedAmount = if (nextDue.currency != mainCurrency && exchangeRatesMap.isNotEmpty()) {
+                                val fromRate = exchangeRatesMap[nextDue.currency] ?: 1.0
+                                val toRate = exchangeRatesMap[mainCurrency] ?: 1.0
+                                originalAmount * (toRate / fromRate)
+                            } else {
+                                originalAmount
+                            }
+                            val symbol = getCurrencySymbol(mainCurrency)
+                            
+                            val dueText = when (daysUntil) {
+                                0L -> "Due today"
+                                1L -> "Due tomorrow"
+                                else -> "Due in $daysUntil days"
+                            }
+
+                            Text(
+                                text = "$symbol ${String.format(Locale.getDefault(), "%.2f", convertedAmount)}",
+                                color = textColor,
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = nextDue.title,
+                                color = textColor,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = dueText,
+                                color = textColor.copy(alpha = 0.7f),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        } else {
+                            val symbol = getCurrencySymbol(mainCurrency)
+                            Text(
+                                text = "$symbol 0.00",
+                                color = textColor,
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = "No Payables",
+                                color = textColor,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+                
+                WidgetSize.TwoByOne -> {
+                    // 2x1 Widget: Next due payable with due label
+                    val nextDue = payables.minByOrNull { 
+                        com.app.payables.data.Payable.calculateNextDueDate(
+                            java.time.LocalDate.ofEpochDay(it.billingDateMillis / com.app.payables.data.Payable.MILLIS_PER_DAY),
+                            it.billingCycle
+                        ).toEpochDay()
+                    }
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        if (nextDue != null) {
+                            val dueDate = com.app.payables.data.Payable.calculateNextDueDate(
+                                java.time.LocalDate.ofEpochDay(nextDue.billingDateMillis / com.app.payables.data.Payable.MILLIS_PER_DAY),
+                                nextDue.billingCycle
+                            )
+                            val daysUntil = java.time.temporal.ChronoUnit.DAYS.between(today, dueDate)
+                            
+                            val dueLabel = when (daysUntil) {
+                                0L -> "Due today"
+                                1L -> "Due tomorrow"
+                                else -> "Due in $daysUntil days"
+                            }
+                            
+                            // Convert to main currency
+                            val originalAmount = nextDue.amount.toDoubleOrNull() ?: 0.0
+                            val convertedAmount = if (nextDue.currency != mainCurrency && exchangeRatesMap.isNotEmpty()) {
+                                val fromRate = exchangeRatesMap[nextDue.currency] ?: 1.0
+                                val toRate = exchangeRatesMap[mainCurrency] ?: 1.0
+                                originalAmount * (toRate / fromRate)
+                            } else {
+                                originalAmount
+                            }
+                            val symbol = getCurrencySymbol(mainCurrency)
+                            
+                            Text(
+                                text = dueLabel,
+                                color = textColor,
+                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = "$symbol ${String.format(Locale.getDefault(), "%.2f", convertedAmount)}",
+                                color = textColor,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        } else {
+                            val symbol = getCurrencySymbol(mainCurrency)
+                            Text(
+                                text = "No Payables",
+                                color = textColor,
+                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = "$symbol 0.00",
+                                color = textColor,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
@@ -680,12 +883,82 @@ private fun WidgetRow(label: String, amount: String, color: Color) {
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-private fun WidgetScreenPreview() {
-    AppTheme {
-        WidgetScreen()
+@Suppress("SwallowedException")
+private fun getCurrencySymbol(currencyCode: String): String {
+     return try {
+        java.util.Currency.getInstance(currencyCode).symbol
+    } catch (_: Exception) {
+        currencyCode
     }
 }
 
+@Preview(showBackground = true)
+@Composable
+private fun WidgetScreenPreview() {
+    // Use MaterialTheme directly instead of AppTheme to avoid preview-incompatible dependencies
+    MaterialTheme(
+        colorScheme = darkColorScheme()
+    ) {
+        // Preview with mock data - can't use real PayablesApplication in preview
+        val mockPayables = listOf(
+            com.app.payables.data.Payable.create(
+                id = "preview-1",
+                title = "Netflix",
+                amount = "15.99",
+                billingDate = java.time.LocalDate.now().plusDays(1),
+                currency = "EUR",
+                billingCycle = "Monthly"
+            ),
+            com.app.payables.data.Payable.create(
+                id = "preview-2",
+                title = "Spotify",
+                amount = "9.99",
+                billingDate = java.time.LocalDate.now().plusDays(3),
+                currency = "EUR",
+                billingCycle = "Monthly"
+            )
+        )
+        WidgetLivePreviewStandalone(
+            payables = mockPayables,
+            widgetSize = WidgetSize.FourByTwo,
+            textColor = Color.White,
+            cardColor = Color(0xFF2D2D2D),
+            pillColor = Color.White.copy(alpha = 0.18f),
+            showTomorrow = true,
+            showUpcoming = true,
+            showPayablesCount = true,
+            mainCurrency = "EUR"
+        )
+    }
+}
 
+@Composable
+private fun WidgetLivePreviewStandalone(
+    payables: List<com.app.payables.data.Payable>,
+    widgetSize: WidgetSize,
+    textColor: Color,
+    cardColor: Color,
+    pillColor: Color,
+    showTomorrow: Boolean,
+    showUpcoming: Boolean,
+    showPayablesCount: Boolean,
+    mainCurrency: String = "EUR"
+) {
+    WidgetLivePreview(
+        modifier = Modifier.width(300.dp),
+        aspectRatio = when (widgetSize) {
+            WidgetSize.FourByTwo -> 2f
+            WidgetSize.TwoByTwo -> 1f
+            WidgetSize.TwoByOne -> 2f
+        },
+        widgetSize = widgetSize,
+        textColor = textColor,
+        cardColor = cardColor,
+        pillColor = pillColor,
+        showTomorrow = showTomorrow,
+        showUpcoming = showUpcoming,
+        showPayablesCount = showPayablesCount,
+        payables = payables,
+        mainCurrency = mainCurrency
+    )
+}

@@ -57,6 +57,19 @@ class PayableRepository(
         }
     }
     
+    /**
+     * Trigger widget update to refresh displayed data.
+     * Called when payables are deleted, updated, or otherwise changed.
+     */
+    private fun triggerWidgetUpdate() {
+        context?.let { ctx ->
+            val intent = android.content.Intent("com.app.payables.ACTION_WIDGET_UPDATE")
+            intent.setPackage(ctx.packageName)
+            ctx.sendBroadcast(intent)
+            android.util.Log.d("PayableRepository", "Triggered widget update")
+        }
+    }
+    
     // Get all payables as Flow of Payable entities
     fun getAllPayables(): Flow<List<Payable>> {
         return payableDao.getAllPayables()
@@ -158,6 +171,9 @@ class PayableRepository(
             payables.filter { !it.isPaused && !it.isFinished }
         }
     }
+
+    // Alias for WidgetScreen compatibility
+    fun getActivePayablesList(): Flow<List<Payable>> = getActivePayableEntities()
     
     // Get only paused payables
     fun getPausedPayables(): Flow<List<PayableItemData>> {
@@ -206,7 +222,10 @@ class PayableRepository(
         customIconUri: String? = null,
         color: Color = Color(0xFF2196F3),
         iconColor: Color = Color(0xFF1976D2),
-        categoryRepository: CategoryRepository? = null
+        categoryRepository: CategoryRepository? = null,
+        savedMainCurrency: String? = null,
+        savedExchangeRate: Double? = null,
+        savedConvertedPrice: Double? = null
     ) {
         val payable = Payable.create(
             id = id,
@@ -225,7 +244,10 @@ class PayableRepository(
             iconName = iconName,
             customIconUri = customIconUri,
             color = color,
-            iconColor = iconColor
+            iconColor = iconColor,
+            savedMainCurrency = savedMainCurrency,
+            savedExchangeRate = savedExchangeRate,
+            savedConvertedPrice = savedConvertedPrice
         )
         payableDao.insertPayable(payable)
         
@@ -269,6 +291,9 @@ class PayableRepository(
         
         // Trigger cloud backup if enabled
         triggerCloudBackupIfNeeded()
+        
+        // Trigger widget update to show updated data
+        triggerWidgetUpdate()
     }
     
     // Delete a payable by ID
@@ -283,6 +308,9 @@ class PayableRepository(
         
         // Trigger cloud backup if enabled
         triggerCloudBackupIfNeeded()
+        
+        // Trigger widget update to show next due payable
+        triggerWidgetUpdate()
         
         // Update category count if repository provided
         payable?.let { p ->

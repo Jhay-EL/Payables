@@ -38,6 +38,7 @@ import com.app.payables.theme.pressableCard
 import com.app.payables.theme.rememberFadeToTopBarProgress
 import com.app.payables.theme.windowYReporter
 import com.app.payables.util.GoogleDriveManager
+import com.app.payables.util.IconBackupHelper
 import com.google.gson.Gson
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
@@ -293,6 +294,13 @@ fun RestoreScreen(
 
                                 // Schedule alarms for all active payables after restore
                                 payableRepository.rescheduleAllAlarms()
+                                
+                                // Restore icon files from backup
+                                IconBackupHelper.restoreIconFiles(
+                                    context,
+                                    backupData.iconFiles,
+                                    backupData.importedIconsList
+                                )
 
                                 Toast.makeText(context, "Restore completed from Google Drive", Toast.LENGTH_SHORT).show()
                             } else {

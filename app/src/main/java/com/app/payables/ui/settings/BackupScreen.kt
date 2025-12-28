@@ -41,6 +41,7 @@ import com.app.payables.theme.pressableCard
 import com.app.payables.theme.rememberFadeToTopBarProgress
 import com.app.payables.theme.windowYReporter
 import com.app.payables.util.GoogleDriveManager
+import com.app.payables.util.IconBackupHelper
 import com.app.payables.util.SettingsManager
 import com.google.gson.Gson
 import kotlinx.coroutines.launch
@@ -257,8 +258,18 @@ fun BackupScreen(
                             val payables = payableRepository.getAllPayablesList()
                             val categories = categoryRepository.getNonDefaultCategoriesList()
                             val customPaymentMethods = customPaymentMethodRepository.getAllCustomPaymentMethodsList()
+                            
+                            // Collect icon files for backup
+                            val iconFiles = IconBackupHelper.collectIconFiles(context)
+                            val importedIconsList = IconBackupHelper.getImportedIconsList(context)
 
-                            val backupData = BackupData(payables, categories, customPaymentMethods)
+                            val backupData = BackupData(
+                                payables = payables,
+                                categories = categories,
+                                customPaymentMethods = customPaymentMethods,
+                                iconFiles = iconFiles,
+                                importedIconsList = importedIconsList
+                            )
                             val json = Gson().toJson(backupData)
 
                             val success = googleDriveManager.uploadBackup(json)

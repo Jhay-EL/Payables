@@ -43,7 +43,11 @@ data class Payable(
     val isFinished: Boolean = false, // Whether the payable is finished (completed or expired)
     val finishedAtMillis: Long? = null, // Timestamp when payable was finished (null = never finished or currently active)
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    // Currency conversion fields (stored at save time for offline display)
+    val savedMainCurrency: String? = null, // The user's main currency at save time
+    val savedExchangeRate: Double? = null, // Exchange rate: 1 payable currency = X main currency
+    val savedConvertedPrice: Double? = null // Amount converted to main currency
 ) {
     // Convert to UI PayableItemData
     fun toPayableItemData(): PayableItemData {
@@ -76,7 +80,11 @@ data class Payable(
             billingDateMillis = billingDateMillis,
             nextDueDateMillis = dueDate.toEpochDay() * MILLIS_PER_DAY,
             pausedAtMillis = pausedAtMillis,
-            finishedAtMillis = finishedAtMillis
+            finishedAtMillis = finishedAtMillis,
+            // Use stored exchange rate data if available
+            convertedPrice = savedConvertedPrice,
+            mainCurrency = savedMainCurrency,
+            exchangeRate = savedExchangeRate
         )
     }
     
@@ -104,7 +112,10 @@ data class Payable(
             color: Color = Color(0xFF2196F3),
             iconColor: Color = Color(0xFF1976D2),
             isPaused: Boolean = false,
-            isFinished: Boolean = false
+            isFinished: Boolean = false,
+            savedMainCurrency: String? = null,
+            savedExchangeRate: Double? = null,
+            savedConvertedPrice: Double? = null
         ): Payable {
             return Payable(
                 id = id,
@@ -125,7 +136,10 @@ data class Payable(
                 colorValue = color.value.toLong(),
                 iconColorValue = iconColor.value.toLong(),
                 isPaused = isPaused,
-                isFinished = isFinished
+                isFinished = isFinished,
+                savedMainCurrency = savedMainCurrency,
+                savedExchangeRate = savedExchangeRate,
+                savedConvertedPrice = savedConvertedPrice
             )
         }
         

@@ -95,5 +95,8 @@ interface PayableDao {
 
     @Query("SELECT * FROM payables WHERE isFinished = 0 AND endDateMillis IS NOT NULL")
     suspend fun getActivePayablesWithEndDate(): List<Payable>
+
+    @Query("SELECT * FROM payables WHERE isFinished = 0 AND isPaused = 0 ORDER BY billingDateMillis ASC")
+    suspend fun getActivePayablesList(): List<Payable>
 }
 

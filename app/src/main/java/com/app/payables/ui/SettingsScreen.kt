@@ -146,12 +146,25 @@ fun SettingsScreen(
                     )
                     SettingsCard(
                         title = "Widget",
-                        subtitle = "Select what payables will display on\nhome screen",
-                        leading = { BadgeIcon(background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)) { Icon(Icons.Filled.GridView, null, tint = MaterialTheme.colorScheme.primary) } },
-                        trailing = {},
+                        subtitle = "Coming soon",
+                        leading = { BadgeIcon(background = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)) { Icon(Icons.Filled.GridView, null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)) } },
+                        trailing = {
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    text = "Soon",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        },
                         isFirst = false,
                         isLast = true,
-                        onClick = onOpenWidget
+                        titleColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        onClick = { /* disabled */ }
                     )
             }
             }

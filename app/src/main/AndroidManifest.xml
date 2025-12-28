@@ -27,6 +27,47 @@
 
         <receiver android:name=".work.NotificationBroadcastReceiver" android:enabled="true" />
 
+        <receiver
+            android:name=".widget.PayableWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.app.payables.ACTION_WIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/payable_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.PayableWidgetProvider2x2"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.app.payables.ACTION_WIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/payable_widget_info_2x2" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.PayableWidgetProvider2x1"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.app.payables.ACTION_WIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/payable_widget_info_2x1" />
+        </receiver>
+
+        <service
+            android:name=".widget.PayableWidgetService"
+            android:exported="true"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
     </application>
 
 </manifest>
