@@ -1,4 +1,4 @@
-@file:Suppress("AssignedValueIsNeverRead")
+@file:Suppress("AssignedValueIsNeverRead", "unused")
 
 package com.app.payables.ui
 

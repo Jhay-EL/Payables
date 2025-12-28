@@ -14,6 +14,7 @@
   <img src="https://img.shields.io/badge/API-28+-blue?style=for-the-badge" alt="Min API: 28">
   <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?style=for-the-badge&logo=jetpackcompose" alt="UI: Jetpack Compose">
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="License: MIT">
+  <a href="https://buymeacoffee.com/jhayel"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black" alt="Buy Me a Coffee"></a>
 </p>
 
 ---
@@ -47,6 +48,7 @@ Payables is a modern Android app that helps you manage all your recurring expens
 | **🎨 Rich Customization** | Personalize each payable with custom background colors and icons from your gallery. Full support for **Light, Dark, and System** themes. Material Design 3 UI with smooth animations. |
 | **📈 Spending Insights** | Visualize your financial future with **Spending Forecasts** (3, 6, 12 months) based on active payables. View "Top 5 Most Expensive" expenses and "Upcoming Payments" with a modern, animated card-based UI. |
 | **🔔 Smart Notifications** | Receive customizable reminders before bills are due. Configurable notification timing and quiet hours. Scheduled alarms with AlarmManager integration. |
+| **📱 Home Screen Widgets** | View upcoming payables at a glance without opening the app. Three widget sizes (4x2, 2x2, 2x1) with smart due date formatting. Tap to open specific payable or view all. Auto-refresh on data changes. |
 | **☁️ Cloud Backup** | **Google Drive integration** for automatic cloud backups. Configurable backup frequency (manual, on change, daily, weekly). Seamless restore from cloud. Sign in with your Google account. |
 | **⚙️ Utilities & Data** | **Multi-currency support** with 150+ currencies and **real-time exchange rates**. Local **Backup/Restore** (JSON, CSV, PDF). Secure, encrypted storage using Room database. Payment method tracking. |
 | **🌐 Smart Integrations** | **BrandFetch API** for automatic company logo fetching. **FreeCurrencyAPI** for live currency exchange rates with 24-hour caching. **Google Drive API** for cloud backup. |
@@ -381,6 +383,7 @@ Optimizations implemented:
 ## 📞 Support & Contact
 
 - **Email:** [jl.temporary@outlook.it](mailto:jl.temporary@outlook.it)
+- **Buy Me a Coffee:** [buymeacoffee.com/jhayel](https://buymeacoffee.com/jhayel)
 
 
 <br>
