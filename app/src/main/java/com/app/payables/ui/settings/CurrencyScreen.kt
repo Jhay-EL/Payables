@@ -276,7 +276,7 @@ private fun CurrencyRow(
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, heightDp = 1500)
 @Composable
 private fun CurrencyScreenPreview() {
     AppTheme {

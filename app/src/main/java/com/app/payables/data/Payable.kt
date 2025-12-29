@@ -47,7 +47,8 @@ data class Payable(
     // Currency conversion fields (stored at save time for offline display)
     val savedMainCurrency: String? = null, // The user's main currency at save time
     val savedExchangeRate: Double? = null, // Exchange rate: 1 payable currency = X main currency
-    val savedConvertedPrice: Double? = null // Amount converted to main currency
+    val savedConvertedPrice: Double? = null, // Amount converted to main currency
+    val brandColors: String? = null // Brand colors as comma-separated hex values (e.g., "#1da1f2,#ffffff,#14171a")
 ) {
     // Convert to UI PayableItemData
     fun toPayableItemData(): PayableItemData {
@@ -84,7 +85,8 @@ data class Payable(
             // Use stored exchange rate data if available
             convertedPrice = savedConvertedPrice,
             mainCurrency = savedMainCurrency,
-            exchangeRate = savedExchangeRate
+            exchangeRate = savedExchangeRate,
+            brandColors = brandColors
         )
     }
     
@@ -115,7 +117,8 @@ data class Payable(
             isFinished: Boolean = false,
             savedMainCurrency: String? = null,
             savedExchangeRate: Double? = null,
-            savedConvertedPrice: Double? = null
+            savedConvertedPrice: Double? = null,
+            brandColors: String? = null
         ): Payable {
             return Payable(
                 id = id,
@@ -139,7 +142,8 @@ data class Payable(
                 isFinished = isFinished,
                 savedMainCurrency = savedMainCurrency,
                 savedExchangeRate = savedExchangeRate,
-                savedConvertedPrice = savedConvertedPrice
+                savedConvertedPrice = savedConvertedPrice,
+                brandColors = brandColors
             )
         }
         

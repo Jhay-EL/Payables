@@ -72,11 +72,18 @@ fun WidgetScreen(
     val app = context.applicationContext as PayablesApplication
     val settingsManager = app.settingsManager
     val repository = app.payableRepository
+    val categoryRepository = app.categoryRepository
     val currencyExchangeRepository = app.currencyExchangeRepository
     
     // Fetch real data for preview
     val payables by repository.getActivePayablesList().collectAsState(initial = emptyList())
+    val categories by categoryRepository.getAllCategories().collectAsState(initial = emptyList())
     val mainCurrency = remember { settingsManager.getDefaultCurrency() }
+    
+    // Build a map of category name -> color
+    val categoryColorsMap: Map<String, Color> by remember(categories) {
+        derivedStateOf { categories.associate { it.name to it.color } }
+    }
     
     // Ensure exchange rates are loaded
     LaunchedEffect(mainCurrency) {
@@ -280,7 +287,8 @@ fun WidgetScreen(
                         showPayablesCount = showPayablesCount,
                         payables = payables,
                         mainCurrency = mainCurrency,
-                        exchangeRatesMap = exchangeRatesMap
+                        exchangeRatesMap = exchangeRatesMap,
+                        categoryColorsMap = categoryColorsMap
                     )
                 }
             }
@@ -626,11 +634,12 @@ private fun WidgetLivePreview(
     @Suppress("UNUSED_PARAMETER") showPayablesCount: Boolean,
     payables: List<com.app.payables.data.Payable> = emptyList(),
     mainCurrency: String = "EUR",
-    exchangeRatesMap: Map<String, Double> = emptyMap()
+    exchangeRatesMap: Map<String, Double> = emptyMap(),
+    categoryColorsMap: Map<String, Color> = emptyMap()
 ) {
     val innerShape = RoundedCornerShape(22.dp)
     val today = java.time.LocalDate.now()
-    val tomorrow = today.plusDays(1)
+    val accentColor = Color(0xFF00BFA5) // Teal accent for "This Month" text
 
     Box(
         modifier = modifier
@@ -659,16 +668,19 @@ private fun WidgetLivePreview(
         ) {
             when (widgetSize) {
                 WidgetSize.FourByTwo -> {
-                    // 4x2 Widget: "Tomorrow" label + total amount due tomorrow
-                    val tomorrowPayables = payables.filter {
+                    // NEW 4x2 Widget Design: Left side (amount + count), Right side (payables list with dots)
+                    
+                    // Calculate total monthly amount
+                    val monthEnd = today.plusMonths(1)
+                    val thisMonthPayables = payables.filter {
                         val dueDate = com.app.payables.data.Payable.calculateNextDueDate(
                             java.time.LocalDate.ofEpochDay(it.billingDateMillis / com.app.payables.data.Payable.MILLIS_PER_DAY),
                             it.billingCycle
                         )
-                        dueDate.isEqual(tomorrow)
+                        !dueDate.isBefore(today) && dueDate.isBefore(monthEnd)
                     }
                     
-                    val totalTomorrow = tomorrowPayables.sumOf { payable ->
+                    val totalThisMonth = thisMonthPayables.sumOf { payable ->
                         val originalAmount = payable.amount.toDoubleOrNull() ?: 0.0
                         if (payable.currency != mainCurrency && exchangeRatesMap.isNotEmpty()) {
                             val fromRate = exchangeRatesMap[payable.currency] ?: 1.0
@@ -680,24 +692,138 @@ private fun WidgetLivePreview(
                     }
                     
                     val currencySymbol = getCurrencySymbol(mainCurrency)
-
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                    
+                    // Sort payables by due date for the list
+                    val sortedPayables = payables.sortedBy { 
+                        com.app.payables.data.Payable.calculateNextDueDate(
+                            java.time.LocalDate.ofEpochDay(it.billingDateMillis / com.app.payables.data.Payable.MILLIS_PER_DAY),
+                            it.billingCycle
+                        ).toEpochDay()
+                    }
+                    
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = "Tomorrow",
-                            color = textColor,
-                            fontWeight = FontWeight.SemiBold,
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = "$currencySymbol ${String.format(Locale.getDefault(), "%.2f", totalTomorrow)}",
-                            color = textColor,
-                            style = MaterialTheme.typography.headlineLarge,
-                            fontWeight = FontWeight.Bold
-                        )
+                        // Left Column: Amount at top, Count at bottom
+                        Column(
+                            modifier = Modifier
+                                .weight(0.4f)
+                                .fillMaxHeight(),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            // Top: Total amount
+                            Text(
+                                text = "$currencySymbol ${String.format(Locale.getDefault(), "%.2f", totalThisMonth)}",
+                                color = textColor,
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            
+                            // Bottom: Payable count with accent color label
+                            Column {
+                                Text(
+                                    text = "${thisMonthPayables.size}",
+                                    color = textColor,
+                                    style = MaterialTheme.typography.headlineLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "This Month",
+                                    color = accentColor,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                        
+                        Spacer(Modifier.width(12.dp))
+                        
+                        // Right Column: Payables list with category dots and separators
+                        Column(
+                            modifier = Modifier
+                                .weight(0.6f)
+                                .fillMaxHeight(),
+                            verticalArrangement = Arrangement.Top
+                        ) {
+                            // Show up to 5 payables (reduced due to larger spacing with separators)
+                            sortedPayables.take(5).forEachIndexed { index, payable ->
+                                val dueDate = com.app.payables.data.Payable.calculateNextDueDate(
+                                    java.time.LocalDate.ofEpochDay(payable.billingDateMillis / com.app.payables.data.Payable.MILLIS_PER_DAY),
+                                    payable.billingCycle
+                                )
+                                val daysUntil = java.time.temporal.ChronoUnit.DAYS.between(today, dueDate)
+                                
+                                val dueLabelShort = when {
+                                    daysUntil <= 0L -> "Today"
+                                    daysUntil == 1L -> "Tomorrow"
+                                    daysUntil <= 7L -> "$daysUntil days"
+                                    daysUntil <= 14L -> "1 week"
+                                    daysUntil <= 21L -> "2 weeks"
+                                    daysUntil <= 30L -> "3 weeks"
+                                    else -> "${daysUntil / 30} mo"
+                                }
+                                
+                                // Get category color - use payable's backgroundColor or fallback to primary
+                                val categoryColor = categoryColorsMap[payable.category] 
+                                    ?: Color(payable.colorValue.toULong())
+                                
+                                // Payable row with color dot
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Category color dot
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .background(categoryColor, RoundedCornerShape(4.dp))
+                                    )
+                                    
+                                    Spacer(Modifier.width(8.dp))
+                                    
+                                    // Payable name (truncated)
+                                    Text(
+                                        text = payable.title.take(12) + if (payable.title.length > 12) "..." else "",
+                                        color = textColor,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    
+                                    // Due date in grey
+                                    Text(
+                                        text = dueLabelShort,
+                                        color = textColor.copy(alpha = 0.5f),
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                                
+                                // Dotted separator line between items (not after last item)
+                                if (index < minOf(sortedPayables.size - 1, 4)) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(1.dp)
+                                            .background(
+                                                textColor.copy(alpha = 0.15f),
+                                                RoundedCornerShape(0.5.dp)
+                                            )
+                                    )
+                                }
+                            }
+                            
+                            // Empty state
+                            if (sortedPayables.isEmpty()) {
+                                Text(
+                                    text = "No payables",
+                                    color = textColor.copy(alpha = 0.5f),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
                     }
                 }
                 
@@ -892,7 +1018,7 @@ private fun getCurrencySymbol(currencyCode: String): String {
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, heightDp = 1500)
 @Composable
 private fun WidgetScreenPreview() {
     // Use MaterialTheme directly instead of AppTheme to avoid preview-incompatible dependencies
@@ -942,7 +1068,8 @@ private fun WidgetLivePreviewStandalone(
     showTomorrow: Boolean,
     showUpcoming: Boolean,
     showPayablesCount: Boolean,
-    mainCurrency: String = "EUR"
+    mainCurrency: String = "EUR",
+    categoryColorsMap: Map<String, Color> = emptyMap()
 ) {
     WidgetLivePreview(
         modifier = Modifier.width(300.dp),
@@ -959,6 +1086,7 @@ private fun WidgetLivePreviewStandalone(
         showUpcoming = showUpcoming,
         showPayablesCount = showPayablesCount,
         payables = payables,
-        mainCurrency = mainCurrency
+        mainCurrency = mainCurrency,
+        categoryColorsMap = categoryColorsMap
     )
 }

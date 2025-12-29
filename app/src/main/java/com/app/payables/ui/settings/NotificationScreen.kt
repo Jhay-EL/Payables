@@ -621,7 +621,7 @@ private fun TimePickerDialog(
 	}
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, heightDp = 1500)
 @Composable
 fun NotificationScreenPreview() {
 	AppTheme {

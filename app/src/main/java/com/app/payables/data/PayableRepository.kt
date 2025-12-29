@@ -225,7 +225,8 @@ class PayableRepository(
         categoryRepository: CategoryRepository? = null,
         savedMainCurrency: String? = null,
         savedExchangeRate: Double? = null,
-        savedConvertedPrice: Double? = null
+        savedConvertedPrice: Double? = null,
+        brandColors: String? = null
     ) {
         val payable = Payable.create(
             id = id,
@@ -247,7 +248,8 @@ class PayableRepository(
             iconColor = iconColor,
             savedMainCurrency = savedMainCurrency,
             savedExchangeRate = savedExchangeRate,
-            savedConvertedPrice = savedConvertedPrice
+            savedConvertedPrice = savedConvertedPrice,
+            brandColors = brandColors
         )
         payableDao.insertPayable(payable)
         

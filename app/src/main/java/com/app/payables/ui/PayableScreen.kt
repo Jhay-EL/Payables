@@ -906,7 +906,9 @@ data class PayableItemData(
     // Pause tracking
     val pausedAtMillis: Long? = null,   // Timestamp when payable was paused (null = never paused or currently active)
     // Finish tracking
-    val finishedAtMillis: Long? = null  // Timestamp when payable was finished (null = never finished or currently active)
+    val finishedAtMillis: Long? = null,  // Timestamp when payable was finished (null = never finished or currently active)
+    // Brand colors from BrandFetch API (comma-separated hex values)
+    val brandColors: String? = null
 )
 
 enum class SortOption {
@@ -926,7 +928,7 @@ data class FilterState(
     val paymentMethods: Map<String, Boolean> = emptyMap()
 )
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, heightDp = 1500)
 @Composable
 private fun PayableScreenPreview() {
     AppTheme {
@@ -975,7 +977,7 @@ private fun PayableScreenPreview() {
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, heightDp = 1500)
 @Composable
 private fun PayableScreenEmptyPreview() {
     AppTheme {

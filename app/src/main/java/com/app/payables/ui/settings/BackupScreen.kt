@@ -734,7 +734,7 @@ private fun getPayableStatus(payable: com.app.payables.data.Payable): String {
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, heightDp = 1500)
 @Composable
 private fun BackupScreenPreview() {
     AppTheme {

@@ -52,6 +52,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.app.payables.util.isColorBright
 import com.app.payables.util.SettingsManager
 import com.app.payables.util.InputValidator
+import androidx.core.graphics.toColorInt
 // Screen state for transitions
 private enum class AddPayableScreenState {
     Main, CustomIcons, CustomColor, CustomPaymentMethod
@@ -135,6 +136,17 @@ fun AddPayableScreen(
     var tempColor by remember { mutableStateOf(editingPayable?.backgroundColor ?: defaultHeaderColor) }
     var screenState by remember { mutableStateOf(AddPayableScreenState.Main) }
     var editingPaymentMethod by remember { mutableStateOf<CustomPaymentMethod?>(null) }
+    var brandColors: List<Color> by remember { 
+        mutableStateOf(
+            editingPayable?.brandColors?.split(",")?.mapNotNull { hex ->
+                try {
+                    Color(hex.trim().toColorInt())
+                } catch (e: Exception) {
+                    null
+                }
+            } ?: emptyList()
+        )
+    }
 
     val canSave = title.text.isNotBlank()
     val saveableStateHolder = rememberSaveableStateHolder()
@@ -258,7 +270,16 @@ fun AddPayableScreen(
                             iconColor = tempColor,
                             savedMainCurrency = savedMainCurrency,
                             savedExchangeRate = savedExchangeRate,
-                            savedConvertedPrice = savedConvertedPrice
+                            savedConvertedPrice = savedConvertedPrice,
+                            brandColors = if (brandColors.isNotEmpty()) {
+                                brandColors.joinToString(",") { color: Color ->
+                                    "#%02X%02X%02X".format(
+                                        (color.red * 255).toInt(),
+                                        (color.green * 255).toInt(),
+                                        (color.blue * 255).toInt()
+                                    )
+                                }
+                            } else null
                         )
                         payableRepository.updatePayable(updatedPayable)
                     } else {
@@ -284,7 +305,16 @@ fun AddPayableScreen(
                             categoryRepository = categoryRepository,
                             savedMainCurrency = savedMainCurrency,
                             savedExchangeRate = savedExchangeRate,
-                            savedConvertedPrice = savedConvertedPrice
+                            savedConvertedPrice = savedConvertedPrice,
+                            brandColors = if (brandColors.isNotEmpty()) {
+                                brandColors.joinToString(",") { color: Color ->
+                                    "#%02X%02X%02X".format(
+                                        (color.red * 255).toInt(),
+                                        (color.green * 255).toInt(),
+                                        (color.blue * 255).toInt()
+                                    )
+                                }
+                            } else null
                         )
                     }
                     onSave() // Call the callback after successful save
@@ -409,13 +439,20 @@ fun AddPayableScreen(
                     onNotesChange = { notes = it },
                     titleError = titleError,
                     amountError = amountError,
-                    websiteError = websiteError
+                    websiteError = websiteError,
+                    brandColors = brandColors
                 )
                 
                 AddPayableScreenState.CustomIcons -> CustomIconsScreen(
                     onBack = { screenState = AddPayableScreenState.Main },
-                    onPick = { uri ->
+                    onPick = { uri, colors ->
                         selectedIcon = uri
+                        if (colors.isNotEmpty()) {
+                            brandColors = colors
+                            // Auto-select first color as selected color
+                            selectedColor = colors.first()
+                            tempColor = colors.first()
+                        }
                         screenState = AddPayableScreenState.Main
                     }
                 )
@@ -427,7 +464,8 @@ fun AddPayableScreen(
                     },
                     onPick = { color ->
                         tempColor = color
-                    }
+                    },
+                    brandColors = brandColors
                 )
 
                 AddPayableScreenState.CustomPaymentMethod -> CustomPaymentScreen(
@@ -608,7 +646,8 @@ private fun MainAddPayableContent(
     onNotesChange: (TextFieldValue) -> Unit,
     titleError: String? = null,
     amountError: String? = null,
-    websiteError: String? = null
+    websiteError: String? = null,
+    brandColors: List<Color> = emptyList()
 ) {
     val dateFormatter = DateTimeFormatter.ofPattern("MMMM dd, yyyy")
     
@@ -835,14 +874,16 @@ private fun MainAddPayableContent(
                 isFirst = true,
                 isLast = false,
                 additionalContent = {
+                    // Use brand colors if available, otherwise use default colors
+                    val defaultColors = listOf(
+                        Color(0xFF2196F3), // Blue
+                        Color(0xFFF44336), // Red
+                        Color(0xFF4CAF50), // Green
+                        Color(0xFFFFFFFF), // White
+                        Color(0xFF000000)  // Black
+                    )
                     ColorSwatchesRow(
-                        options = listOf(
-                            Color(0xFF2196F3), // Blue
-                            Color(0xFFF44336), // Red
-                            Color(0xFF4CAF50), // Green
-                            Color(0xFFFFFFFF), // White
-                            Color(0xFF000000)  // Black
-                        ),
+                        options = if (brandColors.isNotEmpty()) brandColors.take(5) else defaultColors,
                         selected = selectedColor,
                         onSelect = onColorSelect,
                         onOpenCustom = onOpenCustomColor
@@ -1302,7 +1343,7 @@ private fun calculateNextDueDateForAddPayable(billingDate: LocalDate, cycle: Str
     return nextDue
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, heightDp = 1500)
 @Composable
 private fun AddPayableScreenPreview() {
     AppTheme {

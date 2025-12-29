@@ -1748,7 +1748,7 @@ private fun routeDepthForEditScreen(screen: EditScreenState): Int = when (screen
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Preview(showBackground = true)
+@Preview(showBackground = true, heightDp = 1500)
 @Composable
 fun DashboardScreenPreview() {
     AppTheme {

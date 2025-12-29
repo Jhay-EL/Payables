@@ -336,7 +336,7 @@ fun CustomPaymentScreen(
     BackHandler(true) { onCancel() }
 }
 
-@Preview(showBackground = true, name = "Add Custom Payment Method")
+@Preview(showBackground = true, name = "Add Custom Payment Method", heightDp = 1500)
 @Composable
 private fun CustomPaymentScreenPreview() {
     AppTheme {
@@ -344,7 +344,7 @@ private fun CustomPaymentScreenPreview() {
     }
 }
 
-@Preview(showBackground = true, name = "Edit Custom Payment Method")
+@Preview(showBackground = true, name = "Edit Custom Payment Method", heightDp = 1500)
 @Composable
 private fun CustomPaymentScreenEditPreview() {
     AppTheme {

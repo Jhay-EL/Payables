@@ -305,7 +305,7 @@ private fun SettingsItemStack(content: @Composable ColumnScope.() -> Unit) {
     Column { content() }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, heightDp = 1500)
 @Composable
 fun SettingsScreenPreview() {
     AppTheme {

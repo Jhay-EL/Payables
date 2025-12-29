@@ -773,7 +773,7 @@ private fun formatNextBillingDate(payable: PayableItemData): String {
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, heightDp = 1500)
 @Composable
 private fun ViewPayableScreenPreview() {
     AppTheme {

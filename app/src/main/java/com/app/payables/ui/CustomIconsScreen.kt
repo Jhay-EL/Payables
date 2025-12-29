@@ -39,12 +39,14 @@ import com.app.payables.theme.*
 import com.app.payables.util.LogoKitService
 import kotlinx.coroutines.launch
 import java.io.File
+import androidx.compose.ui.graphics.Color
+import android.graphics.Color as AndroidColor
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CustomIconsScreen(
     onBack: () -> Unit,
-    onPick: (Uri) -> Unit = {}
+    onPick: (Uri, List<Color>) -> Unit = { _, _ -> }
 ) {
     val dims = LocalAppDimensions.current
     var titleInitialY by remember { mutableStateOf<Int?>(null) }
@@ -109,7 +111,7 @@ fun CustomIconsScreen(
             ) { page ->
                 when (page) {
                     0 -> BrandSearchTab(onPick = onPick)
-                    1 -> CustomIconsTab(onPick = onPick)
+                    1 -> CustomIconsTab(onPick = { uri -> onPick(uri, emptyList()) })
                 }
             }
         }
@@ -120,7 +122,7 @@ fun CustomIconsScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BrandSearchTab(
-    onPick: (Uri) -> Unit
+    onPick: (Uri, List<Color>) -> Unit
 ) {
     val dims = LocalAppDimensions.current
     val context = LocalContext.current
@@ -239,7 +241,17 @@ private fun BrandSearchTab(
                                                 val fileUri = File(path).toUri()
                                                 // Register the downloaded logo in ImportedIconsStore for persistence
                                                 ImportedIconsStore.addIcon(context, fileUri.toString())
-                                                onPick(fileUri)
+                                                
+                                                // Convert brand colors to Compose Color objects
+                                                val brandColors = brandResult.colors.mapNotNull { brandColor ->
+                                                    try {
+                                                        Color(AndroidColor.parseColor(brandColor.hex))
+                                                    } catch (e: Exception) {
+                                                        null
+                                                    }
+                                                }
+                                                
+                                                onPick(fileUri, brandColors)
                                             }
                                         }
                                     }

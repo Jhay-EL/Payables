@@ -437,7 +437,7 @@ private fun OptionCard(
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, heightDp = 1500)
 @Composable
 private fun AddCategoryScreenPreview() {
     AppTheme {

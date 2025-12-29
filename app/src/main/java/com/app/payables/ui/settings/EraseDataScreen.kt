@@ -334,7 +334,7 @@ private fun EraseOptionCard(
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, heightDp = 1500)
 @Composable
 private fun EraseDataScreenPreview() {
     AppTheme {

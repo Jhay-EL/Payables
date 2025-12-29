@@ -33,12 +33,18 @@ import com.app.payables.theme.*
 import kotlin.math.atan2
 import kotlin.math.hypot
 import kotlin.math.min
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomColorScreen(
     onBack: () -> Unit = {},
-    onPick: (Color) -> Unit = {}
+    onPick: (Color) -> Unit = {},
+    brandColors: List<Color> = emptyList()
 ) {
     val dims = LocalAppDimensions.current
     var titleInitialY by remember { mutableStateOf<Int?>(null) }
@@ -104,7 +110,7 @@ fun CustomColorScreen(
                         top = dims.titleDimensions.payablesTitleTopPadding,
                         bottom = dims.titleDimensions.payablesTitleToOverviewSpacing
                     )
-                )
+            )
             }
 
             // Color wheel (Hue/Saturation) + brightness
@@ -162,6 +168,75 @@ fun CustomColorScreen(
                     modifier = Modifier.weight(1f),
                     placeholder = { Text("#RRGGBB or #AARRGGBB") }
                 )
+            }
+
+            Spacer(Modifier.height(dims.spacing.section))
+
+            // Brand Colors section (if available) - at bottom
+            if (brandColors.isNotEmpty()) {
+                Text(
+                    text = "Brand Colors",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(Modifier.height(8.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(brandColors) { brandColor ->
+                        ColorSwatch(
+                            color = brandColor,
+                            isSelected = color == brandColor,
+                            onClick = {
+                                val hsv = FloatArray(3)
+                                android.graphics.Color.colorToHSV(brandColor.toArgb(), hsv)
+                                hue = hsv[0]
+                                sat = hsv[1]
+                                value = hsv[2]
+                                onPick(brandColor)
+                            }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(dims.spacing.section))
+            }
+
+            // Preset Colors section - at bottom
+            Text(
+                text = "Preset Colors",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.height(8.dp))
+            val presetColors = listOf(
+                Color(0xFF2196F3), // Blue
+                Color(0xFFF44336), // Red
+                Color(0xFF4CAF50), // Green
+                Color(0xFFFFEB3B), // Yellow
+                Color(0xFF9C27B0), // Purple
+                Color(0xFFFF9800), // Orange
+                Color(0xFF00BCD4), // Cyan
+                Color(0xFFE91E63), // Pink
+                Color(0xFFFFFFFF), // White
+                Color(0xFF000000)  // Black
+            )
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(presetColors) { presetColor ->
+                    ColorSwatch(
+                        color = presetColor,
+                        isSelected = color == presetColor,
+                        onClick = {
+                            val hsv = FloatArray(3)
+                            android.graphics.Color.colorToHSV(presetColor.toArgb(), hsv)
+                            hue = hsv[0]
+                            sat = hsv[1]
+                            value = hsv[2]
+                            onPick(presetColor)
+                        }
+                    )
+                }
             }
 
             Spacer(Modifier.height(dims.spacing.section))
@@ -260,6 +335,30 @@ private fun colorToHexNoAlpha(color: Color): String {
     return "#%02X%02X%02X".format(r, g, b)
 }
 
+@Composable
+private fun ColorSwatch(
+    color: Color,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val borderColor = if (isSelected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+    }
+    
+    Surface(
+        modifier = Modifier
+            .size(40.dp)
+            .clickable(onClick = onClick),
+        shape = CircleShape,
+        color = color,
+        border = BorderStroke(width = if (isSelected) 3.dp else 1.dp, color = borderColor)
+    ) {
+        // Empty content - just the colored surface
+    }
+}
+
 private fun parseHex(text: String): Color? {
     val t = text.trim().removePrefix("#")
     return try {
@@ -274,7 +373,7 @@ private fun parseHex(text: String): Color? {
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, heightDp = 1500)
 @Composable
 private fun CustomColorPreview() {
     AppTheme {

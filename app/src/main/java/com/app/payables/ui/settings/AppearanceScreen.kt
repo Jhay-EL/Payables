@@ -217,7 +217,7 @@ private fun ThemeOptionCard(
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, heightDp = 1500)
 @Composable
 fun AppearanceScreenPreview() {
     AppTheme {
