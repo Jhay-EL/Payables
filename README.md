@@ -23,7 +23,7 @@
 
 Payables is a modern Android app that helps you manage all your recurring expenses in one place. Get a clear, beautiful overview of where your money is going with smart due date calculations, customizable categories, and powerful filtering options. Managing your finances has never been easier.
 
-**Status:** 🚧 Active Development | v1.204
+**Status:** 🚧 Active Development | v1.3
 
 <br>
 
@@ -50,7 +50,7 @@ Payables is a modern Android app that helps you manage all your recurring expens
 | **🔔 Smart Notifications** | Receive customizable reminders before bills are due. Configurable notification timing and quiet hours. Scheduled alarms with AlarmManager integration. |
 | **📱 Home Screen Widgets** | View upcoming payables at a glance without opening the app. Three widget sizes (4x2, 2x2, 2x1) with smart due date formatting. Tap to open specific payable or view all. Auto-refresh on data changes. |
 | **☁️ Cloud Backup** | **Google Drive integration** for automatic cloud backups. Configurable backup frequency (manual, on change, daily, weekly). Seamless restore from cloud. Sign in with your Google account. |
-| **⚙️ Utilities & Data** | **Multi-currency support** with 150+ currencies and **real-time exchange rates**. Local **Backup/Restore** (JSON, CSV, PDF). Secure, encrypted storage using Room database. Payment method tracking. |
+| **⚙️ Utilities & Data** | **Multi-currency support** with 150+ currencies and **real-time exchange rates**. Local **Backup/Restore** (JSON, CSV, PDF) with full details. Secure, encrypted storage using Room database. Payment method tracking (Credit Card, PayPal, etc.). |
 | **🌐 Smart Integrations** | **BrandFetch API** for automatic company logo fetching. **FreeCurrencyAPI** for live currency exchange rates with 24-hour caching. **Google Drive API** for cloud backup. |
 | **🔒 Advanced Privacy** | **Privacy First** design with GDPR-aligned policy. "App API" configuration allows using your own **Brandfetch** and **FreecurrencyAPI** keys to bypass default limits. Zero data collection on external servers. |
 
@@ -241,7 +241,13 @@ This project is built with modern Android development best practices and librari
 - ✅ Advanced analytics dashboard
 - ✅ Recurring payment history
 
-**v1.3+ (Future)**
+**v1.3 (Current)**
+- ✅ PayPal Integration
+- ✅ Live Preview Customization
+- ✅ Enhanced Exports (Notes, Website, Description)
+- ✅ Dynamic Dashboard Labels
+
+**v1.4+ (Future)**
 - 📋 Multi-device sync
 - 📋 Sharing payables with family
 - 📋 Bill splitting feature
