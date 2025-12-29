@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,13 +40,23 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.font.FontWeight
+import coil.compose.AsyncImage
+import android.net.Uri
+import com.app.payables.util.isColorBright
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomColorScreen(
     onBack: () -> Unit = {},
     onPick: (Color) -> Unit = {},
-    brandColors: List<Color> = emptyList()
+    brandColors: List<Color> = emptyList(),
+    initialColor: Color = Color(0xFF3B82F6),
+    previewTitle: String = "New Payable",
+    previewSubtitle: String = "No description",
+    previewAmount: String = "$ 0.00",
+    previewBadge: String = "Due Today",
+    previewIcon: Uri? = null
 ) {
     val dims = LocalAppDimensions.current
     var titleInitialY by remember { mutableStateOf<Int?>(null) }
@@ -54,10 +66,17 @@ fun CustomColorScreen(
     val topBarColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp).copy(alpha = topBarAlpha)
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
-    var hue by remember { mutableFloatStateOf(210f) } // 0..360
-    var sat by remember { mutableFloatStateOf(0.7f) }  // 0..1
-    var value by remember { mutableFloatStateOf(0.9f) } // 0..1
-    var hex by remember { mutableStateOf(TextFieldValue("#3B82F6")) }
+    // Initialize HSV state from initialColor
+    val initialHsv = remember(initialColor) {
+        val hsv = FloatArray(3)
+        android.graphics.Color.colorToHSV(initialColor.toArgb(), hsv)
+        hsv
+    }
+    
+    var hue by remember { mutableFloatStateOf(initialHsv[0]) } // 0..360
+    var sat by remember { mutableFloatStateOf(initialHsv[1]) }  // 0..1
+    var value by remember { mutableFloatStateOf(initialHsv[2]) } // 0..1
+    var hex by remember { mutableStateOf(TextFieldValue(colorToHexNoAlpha(initialColor))) }
 
     val color = remember(hue, sat, value) { Color.hsv(hue, sat, value) }
 
@@ -110,8 +129,30 @@ fun CustomColorScreen(
                         top = dims.titleDimensions.payablesTitleTopPadding,
                         bottom = dims.titleDimensions.payablesTitleToOverviewSpacing
                     )
-            )
+                )
+
             }
+
+            Spacer(Modifier.height(24.dp))
+
+            Text(
+                text = "Payable Card Preview",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.height(16.dp))
+
+            // Preview HeaderCard
+            HeaderCard(
+                title = previewTitle,
+                amountLabel = previewAmount,
+                subtitle = previewSubtitle,
+                badge = previewBadge,
+                customIcon = previewIcon,
+                backgroundColor = color
+            )
+            
+            Spacer(Modifier.height(48.dp))
 
             // Color wheel (Hue/Saturation) + brightness
             HSVWheel(
@@ -128,14 +169,14 @@ fun CustomColorScreen(
                 }
             )
 
-            Spacer(Modifier.height(dims.spacing.md))
+            Spacer(Modifier.height(32.dp))
             Text("Brightness", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
             Slider(value = value, onValueChange = {
                 value = it
                 onPick(Color.hsv(hue, sat, it))
             })
 
-            Spacer(Modifier.height(dims.spacing.section))
+            Spacer(Modifier.height(48.dp))
 
             // Hex input with live color swatch
             Text("Hex code", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
@@ -170,7 +211,7 @@ fun CustomColorScreen(
                 )
             }
 
-            Spacer(Modifier.height(dims.spacing.section))
+            Spacer(Modifier.height(48.dp))
 
             // Brand Colors section (if available) - at bottom
             if (brandColors.isNotEmpty()) {
@@ -373,11 +414,99 @@ private fun parseHex(text: String): Color? {
     }
 }
 
-@Preview(showBackground = true, heightDp = 1500)
+@Preview(showBackground = true, heightDp = 1150)
 @Composable
 private fun CustomColorPreview() {
     AppTheme {
         CustomColorScreen()
+    }
+}
+
+@Composable
+private fun HeaderCard(
+    title: String,
+    amountLabel: String,
+    subtitle: String,
+    badge: String,
+    customIcon: Uri? = null,
+    backgroundColor: Color = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
+) {
+    // Calculate if the background is bright or dark to determine text color
+    val isBackgroundBright = isColorBright(backgroundColor)
+    val textColor = if (isBackgroundBright) Color.Black else Color.White
+    val secondaryTextColor = if (isBackgroundBright) Color.Black.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.7f)
+    val iconTint = if (isBackgroundBright) Color.Black.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.7f)
+    val dims = LocalAppDimensions.current
+    Card(
+        modifier = Modifier
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = backgroundColor
+        )
+    ) {
+        Column(modifier = Modifier.padding(dims.spacing.card)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Icon aligned to center of content
+                if (customIcon != null) {
+                    var imageModel by remember(customIcon) { mutableStateOf<Any?>(customIcon) }
+                    // Custom icon - maintains natural aspect ratio, no square constraint
+                    AsyncImage(
+                        model = imageModel,
+                        contentDescription = "Brand Logo",
+                        contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                        onError = {
+                            val currentModel = imageModel.toString()
+                            if (currentModel.contains("/symbol")) {
+                                imageModel = currentModel.replace("/symbol", "/icon")
+                            } else if (currentModel.contains("/icon")) {
+                                imageModel = currentModel.replace("/icon", "/logo")
+                            }
+                        },
+                        modifier = Modifier
+                            .height(60.dp)
+                            .widthIn(min = 40.dp, max = 120.dp)
+                            .wrapContentWidth()
+                    )
+                } else {
+                    // Default icon with background container
+                    Box(
+                        modifier = Modifier
+                            .size(60.dp)
+                            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f), RoundedCornerShape(16.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.Dashboard, contentDescription = null)
+                    }
+                }
+
+                // Main content column with title, subtitle, and badge
+                Column(modifier = Modifier.weight(1f).padding(start = 16.dp)) {
+                    // Title and subtitle in a column
+                    Text(title, style = MaterialTheme.typography.titleLarge,fontWeight = FontWeight.Bold, color = textColor)
+
+                    Spacer(Modifier.height(4.dp))
+
+                    Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = secondaryTextColor)
+
+                    Spacer(Modifier.height(12.dp))
+
+                    // Badge row
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Event, contentDescription = null, tint = iconTint)
+                        Spacer(Modifier.width(8.dp))
+                        Text(badge, style = MaterialTheme.typography.bodyMedium, color = secondaryTextColor)
+                    }
+                }
+
+                // Amount label on the right
+                Box(
+                    modifier = Modifier
+                        .background(textColor.copy(alpha = 0.16f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                ) { Text(amountLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = textColor) }
+            }
+        }
     }
 }
 

@@ -38,9 +38,9 @@ fun PayableScreen(
     onBack: () -> Unit = {},
     onNavigateToAddPayable: () -> Unit = {},
     onPayableClick: (PayableItemData) -> Unit = {},
-    monthlyAmount: String = "0.00",
     payables: List<PayableItemData> = emptyList(),
     screenTitle: String = "All",
+    totalAmountLabel: String = "Monthly expenses",
     mainCurrency: String = "EUR" // User's default currency from settings
 ) {
 
@@ -95,6 +95,17 @@ fun PayableScreen(
             sortedList
         }
     }
+
+    // Calculate display total based on current filtered/sorted list
+    val displayAmount = calculateTotalAmount(sortedPayables, mainCurrency)
+
+    // Determine label: if we have internal filters active, show "Filtered Total"
+    // otherwise use the passed label (which comes from Dashboard logic)
+    val hasActiveInternalFilters = searchQuery.isNotBlank() || 
+                                  (filterState.selectedBillingCycle != null) || 
+                                  filterState.paymentMethods.containsValue(true)
+    
+    val displayLabel = if (hasActiveInternalFilters) "Filtered Total" else totalAmountLabel
 
     Scaffold(
         topBar = {
@@ -246,11 +257,11 @@ fun PayableScreen(
                 
                 Text(
                     text = when (mainCurrency) {
-                        "EUR" -> "€$monthlyAmount"
-                        "USD" -> "$$monthlyAmount"
-                        "GBP" -> "£$monthlyAmount"
-                        "JPY" -> "¥$monthlyAmount"
-                        else -> "$mainCurrency $monthlyAmount"
+                        "EUR" -> "€$displayAmount"
+                        "USD" -> "$$displayAmount"
+                        "GBP" -> "£$displayAmount"
+                        "JPY" -> "¥$displayAmount"
+                        else -> "$mainCurrency $displayAmount"
                     },
                     style = MaterialTheme.typography.displayLarge.copy(
                         fontSize = 48.sp,
@@ -259,7 +270,7 @@ fun PayableScreen(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Remaining this month",
+                    text = displayLabel,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -935,7 +946,6 @@ private fun PayableScreenPreview() {
         PayableScreen(
             onNavigateToAddPayable = { /* Preview - no navigation */ },
             onPayableClick = { /* Preview - no navigation */ },
-            monthlyAmount = "39.52",
             screenTitle = "Entertainment",
             payables = listOf(
                 PayableItemData(
@@ -983,8 +993,7 @@ private fun PayableScreenEmptyPreview() {
     AppTheme {
         PayableScreen(
             onNavigateToAddPayable = { /* Preview - no navigation */ },
-            onPayableClick = { /* Preview - no navigation */ },
-            monthlyAmount = "0.00"
+            onPayableClick = { /* Preview - no navigation */ }
         )
     }
 }

@@ -174,7 +174,7 @@ fun AddPayableScreen(
                 method.name
             }
         }
-        listOf("Not set", "Credit Card", "Debit Card", "Bank Transfer", "Custom") + customMethods
+        listOf("Not set", "Credit Card", "Debit Card", "Bank Transfer", "PayPal", "Custom") + customMethods
     }
     
     // Validation State
@@ -457,16 +457,26 @@ fun AddPayableScreen(
                     }
                 )
                 
-                AddPayableScreenState.CustomColor -> CustomColorScreen(
-                    onBack = { 
-                        selectedColor = tempColor
-                        screenState = AddPayableScreenState.Main
-                    },
-                    onPick = { color ->
-                        tempColor = color
-                    },
-                    brandColors = brandColors
-                )
+                AddPayableScreenState.CustomColor -> {
+                    val selectedCurrencyData = currencies.find { it.code == selectedCurrency }
+                    val currencySymbol = selectedCurrencyData?.symbol ?: "€"
+                    CustomColorScreen(
+                        onBack = { 
+                            selectedColor = tempColor
+                            screenState = AddPayableScreenState.Main
+                        },
+                        onPick = { color ->
+                            tempColor = color
+                        },
+                        brandColors = brandColors,
+                        initialColor = tempColor,
+                        previewTitle = title.text.ifBlank { if (editingPayable != null) "Edit Payable" else "New Payable" },
+                        previewAmount = "$currencySymbol ${amount.text.ifEmpty { "0.00" }}",
+                        previewSubtitle = description.text.ifBlank { "No description" },
+                        previewBadge = "Due ${formatBillingDateRelative(billingDate, selectedCycle)}",
+                        previewIcon = selectedIcon
+                    )
+                }
 
                 AddPayableScreenState.CustomPaymentMethod -> CustomPaymentScreen(
                     customPaymentMethodRepository = customPaymentMethodRepository,
@@ -873,6 +883,8 @@ private fun MainAddPayableContent(
                 onClick = onOpenCustomColor,
                 isFirst = true,
                 isLast = false,
+                iconContainerColor = selectedColor,
+                iconTint = if (isColorBright(selectedColor)) Color.Black else Color.White,
                 additionalContent = {
                     // Use brand colors if available, otherwise use default colors
                     val defaultColors = listOf(
@@ -1343,7 +1355,7 @@ private fun calculateNextDueDateForAddPayable(billingDate: LocalDate, cycle: Str
     return nextDue
 }
 
-@Preview(showBackground = true, heightDp = 1500)
+@Preview(showBackground = true, heightDp = 1720)
 @Composable
 private fun AddPayableScreenPreview() {
     AppTheme {

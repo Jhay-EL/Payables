@@ -679,6 +679,15 @@ fun DashboardScreen(
                     }
                 }
                 
+                val totalAmountLabel = when (selectedPayableFilter) {
+                    is PayableFilter.All -> "Monthly expenses"
+                    is PayableFilter.ThisMonth -> "Remaining this month"
+                    is PayableFilter.ThisWeek -> "Due this week"
+                    is PayableFilter.Paused -> "Total paused"
+                    is PayableFilter.Finished -> "Total finished"
+                    is PayableFilter.Category -> "Category Total"
+                }
+
                 PayableScreen(
                     onBack = { 
                         showPayablesFullScreen = false
@@ -689,8 +698,8 @@ fun DashboardScreen(
                         showViewPayableFullScreen = true
                     },
                     payables = filteredPayables,
-                    monthlyAmount = calculateTotalAmount(filteredPayables, mainCurrency),
                     screenTitle = selectedPayableFilter.displayTitle,
+                    totalAmountLabel = totalAmountLabel,
                     mainCurrency = mainCurrency
                 )
             }
@@ -1718,7 +1727,7 @@ private sealed class PayableFilter(val displayTitle: String) {
 }
 
 // Helper function to calculate total monthly amount from payables in main currency
-private fun calculateTotalAmount(payables: List<PayableItemData>, mainCurrency: String): String {
+internal fun calculateTotalAmount(payables: List<PayableItemData>, mainCurrency: String): String {
     if (payables.isEmpty()) return "0.00"
     
     try {

@@ -414,7 +414,17 @@ fun BackupScreen(
                     val categories = categoryRepository.getNonDefaultCategoriesList()
                     val customPaymentMethods = customPaymentMethodRepository.getAllCustomPaymentMethodsList()
 
-                    val backupData = BackupData(payables, categories, customPaymentMethods)
+                    // Collect icon files for backup
+                    val iconFiles = IconBackupHelper.collectIconFiles(context)
+                    val importedIconsList = IconBackupHelper.getImportedIconsList(context)
+
+                    val backupData = BackupData(
+                        payables = payables,
+                        categories = categories,
+                        customPaymentMethods = customPaymentMethods,
+                        iconFiles = iconFiles,
+                        importedIconsList = importedIconsList
+                    )
                     val json = Gson().toJson(backupData)
 
                     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
@@ -445,7 +455,7 @@ fun BackupScreen(
                     try {
                         FileOutputStream(file).use { outputStream ->
                             // CSV Header
-                            val header = "Title,Amount,Currency,Due Date,Category,Payment Method,Billing Cycle,Status\n"
+                            val header = "Title,Amount,Currency,Due Date,Category,Payment Method,Billing Cycle,Status,Description,Website,Notes,Created Date\n"
                             outputStream.write(header.toByteArray())
                             
                             // CSV Data
@@ -707,13 +717,14 @@ private fun formatPayableForCsv(payable: com.app.payables.data.Payable): String 
     val billingDate = LocalDate.ofEpochDay(payable.billingDateMillis / com.app.payables.data.Payable.MILLIS_PER_DAY)
     val dueDate = com.app.payables.data.Payable.calculateNextDueDate(billingDate, payable.billingCycle)
     val dueDateFormatted = dueDate.format(DateTimeFormatter.ofPattern("MMM dd, yyyy"))
+    val createdDateFormatted = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(payable.createdAt))
     
     // Escape CSV fields by wrapping in quotes and escaping internal quotes
     fun escapeField(field: String): String {
         return "\"${field.replace("\"", "\"\"")}\""
     }
     
-    return "${escapeField(payable.title)},${escapeField(payable.amount)},${escapeField(payable.currency)},${escapeField(dueDateFormatted)},${escapeField(payable.category)},${escapeField(payable.paymentMethod)},${escapeField(payable.billingCycle)},${escapeField(status)}\n"
+    return "${escapeField(payable.title)},${escapeField(payable.amount)},${escapeField(payable.currency)},${escapeField(dueDateFormatted)},${escapeField(payable.category)},${escapeField(payable.paymentMethod)},${escapeField(payable.billingCycle)},${escapeField(status)},${escapeField(payable.description)},${escapeField(payable.website)},${escapeField(payable.notes)},${escapeField(createdDateFormatted)}\n"
 }
 
 // Helper function to format payable data for PDF
@@ -722,7 +733,19 @@ private fun formatPayableForPdf(payable: com.app.payables.data.Payable): String 
     val dueDate = com.app.payables.data.Payable.calculateNextDueDate(billingDate, payable.billingCycle)
     val dueDateFormatted = dueDate.format(DateTimeFormatter.ofPattern("MMM dd, yyyy"))
     
-    return "${payable.title} - ${payable.amount} ${payable.currency} - Due: $dueDateFormatted - ${payable.category}"
+    var details = "${payable.title} - ${payable.amount} ${payable.currency} - Due: $dueDateFormatted - ${payable.category}"
+    
+    if (payable.description.isNotBlank()) {
+        details += "\nDesc: ${payable.description}"
+    }
+    if (payable.website.isNotBlank()) {
+        details += "\nWeb: ${payable.website}"
+    }
+    if (payable.notes.isNotBlank()) {
+        details += "\nNotes: ${payable.notes}"
+    }
+    
+    return details
 }
 
 // Helper function to get payable status

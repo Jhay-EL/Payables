@@ -3,6 +3,7 @@
 package com.app.payables.ui.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -14,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.app.payables.theme.LocalAppDimensions
@@ -112,12 +114,20 @@ fun AppearanceScreen(
 
             SectionHeader()
 
+            val useDarkTheme = when (selectedTheme) {
+                AppThemeChoice.Light -> false
+                AppThemeChoice.Dark -> true
+                AppThemeChoice.System -> isSystemInDarkTheme()
+            }
+            val iconBackgroundColor = if (useDarkTheme) Color(0xFF1C1C1E) else Color.White
+
             ThemeOptionCard(
                 title = "Light Mode",
                 subtitle = "Use a light appearance",
                 icon = { Icon(Icons.Filled.LightMode, null, tint = MaterialTheme.colorScheme.primary) },
                 selected = selectedTheme == AppThemeChoice.Light,
                 onSelect = { onSelectTheme(AppThemeChoice.Light) },
+                iconBackgroundColor = iconBackgroundColor,
                 isFirst = true,
                 isLast = false
             )
@@ -127,6 +137,7 @@ fun AppearanceScreen(
                 icon = { Icon(Icons.Filled.Brightness3, null, tint = MaterialTheme.colorScheme.tertiary) },
                 selected = selectedTheme == AppThemeChoice.Dark,
                 onSelect = { onSelectTheme(AppThemeChoice.Dark) },
+                iconBackgroundColor = iconBackgroundColor,
                 isFirst = false,
                 isLast = false
             )
@@ -136,6 +147,7 @@ fun AppearanceScreen(
                 icon = { Icon(Icons.Filled.SettingsBrightness, null, tint = MaterialTheme.colorScheme.secondary) },
                 selected = selectedTheme == AppThemeChoice.System,
                 onSelect = { onSelectTheme(AppThemeChoice.System) },
+                iconBackgroundColor = iconBackgroundColor,
                 isFirst = false,
                 isLast = true
             )
@@ -161,6 +173,7 @@ private fun ThemeOptionCard(
     icon: @Composable () -> Unit,
     selected: Boolean,
     onSelect: () -> Unit,
+    iconBackgroundColor: Color,
     isFirst: Boolean,
     isLast: Boolean
 ) {
@@ -194,7 +207,7 @@ private fun ThemeOptionCard(
             Box(
                 modifier = Modifier
                     .size(44.dp)
-                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f), RoundedCornerShape(16.dp)),
+                    .background(iconBackgroundColor, RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center
             ) { icon() }
 
