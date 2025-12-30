@@ -56,7 +56,8 @@ fun CustomColorScreen(
     previewSubtitle: String = "No description",
     previewAmount: String = "$ 0.00",
     previewBadge: String = "Due Today",
-    previewIcon: Uri? = null
+    previewIcon: Uri? = null,
+    showPreview: Boolean = true
 ) {
     val dims = LocalAppDimensions.current
     var titleInitialY by remember { mutableStateOf<Int?>(null) }
@@ -135,24 +136,26 @@ fun CustomColorScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            Text(
-                text = "Payable Card Preview",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(Modifier.height(16.dp))
+            if (showPreview) {
+                Text(
+                    text = "Payable Card Preview",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(Modifier.height(16.dp))
 
-            // Preview HeaderCard
-            HeaderCard(
-                title = previewTitle,
-                amountLabel = previewAmount,
-                subtitle = previewSubtitle,
-                badge = previewBadge,
-                customIcon = previewIcon,
-                backgroundColor = color
-            )
-            
-            Spacer(Modifier.height(48.dp))
+                // Preview HeaderCard
+                HeaderCard(
+                    title = previewTitle,
+                    amountLabel = previewAmount,
+                    subtitle = previewSubtitle,
+                    badge = previewBadge,
+                    customIcon = previewIcon,
+                    backgroundColor = color
+                )
+                
+                Spacer(Modifier.height(48.dp))
+            }
 
             // Color wheel (Hue/Saturation) + brightness
             HSVWheel(
@@ -176,7 +179,7 @@ fun CustomColorScreen(
                 onPick(Color.hsv(hue, sat, it))
             })
 
-            Spacer(Modifier.height(48.dp))
+            Spacer(Modifier.height(24.dp))
 
             // Hex input with live color swatch
             Text("Hex code", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
@@ -211,7 +214,7 @@ fun CustomColorScreen(
                 )
             }
 
-            Spacer(Modifier.height(48.dp))
+            Spacer(Modifier.height(24.dp))
 
             // Brand Colors section (if available) - at bottom
             if (brandColors.isNotEmpty()) {

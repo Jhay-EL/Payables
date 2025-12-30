@@ -4,6 +4,7 @@ package com.app.payables.ui
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,6 +22,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.tooling.preview.Preview
@@ -53,6 +55,20 @@ fun AddCategoryScreen(
     var selectedIcon by remember(initialCategory) { mutableStateOf(initialCategory?.icon ?: Icons.Filled.Category) }
     var showCustomColor by remember { mutableStateOf(false) }
     var showDefaultIcons by remember { mutableStateOf(false) }
+    var showSaveWarning by remember { mutableStateOf(false) }
+
+    // Change detection logic
+    val hasChanges by remember {
+        derivedStateOf {
+            val originalName = initialCategory?.name ?: ""
+            val originalColor = initialCategory?.color ?: primaryColor
+            val originalIcon = initialCategory?.icon ?: Icons.Filled.Category
+
+            name.text.trim() != originalName ||
+            selectedColor != originalColor ||
+            selectedIcon != originalIcon
+        }
+    }
 
     var colorOptions by remember {
         mutableStateOf(
@@ -64,6 +80,31 @@ fun AddCategoryScreen(
                 Color(0xFF8B5CF6)  // Purple
             )
         )
+    }
+
+    // Handle back button when custom color picker or dialog is open, or check for changes
+    BackHandler(enabled = true) {
+        when {
+            showCustomColor -> showCustomColor = false
+            showSaveWarning -> showSaveWarning = false // Dismiss dialog on back
+            hasChanges -> showSaveWarning = true
+            else -> onBack()
+        }
+    }
+
+    // Save Action Helper
+    val performSave = {
+        if (name.text.isNotBlank()) {
+            onSave(
+                CategoryData(
+                    name = name.text.trim(),
+                    count = if (initialCategory == null) "0" else initialCategory.count,
+                    color = selectedColor,
+                    icon = selectedIcon,
+                    id = initialCategory?.id ?: UUID.randomUUID().toString()
+                )
+            )
+        }
     }
 
     // Use Crossfade to eliminate transition glitches
@@ -80,25 +121,19 @@ fun AddCategoryScreen(
                         scrollBehavior = scrollBehavior,
                         title = { Text(titleText, modifier = Modifier.graphicsLayer(alpha = topBarAlpha)) },
                         navigationIcon = {
-                            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                            IconButton(onClick = {
+                                if (hasChanges) {
+                                    showSaveWarning = true
+                                } else {
+                                    onBack()
+                                }
+                            }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                         },
                         actions = {
                             val canSave = name.text.isNotBlank()
                             TextButton(
                                 enabled = canSave,
-                                onClick = {
-                                    if (canSave) {
-                                        onSave(
-                                            CategoryData(
-                                                name = name.text.trim(),
-                                                count = if (initialCategory == null) "0" else initialCategory.count,
-                                                color = selectedColor,
-                                                icon = selectedIcon,
-                                                id = initialCategory?.id ?: UUID.randomUUID().toString()
-                                            )
-                                        )
-                                    }
-                                }
+                                onClick = { performSave() }
                             ) { Text("Save") }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
@@ -131,6 +166,17 @@ fun AddCategoryScreen(
                         )
                     }
 
+                    // Category Preview
+                    Text("Preview", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                    Spacer(Modifier.height(8.dp))
+                    CategoryPreviewCard(
+                        name = name.text,
+                        color = selectedColor,
+                        icon = selectedIcon
+                    )
+
+                    Spacer(Modifier.height(32.dp))
+
                     // Name input
                     Text("Category name", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(Modifier.height(8.dp))
@@ -144,34 +190,17 @@ fun AddCategoryScreen(
 
                     Spacer(Modifier.height(dims.spacing.section))
 
-                    // Icon options (stacked cards)
-                    Text("Choose icon", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                    // Icon selection
+                    Text("Icon", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(Modifier.height(8.dp))
                     ChoiceCard(
-                        title = "Default icons",
-                        description = "Pick from built-in icons.",
+                        title = "Change icon",
+                        description = "Pick from built-in icons",
                         isFirst = true,
-                        isLast = false,
+                        isLast = true,
                         onClick = {
                             showDefaultIcons = true
                         },
-                        leading = {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .background(selectedColor.copy(alpha = 0.18f), RoundedCornerShape(16.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(selectedIcon, contentDescription = null, tint = selectedColor, modifier = Modifier.size(20.dp))
-                            }
-                        }
-                    )
-                    ChoiceCard(
-                        title = "Custom icons",
-                        description = "Provide your own icon.",
-                        isFirst = false,
-                        isLast = true,
-                        onClick = { onOpenCustomIcons() },
                         leading = {
                             Box(
                                 modifier = Modifier
@@ -337,9 +366,34 @@ fun AddCategoryScreen(
         } else {
             CustomColorScreen(
                 onBack = { showCustomColor = false },
-                onPick = { c -> selectedColor = c }
+                onPick = { c -> selectedColor = c },
+                showPreview = false
             )
         }
+    }
+
+    if (showSaveWarning) {
+        AlertDialog(
+            onDismissRequest = { showSaveWarning = false },
+            title = { Text("Unsaved changes") },
+            text = { Text("Do you want to save this changes?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showSaveWarning = false
+                    performSave()
+                }) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showSaveWarning = false
+                    onBack()
+                }) {
+                    Text("Discard", color = MaterialTheme.colorScheme.error)
+                }
+            }
+        )
     }
 }
 
@@ -354,6 +408,7 @@ private fun ChoiceCard(
     leading: @Composable (() -> Unit)? = null
 ) {
     val corners = when {
+        isFirst && isLast -> RoundedCornerShape(24.dp)
         isFirst -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 5.dp, bottomEnd = 5.dp)
         isLast -> RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
         else -> RoundedCornerShape(5.dp)
@@ -413,6 +468,7 @@ private fun OptionCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val corners = when {
+        isFirst && isLast -> RoundedCornerShape(24.dp)
         isFirst -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 5.dp, bottomEnd = 5.dp)
         isLast -> RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
         else -> RoundedCornerShape(5.dp)
@@ -446,3 +502,75 @@ private fun AddCategoryScreenPreview() {
 }
 
 
+
+@Composable
+private fun CategoryPreviewCard(
+    name: String,
+    color: Color,
+    icon: ImageVector
+) {
+    val corners = RoundedCornerShape(24.dp)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = corners,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(LocalAppDimensions.current.spacing.card),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Category icon
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .background(
+                        color.copy(alpha = 0.18f),
+                        RoundedCornerShape(16.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = color
+                )
+            }
+
+            // Category Name
+            Text(
+                text = name.ifBlank { "Category Name" },
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 16.dp)
+            )
+
+            // Count badge (mock)
+            Box(
+                modifier = Modifier
+                    .background(
+                        color.copy(alpha = 0.18f),
+                        RoundedCornerShape(16.dp)
+                    )
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "0",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = color
+                )
+            }
+        }
+    }
+}
