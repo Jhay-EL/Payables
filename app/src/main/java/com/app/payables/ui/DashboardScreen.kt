@@ -1,4 +1,4 @@
-@file:Suppress("AssignedValueIsNeverRead")
+@file:Suppress("AssignedValueIsNeverRead", "UnusedImport")
 
 package com.app.payables.ui
 
@@ -57,6 +57,12 @@ import com.app.payables.PayablesApplication
 import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.launch
 import com.app.payables.util.SettingsManager
+import androidx.compose.ui.text.font.FontWeight
+import java.util.Locale
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
+import androidx.compose.ui.unit.Dp
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -262,6 +268,15 @@ fun DashboardScreen(
                     !nextDueDate.isBefore(today) && !nextDueDate.isAfter(endOfMonth)
                 } catch (_: Exception) { false }
             }
+        }
+    }
+    
+    // Derived: Upcoming Payments for carousel (sorted by due date, max 5)
+    val upcomingPaymentsUI by remember {
+        derivedStateOf {
+            activePayablesUI
+                .sortedBy { it.nextDueDateMillis }
+                .take(5)
         }
     }
     
@@ -514,6 +529,20 @@ fun DashboardScreen(
                             )
                         }
 
+                        // Upcoming Payments - After overview, before categories
+                        if (!hideInsights && upcomingPaymentsUI.isNotEmpty()) {
+                            item {
+                                UpcomingPaymentsCarousel(
+                                    upcomingPayments = upcomingPaymentsUI,
+                                    mainCurrency = mainCurrency,
+                                    onPayableClick = { payable ->
+                                        selectedPayable = payable
+                                        showViewPayableFullScreen = true
+                                    }
+                                )
+                            }
+                        }
+
                         // Categories Section
                         if (!hideCategories) {
                             item {
@@ -549,6 +578,7 @@ fun DashboardScreen(
                                 )
                             }
                         }
+
 
                         // Paused/Finished Section
                         if (!hidePausedFinished) {
@@ -1532,7 +1562,7 @@ fun CategoryCard(
                     }
                 } else {
                     // Show edit buttons when editing
-                    CompositionLocalProvider(LocalMinimumInteractiveComponentEnforcement provides false) {
+                    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(
                                 onClick = onEdit,
@@ -1741,7 +1771,7 @@ internal fun calculateTotalAmount(payables: List<PayableItemData>, mainCurrency:
             }
         }
         
-        return String.format(java.util.Locale.US, "%.2f", total)
+        return String.format(Locale.US, "%.2f", total)
     } catch (_: Exception) {
         return "0.00"
     }
@@ -1906,6 +1936,337 @@ fun InsightsPreviewCard(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+    }
+}
+
+// Helper function to get currency symbol
+private fun getCurrencySymbol(currency: String): String {
+    return when (currency) {
+        "EUR" -> "€"
+        "USD" -> "$"
+        "GBP" -> "£"
+        "JPY" -> "¥"
+        "PHP" -> "₱"
+        "CHF" -> "CHF "
+        "CAD" -> "C$"
+        "AUD" -> "A$"
+        "NZD" -> "NZ$"
+        "CNY" -> "¥"
+        "INR" -> "₹"
+        "KRW" -> "₩"
+        "BRL" -> "R$"
+        "MXN" -> "MX$"
+        "SGD" -> "S$"
+        "HKD" -> "HK$"
+        "SEK" -> "kr "
+        "NOK" -> "kr "
+        "DKK" -> "kr "
+        "PLN" -> "zł "
+        "THB" -> "฿"
+        "MYR" -> "RM "
+        "IDR" -> "Rp "
+        "VND" -> "₫"
+        "RUB" -> "₽"
+        "TRY" -> "₺"
+        "ZAR" -> "R "
+        "AED" -> "د.إ "
+        "SAR" -> "﷼ "
+        else -> "$currency "
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun UpcomingPaymentsCarousel(
+    upcomingPayments: List<PayableItemData>,
+    mainCurrency: String,
+    onPayableClick: (PayableItemData) -> Unit = {}
+) {
+    val dims = LocalAppDimensions.current
+    val lazyListState = androidx.compose.foundation.lazy.rememberLazyListState()
+    
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = dims.spacing.lg)
+    ) {
+        // Header with title and scroll indicator
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = dims.spacing.md),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Upcoming Payments",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Normal,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            
+            // Show item count
+            if (upcomingPayments.isNotEmpty()) {
+                Text(
+                    text = "${upcomingPayments.size} upcoming",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(dims.spacing.sm))
+        
+        if (upcomingPayments.isEmpty()) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = dims.spacing.md),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(80.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No upcoming payments",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else {
+            // Horizontal scroll with snap behavior
+            androidx.compose.foundation.lazy.LazyRow(
+                state = lazyListState,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(horizontal = dims.spacing.md),
+                flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(lazyListState)
+            ) {
+                items(upcomingPayments.size) { index ->
+                    val payable = upcomingPayments[index]
+                    
+                    UpcomingPaymentCard(
+                        payable = payable,
+                        mainCurrency = mainCurrency,
+                        onClick = { onPayableClick(payable) },
+                        modifier = Modifier.width(260.dp)
+                    )
+                }
+            }
+            
+            // Page indicator dots - show only when scrolling
+            if (upcomingPayments.size > 1) {
+                // Track if user is scrolling
+                val isScrolling by remember {
+                    derivedStateOf { lazyListState.isScrollInProgress }
+                }
+                
+                // Track visibility with delay for hiding
+                var showDots by remember { mutableStateOf(false) }
+                
+                LaunchedEffect(isScrolling) {
+                    if (isScrolling) {
+                        showDots = true
+                    } else {
+                        // Hide dots after 2 seconds of no scrolling
+                        kotlinx.coroutines.delay(2000)
+                        showDots = false
+                    }
+                }
+                
+                // Use derivedStateOf to avoid frequently changing state reads
+                val activeIndex by remember {
+                    derivedStateOf {
+                        val firstVisible = lazyListState.firstVisibleItemIndex
+                        val scrollOffset = lazyListState.firstVisibleItemScrollOffset
+                        val itemSize = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 1
+                        if (scrollOffset > itemSize / 2) {
+                            (firstVisible + 1).coerceAtMost(upcomingPayments.size - 1)
+                        } else {
+                            firstVisible
+                        }
+                    }
+                }
+                
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = showDots,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    Column {
+                        Spacer(modifier = Modifier.height(dims.spacing.sm))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            repeat(upcomingPayments.size) { index ->
+                                val isSelected = index == activeIndex
+                                Box(
+                                    modifier = Modifier
+                                        .padding(horizontal = 3.dp)
+                                        .size(if (isSelected) 8.dp else 6.dp)
+                                        .background(
+                                            color = if (isSelected) 
+                                                MaterialTheme.colorScheme.primary 
+                                            else 
+                                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                            shape = androidx.compose.foundation.shape.CircleShape
+                                        )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UpcomingPaymentCard(
+    payable: PayableItemData,
+    mainCurrency: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
+) {
+    val accentColor = payable.backgroundColor
+    
+    Card(
+        onClick = onClick,
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Box {
+            // Content
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                // Top row: Date badge + Name/Due
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    // Date badge
+                    UpcomingDateBadge(
+                        dateMillis = payable.nextDueDateMillis,
+                        accentColor = accentColor
+                    )
+                    
+                    // Name and due date
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = payable.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = payable.dueDate,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // Bottom row: Billing cycle + Price
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Billing cycle chip
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = payable.billingCycle,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                    
+                    // Price
+                    val displayAmount = payable.convertedPrice ?: (payable.price.toDoubleOrNull() ?: 0.0)
+                    val currencySymbol = getCurrencySymbol(mainCurrency)
+                    
+                    Text(
+                        text = String.format(Locale.US, "%s%.2f", currencySymbol, displayAmount),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            
+            // Left accent indicator
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(40.dp)
+                    .align(Alignment.CenterStart)
+                    .background(
+                        accentColor,
+                        RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)
+                    )
+            )
+        }
+    }
+}
+
+@Composable
+private fun UpcomingDateBadge(
+    dateMillis: Long,
+    accentColor: Color = MaterialTheme.colorScheme.primary
+) {
+    if (dateMillis == 0L) return
+    
+    val date = java.util.Date(dateMillis)
+    val dayFormat = java.text.SimpleDateFormat("dd", Locale.getDefault())
+    val monthFormat = java.text.SimpleDateFormat("MMM", Locale.getDefault())
+    
+    Surface(
+        color = accentColor.copy(alpha = 0.12f),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+        ) {
+            Text(
+                text = dayFormat.format(date),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = accentColor
+            )
+            Text(
+                text = monthFormat.format(date).uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Medium,
+                color = accentColor.copy(alpha = 0.8f)
+            )
         }
     }
 }

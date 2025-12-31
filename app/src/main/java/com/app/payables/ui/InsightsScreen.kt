@@ -137,26 +137,8 @@ fun InsightsScreen(
     val categories by categoryRepository.getAllCategories().collectAsState(initial = emptyList())
     
     // Get raw payables and enrich with converted amounts
-    val rawUpcomingPayments by payableRepository.getUpcomingPayments().collectAsState(initial = null)
     val rawTopFiveMostExpensive by payableRepository.getTopFiveMostExpensive().collectAsState(initial = null)
     val rawActivePayables by payableRepository.getActivePayables().collectAsState(initial = emptyList())
-    
-    // Enrich payables with converted amounts
-    val upcomingPayments: List<PayableItemData>? by remember(rawUpcomingPayments, exchangeRatesMap) { 
-        derivedStateOf {
-            rawUpcomingPayments?.map { payable ->
-                if (payable.currency != mainCurrency && exchangeRatesMap.isNotEmpty()) {
-                    val fromRate = exchangeRatesMap[payable.currency] ?: 1.0
-                    val toRate = exchangeRatesMap[mainCurrency] ?: 1.0
-                    val originalAmount = payable.price.toDoubleOrNull() ?: 0.0
-                    val convertedAmount = originalAmount * (toRate / fromRate)
-                    payable.copy(convertedPrice = convertedAmount, mainCurrency = mainCurrency)
-                } else {
-                    payable
-                }
-            }
-        }
-    }
     
     val topFiveMostExpensive: List<PayableItemData>? by remember(rawTopFiveMostExpensive, exchangeRatesMap) { 
         derivedStateOf {
@@ -197,7 +179,6 @@ fun InsightsScreen(
         avgCostTimeframe = avgCostTimeframe,
         spendingPerCategory = spendingPerCategory,
         categories = categories,
-        upcomingPayments = upcomingPayments,
         topFiveMostExpensive = topFiveMostExpensive,
         activePayables = activePayables,
         onTimeframeSelected = { spendingTimeframe = it },
@@ -216,7 +197,6 @@ fun InsightsScreenContent(
     avgCostTimeframe: SpendingTimeframe,
     spendingPerCategory: Map<String, Double>?,
     categories: List<CategoryData>,
-    upcomingPayments: List<PayableItemData>?,
     topFiveMostExpensive: List<PayableItemData>?,
     activePayables: List<PayableItemData> = emptyList(),
     onTimeframeSelected: (SpendingTimeframe) -> Unit,
@@ -318,13 +298,6 @@ fun InsightsScreenContent(
             }
 
             item {
-                UpcomingPaymentsCard(
-                    upcomingPayments = upcomingPayments,
-                    mainCurrency = mainCurrency
-                )
-            }
-
-            item {
                 TopFiveCard(
                     topFivePayables = topFiveMostExpensive,
                     mainCurrency = mainCurrency
@@ -355,30 +328,6 @@ private fun InsightsScreenPreview() {
             categories = listOf(
                 CategoryData("Entertainment", "2", Color(0xFFE91E63), Icons.Default.Movie),
                 CategoryData("Utilities", "1", Color(0xFF4CAF50), Icons.Default.Lightbulb)
-            ),
-            upcomingPayments = listOf(
-                PayableItemData(
-                    id = "1",
-                    name = "Netflix",
-                    planType = "Premium",
-                    price = "19.99",
-                    currency = "USD",
-                    dueDate = "in 3 days",
-                    icon = Icons.Default.Movie,
-                    backgroundColor = Color(0xFFE50914),
-                    billingCycle = "Monthly"
-                ),
-                PayableItemData(
-                    id = "2",
-                    name = "Spotify",
-                    planType = "Family",
-                    price = "14.99",
-                    currency = "USD",
-                    dueDate = "in 5 days",
-                    icon = Icons.Default.MusicNote,
-                    backgroundColor = Color(0xFF1DB954),
-                    billingCycle = "Monthly"
-                )
             ),
             topFiveMostExpensive = listOf(
                 PayableItemData(
@@ -592,180 +541,6 @@ private fun EnhancedTopFiveItem(
             )
         }
     }
-}
-
-@Composable
-private fun UpcomingPaymentsCard(
-    upcomingPayments: List<PayableItemData>?,
-    mainCurrency: String = "EUR"
-) {
-    val dims = LocalAppDimensions.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = dims.spacing.section)
-    ) {
-        Text(
-            text = "Upcoming Payments",
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(bottom = dims.spacing.md)
-        )
-
-        when {
-            upcomingPayments == null -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(150.dp)
-                        .padding(dims.spacing.card),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-            upcomingPayments.isEmpty() -> {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(dims.spacing.md),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    )
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp)
-                            .padding(dims.spacing.card),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("No upcoming payments.", style = MaterialTheme.typography.bodyLarge)
-                    }
-                }
-            }
-            else -> {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(dims.spacing.sm)
-                ) {
-                    upcomingPayments.forEachIndexed { index, payable ->
-                        key(payable.id) {
-                            EnhancedUpcomingPaymentItem(
-                                payable = payable,
-                                delayMillis = index * 100,
-                                mainCurrency = mainCurrency
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EnhancedUpcomingPaymentItem(
-    payable: PayableItemData,
-    delayMillis: Int,
-    mainCurrency: String
-) {
-    val dims = LocalAppDimensions.current
-    
-    // Animation states
-    val alpha = remember { Animatable(0f) }
-    val slideY = remember { Animatable(20f) }
-    
-    LaunchedEffect(Unit) {
-        delay(delayMillis.toLong())
-        launch { 
-            alpha.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(durationMillis = 300, easing = LinearOutSlowInEasing)
-            )
-        }
-        launch {
-            slideY.animateTo(
-                targetValue = 0f,
-                animationSpec = tween(durationMillis = 400, easing = LinearOutSlowInEasing)
-            )
-        }
-    }
-    
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .graphicsLayer {
-                this.alpha = alpha.value
-                this.translationY = slideY.value
-            },
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        ),
-        shape = RoundedCornerShape(dims.spacing.md)
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(dims.spacing.md)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Date Badge
-            DateBadge(payable.nextDueDateMillis)
-            
-            Spacer(modifier = Modifier.width(dims.spacing.md))
-            
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = payable.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = payable.dueDate,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            
-             // Use converted price if available
-            val displayAmount = payable.convertedPrice ?: (payable.price.toDoubleOrNull() ?: 0.0)
-            val currencySymbol = getCurrencySymbol(mainCurrency)
-            
-            Text(
-                text = String.format(Locale.US, "%s%.2f", currencySymbol, displayAmount),
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-    }
-}
-
-@Composable
-private fun DateBadge(dateMillis: Long) {
-      // Fallback if dateMillis is 0
-     if (dateMillis == 0L) return
-
-     val date = java.util.Date(dateMillis)
-     val dayFormat = java.text.SimpleDateFormat("dd", Locale.getDefault())
-     val monthFormat = java.text.SimpleDateFormat("MMM", Locale.getDefault())
-     
-     Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-     ) {
-         Text(
-             text = dayFormat.format(date),
-             style = MaterialTheme.typography.titleMedium,
-             fontWeight = FontWeight.Bold,
-             color = MaterialTheme.colorScheme.onSurface
-         )
-         Text(
-             text = monthFormat.format(date).uppercase(),
-             style = MaterialTheme.typography.labelSmall,
-             color = MaterialTheme.colorScheme.onSurfaceVariant
-         )
-     }
 }
 
 @Composable
