@@ -384,6 +384,13 @@ fun RestoreScreen(
                                                 customPaymentMethodRepository.insertCustomPaymentMethod(paymentMethod)
                                             }
                                         }
+
+                                        // Restore icon files from backup
+                                        IconBackupHelper.restoreIconFiles(
+                                            context,
+                                            backupData.iconFiles,
+                                            backupData.importedIconsList
+                                        )
                                     }
                                 }
                                 
