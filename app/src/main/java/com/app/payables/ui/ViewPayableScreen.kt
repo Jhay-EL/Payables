@@ -500,13 +500,13 @@ fun ViewPayableScreen(
                             Spacer(modifier = Modifier.height(dims.spacing.md))
                             
                             // Show historical payment dates
-                            paymentDates.forEach { paymentDate ->
+                            paymentDates.forEach { item ->
                                 PayableDetailRow(
-                                    label = paymentDate,
-                                    value = "Paid",
-                                    valueColor = MaterialTheme.colorScheme.primary
+                                    label = item.date,
+                                    value = item.status,
+                                    valueColor = if (item.isUpcoming) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
                                 )
-                                if (paymentDate != paymentDates.last()) {
+                                if (item.date != paymentDates.last().date) {
                                     Spacer(modifier = Modifier.height(dims.spacing.sm))
                                 }
                             }
@@ -669,9 +669,16 @@ private fun calculateTotalPaid(payable: PayableItemData): String {
     }
 }
 
+private data class PaymentHistoryItem(
+    val date: String,
+    val status: String,
+    val isUpcoming: Boolean
+)
+
 // Helper function to calculate all payment dates from subscription start to present (or pause date)
 // If payable is currently paused, only shows payment dates up to the pause date
-private fun calculatePaymentDates(payable: PayableItemData): List<String> {
+// If payable has an end date, shows projected dates up to the end date
+private fun calculatePaymentDates(payable: PayableItemData): List<PaymentHistoryItem> {
     try {
         // Parse the actual billing start date from payable data
         val subscriptionStart = if (payable.billingStartDate.isNotBlank()) {
@@ -686,23 +693,46 @@ private fun calculatePaymentDates(payable: PayableItemData): List<String> {
             LocalDate.now().minusMonths(6)
         }
         
-        // If currently paused or finished, use the respective timestamp as end date; otherwise use today
+        // Check for planned end date
+        val plannedEndDate = if (!payable.endDate.isNullOrBlank()) {
+            try {
+                LocalDate.parse(payable.endDate, DateTimeFormatter.ofPattern("MMMM dd, yyyy"))
+            } catch (_: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+        
+        // Determine end date:
+        // 1. If paused/finished -> stop at that event date
+        // 2. If active and has end date -> stop at end date (can be future)
+        // 3. Otherwise -> stop at today (history only)
         val endDate = when {
             payable.isPaused && payable.pausedAtMillis != null -> 
                 LocalDate.ofEpochDay(payable.pausedAtMillis / 86_400_000L)
             payable.isFinished && payable.finishedAtMillis != null -> 
                 LocalDate.ofEpochDay(payable.finishedAtMillis / 86_400_000L)
+            plannedEndDate != null -> plannedEndDate
             else -> LocalDate.now()
         }
         
-        val paymentDates = mutableListOf<String>()
+        val paymentItems = mutableListOf<PaymentHistoryItem>()
         val formatter = DateTimeFormatter.ofPattern("MMMM dd, yyyy")
+        val today = LocalDate.now()
         
         var currentDate = subscriptionStart
         
         // Generate payment dates based on billing cycle, up to the end date
         while (currentDate <= endDate) {
-            paymentDates.add(currentDate.format(formatter))
+            val isUpcoming = currentDate.isAfter(today)
+            val status = if (isUpcoming) "Scheduled" else "Paid"
+            
+            paymentItems.add(PaymentHistoryItem(
+                date = currentDate.format(formatter),
+                status = status,
+                isUpcoming = isUpcoming
+            ))
             
             // Calculate next payment date based on actual billing cycle
             val billingCycleLower = payable.billingCycle.lowercase()
@@ -719,8 +749,8 @@ private fun calculatePaymentDates(payable: PayableItemData): List<String> {
             }
         }
         
-        // Return dates in reverse chronological order (most recent first)
-        return paymentDates.reversed()
+        // Return items in reverse chronological order (most recent/future first)
+        return paymentItems.reversed()
     } catch (_: Exception) {
         // Return empty list if there's an error
         return emptyList()

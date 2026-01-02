@@ -25,6 +25,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import java.util.Locale
+import java.time.LocalDate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.tooling.preview.Preview
@@ -137,24 +138,7 @@ fun InsightsScreen(
     val categories by categoryRepository.getAllCategories().collectAsState(initial = emptyList())
     
     // Get raw payables and enrich with converted amounts
-    val rawTopFiveMostExpensive by payableRepository.getTopFiveMostExpensive().collectAsState(initial = null)
     val rawActivePayables by payableRepository.getActivePayables().collectAsState(initial = emptyList())
-    
-    val topFiveMostExpensive: List<PayableItemData>? by remember(rawTopFiveMostExpensive, exchangeRatesMap) { 
-        derivedStateOf {
-            rawTopFiveMostExpensive?.map { payable ->
-                if (payable.currency != mainCurrency && exchangeRatesMap.isNotEmpty()) {
-                    val fromRate = exchangeRatesMap[payable.currency] ?: 1.0
-                    val toRate = exchangeRatesMap[mainCurrency] ?: 1.0
-                    val originalAmount = payable.price.toDoubleOrNull() ?: 0.0
-                    val convertedAmount = originalAmount * (toRate / fromRate)
-                    payable.copy(convertedPrice = convertedAmount, mainCurrency = mainCurrency)
-                } else {
-                    payable
-                }
-            }
-        }
-    }
 
     val activePayables: List<PayableItemData> by remember(rawActivePayables, exchangeRatesMap) {
         derivedStateOf {
@@ -169,6 +153,52 @@ fun InsightsScreen(
                     payable
                 }
             }
+        }
+    }
+
+    val topFiveMostExpensive: List<PayableItemData> by remember(activePayables) { 
+        derivedStateOf {
+            activePayables.sortedByDescending { payable ->
+                val amount = payable.convertedPrice ?: (payable.price.toDoubleOrNull() ?: 0.0)
+                
+                if (payable.endDateMillis != null) {
+                    val endMillis = payable.endDateMillis
+                    // If end date is in the past, cost is 0 (should be finished, but active check)
+                    if (endMillis < System.currentTimeMillis()) {
+                        0.0
+                    } else {
+                        // Calculate total remaining cost based on actual future occurrences
+                        val endDate = LocalDate.ofEpochDay(endMillis / 86400000L)
+                        // Ensure we start counting from the next due date
+                        var currentDue = LocalDate.ofEpochDay(payable.nextDueDateMillis / 86400000L)
+                        
+                        var count = 0
+                        // Safety cap to prevent infinite loops logic errors, though unlikely
+                        val maxIterations = 1000 
+                        
+                        while (!currentDue.isAfter(endDate) && count < maxIterations) {
+                            count++
+                            currentDue = when(payable.billingCycle) {
+                                "Weekly" -> currentDue.plusWeeks(1)
+                                "Monthly" -> currentDue.plusMonths(1)
+                                "Quarterly" -> currentDue.plusMonths(3)
+                                "Yearly" -> currentDue.plusYears(1)
+                                else -> currentDue.plusMonths(1)
+                            }
+                        }
+                        amount * count
+                    }
+                } else {
+                    // Standard annualized calculation for indefinite payables
+                    when (payable.billingCycle) {
+                        "Weekly" -> amount * 52.14285714 // 365.0 / 7.0
+                        "Monthly" -> amount * 12.0
+                        "Quarterly" -> amount * 4.0
+                        "Yearly" -> amount
+                        else -> amount
+                    }
+                }
+            }.take(5)
         }
     }
 

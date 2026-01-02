@@ -86,7 +86,8 @@ data class Payable(
             convertedPrice = savedConvertedPrice,
             mainCurrency = savedMainCurrency,
             exchangeRate = savedExchangeRate,
-            brandColors = brandColors
+            brandColors = brandColors,
+            endDateMillis = endDateMillis
         )
     }
     
