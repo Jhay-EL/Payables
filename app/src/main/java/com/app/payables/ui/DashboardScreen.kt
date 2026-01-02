@@ -108,6 +108,7 @@ fun DashboardScreen(
     var hideCategories by remember { mutableStateOf(false) }
     var hidePausedFinished by remember { mutableStateOf(false) }
     var hideInsights by remember { mutableStateOf(false) }
+    var hideUpcomingPayments by remember { mutableStateOf(false) }
     var isEditingCategories by remember { mutableStateOf(false) }
     var editingCategoryIndex by remember { mutableIntStateOf(-1) }
     var showEditCategoryFullScreen by remember { mutableStateOf(false) }
@@ -271,12 +272,22 @@ fun DashboardScreen(
         }
     }
     
-    // Derived: Upcoming Payments for carousel (sorted by due date, max 5)
+    // Derived: Upcoming Payments for carousel (all payables due this month, sorted by due date)
     val upcomingPaymentsUI by remember {
         derivedStateOf {
+            val today = java.time.LocalDate.now()
+            val endOfMonth = today.withDayOfMonth(today.lengthOfMonth())
+            val dateFormatter = java.time.format.DateTimeFormatter.ofPattern("MMMM dd, yyyy")
+            
             activePayablesUI
+                .filter {
+                    try {
+                        val billingDate = java.time.LocalDate.parse(it.billingStartDate, dateFormatter)
+                        val nextDueDate = com.app.payables.data.Payable.calculateNextDueDate(billingDate, it.billingCycle)
+                        !nextDueDate.isBefore(today) && !nextDueDate.isAfter(endOfMonth)
+                    } catch (_: Exception) { false }
+                }
                 .sortedBy { it.nextDueDateMillis }
-                .take(5)
         }
     }
     
@@ -530,7 +541,7 @@ fun DashboardScreen(
                         }
 
                         // Upcoming Payments - After overview, before categories
-                        if (!hideInsights && upcomingPaymentsUI.isNotEmpty()) {
+                        if (!hideUpcomingPayments && upcomingPaymentsUI.isNotEmpty()) {
                             item {
                                 UpcomingPaymentsCarousel(
                                     upcomingPayments = upcomingPaymentsUI,
@@ -837,7 +848,9 @@ fun DashboardScreen(
                 hidePausedFinished = hidePausedFinished,
                 onTogglePausedFinished = { hidePausedFinished = it },
                 hideInsights = hideInsights,
-                onToggleInsights = { hideInsights = it }
+                onToggleInsights = { hideInsights = it },
+                hideUpcomingPayments = hideUpcomingPayments,
+                onToggleUpcomingPayments = { hideUpcomingPayments = it }
             )
         }
     }
@@ -1316,6 +1329,8 @@ private fun HidePanelSheetContent(
     onTogglePausedFinished: (Boolean) -> Unit,
     hideInsights: Boolean,
     onToggleInsights: (Boolean) -> Unit,
+    hideUpcomingPayments: Boolean,
+    onToggleUpcomingPayments: (Boolean) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -1337,11 +1352,19 @@ private fun HidePanelSheetContent(
         Spacer(modifier = Modifier.height(LocalAppDimensions.current.spacing.section))
 
         HideOptionCard(
+            title = "Hide Upcoming Payments",
+            subtitle = "Hide the Upcoming Payments section",
+            isChecked = hideUpcomingPayments,
+            onCheckedChange = onToggleUpcomingPayments,
+            isFirst = true,
+            isLast = false
+        )
+        HideOptionCard(
             title = "Hide Categories",
             subtitle = "Hide the Categories section",
             isChecked = hideCategories,
             onCheckedChange = onToggleCategories,
-            isFirst = true,
+            isFirst = false,
             isLast = false
         )
         HideOptionCard(
@@ -2056,7 +2079,9 @@ fun UpcomingPaymentsCarousel(
                         payable = payable,
                         mainCurrency = mainCurrency,
                         onClick = { onPayableClick(payable) },
-                        modifier = Modifier.width(260.dp)
+                        modifier = Modifier
+                            .width(200.dp)
+                            .aspectRatio(4f / 3f)
                     )
                 }
             }
@@ -2144,94 +2169,78 @@ private fun UpcomingPaymentCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Box {
-            // Content
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Top section: Date badge and name
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.Top
             ) {
-                // Top row: Date badge + Name/Due
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    // Date badge
-                    UpcomingDateBadge(
-                        dateMillis = payable.nextDueDateMillis,
-                        accentColor = accentColor
-                    )
-                    
-                    // Name and due date
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = payable.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = payable.dueDate,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                // Date badge
+                UpcomingDateBadge(
+                    dateMillis = payable.nextDueDateMillis,
+                    accentColor = accentColor
+                )
                 
-                Spacer(modifier = Modifier.height(12.dp))
-                
-                // Bottom row: Billing cycle + Price
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                // Name and due date
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    // Billing cycle chip
-                    Surface(
-                        color = MaterialTheme.colorScheme.surface,
-                        shape = RoundedCornerShape(6.dp)
-                    ) {
-                        Text(
-                            text = payable.billingCycle,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-                    
-                    // Price
-                    val displayAmount = payable.convertedPrice ?: (payable.price.toDoubleOrNull() ?: 0.0)
-                    val currencySymbol = getCurrencySymbol(mainCurrency)
-                    
                     Text(
-                        text = String.format(Locale.US, "%s%.2f", currencySymbol, displayAmount),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        text = payable.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = payable.dueDate,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
             
-            // Left accent indicator
-            Box(
-                modifier = Modifier
-                    .width(4.dp)
-                    .height(40.dp)
-                    .align(Alignment.CenterStart)
-                    .background(
-                        accentColor,
-                        RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)
+            // Bottom section: Billing cycle + Price
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                // Billing cycle chip
+                Surface(
+                    color = accentColor.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = payable.billingCycle,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
-            )
+                }
+                
+                // Price
+                val displayAmount = payable.convertedPrice ?: (payable.price.toDoubleOrNull() ?: 0.0)
+                val currencySymbol = getCurrencySymbol(mainCurrency)
+                
+                Text(
+                    text = String.format(Locale.US, "%s%.2f", currencySymbol, displayAmount),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }
@@ -2247,8 +2256,13 @@ private fun UpcomingDateBadge(
     val dayFormat = java.text.SimpleDateFormat("dd", Locale.getDefault())
     val monthFormat = java.text.SimpleDateFormat("MMM", Locale.getDefault())
     
+    // Calculate luminance to determine if text should be dark or light
+    // Using relative luminance formula: 0.299*R + 0.587*G + 0.114*B
+    val luminance = 0.299f * accentColor.red + 0.587f * accentColor.green + 0.114f * accentColor.blue
+    val textColor = if (luminance > 0.5f) Color.Black else Color.White
+    
     Surface(
-        color = accentColor.copy(alpha = 0.12f),
+        color = accentColor,
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(
@@ -2259,13 +2273,13 @@ private fun UpcomingDateBadge(
                 text = dayFormat.format(date),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = accentColor
+                color = textColor
             )
             Text(
                 text = monthFormat.format(date).uppercase(),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,
-                color = accentColor.copy(alpha = 0.8f)
+                color = textColor.copy(alpha = 0.9f)
             )
         }
     }
