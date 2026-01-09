@@ -41,15 +41,6 @@ Payables is a modern Android app that helps you manage all your recurring expens
   <img src="app/sc/7.jpg" alt="Multi-Currency Support" width="200">
 </div>
 
-| Screenshot | Feature Highlighted |
-| :--- | :--- |
-| **1. Hero** | Introduction - Privacy-first subscription and bill tracker |
-| **2. Dashboard** | Real-time overview with smart filters and category organization |
-| **3. Payables View** | Custom colors, icons, brand logos, Material Design 3 |
-| **4. Insights** | Spending forecasts, top 5 expensive, category breakdown charts |
-| **5. Widgets** | Three home screen widget sizes (4×2, 2×2, 2×1) |
-| **6. Backup** | Google Drive sync, JSON/CSV/PDF export, restore |
-| **7. Multi-Currency** | 150+ currencies with real-time exchange rates |
 
 <br>
 
