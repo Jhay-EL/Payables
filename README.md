@@ -247,12 +247,7 @@ This project is built with modern Android development best practices and librari
 - ✅ Advanced analytics dashboard
 - ✅ Recurring payment history
 
-**v1.4.1 (Current)**
-- ✅ Fixed notification lock screen bug - reminders now appear on time even when device is locked/screen off
-- ✅ Alarms now survive device reboot
-- ✅ Uses `setAlarmClock()` for reliable Doze mode wake-up
-
-**v1.4**
+**v1.4 (Current)**
 - ✅ PayPal Integration
 - ✅ Live Preview Customization
 - ✅ Enhanced Exports (Notes, Website, Description)
@@ -267,34 +262,6 @@ This project is built with modern Android development best practices and librari
 
 <br>
 
-## 🧪 Testing
-
-### Running Unit Tests
-
-```bash
-# Run all unit tests
-./gradlew test
-
-# Run specific test
-./gradlew test --tests com.app.payables.DateReproductionTest
-```
-
-### Running Instrumented Tests
-
-```bash
-# Run instrumented tests on connected device
-./gradlew connectedAndroidTest
-```
-
-### Current Test Coverage
-
-- ✅ Date epoch conversion validation (`DateReproductionTest.kt`)
-- ✅ Future date overflow prevention
-- 📋 Repository and DAO layer tests
-- 📋 UI component tests
-- 📋 Integration tests
-
-<br>
 
 ## 🔒 Security & Privacy
 
@@ -365,37 +332,6 @@ Found a bug? Please open an issue with:
 
 <br>
 
-## 📝 Code Quality
-
-### Best Practices
-
-- ✅ Jetpack Compose best practices
-- ✅ MVVM architecture patterns
-- ✅ Repository pattern for data access
-- ✅ Coroutine-based async operations
-- ✅ Type-safe implementations
-- ✅ Immutable data models
-
-### Code Standards
-
-- **Naming:** camelCase for variables/functions, PascalCase for classes
-- **Documentation:** KDoc comments for public APIs
-- **Safety:** Null-safe operations with Kotlin's type system
-- **Performance:** Efficient database queries and lazy loading
-
-<br>
-
-## 📊 Performance Metrics
-
-Optimizations implemented:
-
-- ⚡ Single data source reduces recomposition by ~60%
-- ⚡ Efficient grouping reduces category count calculation from O(n²) to O(n)
-- ⚡ Lazy loading for large payable lists
-- ⚡ Cached state derivation prevents unnecessary UI updates
-- ⚡ Smart notification scheduling with WorkManager
-
-<br>
 
 ## 📞 Support & Contact
 
