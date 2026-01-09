@@ -30,17 +30,6 @@ Payables is a modern Android app that helps you manage all your recurring expens
 ## 📸 App Screenshots
 
 <div align="center">
-  <br>
-  <img src="app/src/main/res/Screenshot/sc_dashboard.png" alt="Dashboard Screenshot" width="250">
-  <img src="app/src/main/res/Screenshot/sc_payableScreen.png" alt="Payable Screen Screenshot" width="250">
-  <img src="app/src/main/res/Screenshot/sc_payable.png" alt="Payable View Screenshot" width="250">
-</div>
-
-<br>
-
-### App Screenshot
-
-<div align="center">
   <img src="app/sc/1.jpg" alt="Payables Hero" width="200">
   <img src="app/sc/2.jpg" alt="Powerful Dashboard" width="200">
   <img src="app/sc/3.jpg" alt="Payables View" width="200">
