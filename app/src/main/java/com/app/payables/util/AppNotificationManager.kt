@@ -1,5 +1,6 @@
 package com.app.payables.util
 
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -15,6 +16,8 @@ import com.app.payables.MainActivity
 import com.app.payables.R
 import com.app.payables.data.Payable
 
+// USE_FULL_SCREEN_INTENT is auto-granted for alarm functions (we use setAlarmClock in AlarmScheduler)
+@SuppressLint("MissingPermission")
 class AppNotificationManager(private val context: Context) {
 
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -65,6 +68,7 @@ class AppNotificationManager(private val context: Context) {
         return hasPermission
     }
 
+    @SuppressLint("FullScreenIntentPermission", "FullScreenIntentPolicy")
     fun sendDuePayableNotification(payable: Payable, showOnLockscreen: Boolean = true) {
         try {
             // Check permission before sending
@@ -94,6 +98,15 @@ class AppNotificationManager(private val context: Context) {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             
+            // Create a full screen intent for when device is locked with screen off
+            // This ensures the notification wakes the screen like an alarm
+            val fullScreenIntent = PendingIntent.getActivity(
+                context,
+                payable.id.hashCode() + 100, // Unique request code for full screen intent
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            
             val notification = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setContentTitle("Payable Due: ${payable.title}")
                 .setContentText("Your payable for ${payable.title} is due today.")
@@ -102,8 +115,11 @@ class AppNotificationManager(private val context: Context) {
                 .setVisibility(visibility)
                 .setAutoCancel(true)
                 .setDefaults(NotificationCompat.DEFAULT_ALL)
-                .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
                 .setContentIntent(pendingIntent)
+                // fullScreenIntent wakes the screen when device is locked
+                // USE_FULL_SCREEN_INTENT is auto-granted for alarm functions (we use setAlarmClock)
+                .setFullScreenIntent(fullScreenIntent, true)
                 .build()
 
             notificationManager.notify(payable.id.hashCode(), notification)

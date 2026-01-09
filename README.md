@@ -23,7 +23,7 @@
 
 Payables is a modern Android app that helps you manage all your recurring expenses in one place. Get a clear, beautiful overview of where your money is going with smart due date calculations, customizable categories, and powerful filtering options. Managing your finances has never been easier.
 
-**Status:** 🚧 Active Development | v1.4
+**Status:** 🚧 Active Development | v1.4.1
 
 <br>
 
@@ -35,6 +35,32 @@ Payables is a modern Android app that helps you manage all your recurring expens
   <img src="app/src/main/res/Screenshot/sc_payableScreen.png" alt="Payable Screen Screenshot" width="250">
   <img src="app/src/main/res/Screenshot/sc_payable.png" alt="Payable View Screenshot" width="250">
 </div>
+
+<br>
+
+### App Screenshot
+
+<div align="center">
+  <img src="app/sc/1.jpg" alt="Payables Hero" width="200">
+  <img src="app/sc/2.jpg" alt="Powerful Dashboard" width="200">
+  <img src="app/sc/3.jpg" alt="Payables View" width="200">
+  <img src="app/sc/4.jpg" alt="Spending Insights" width="200">
+</div>
+<div align="center">
+  <img src="app/sc/5.jpg" alt="Home Screen Widgets" width="200">
+  <img src="app/sc/6.jpg" alt="Secure Backup & Sync" width="200">
+  <img src="app/sc/7.jpg" alt="Multi-Currency Support" width="200">
+</div>
+
+| Screenshot | Feature Highlighted |
+| :--- | :--- |
+| **1. Hero** | Introduction - Privacy-first subscription and bill tracker |
+| **2. Dashboard** | Real-time overview with smart filters and category organization |
+| **3. Payables View** | Custom colors, icons, brand logos, Material Design 3 |
+| **4. Insights** | Spending forecasts, top 5 expensive, category breakdown charts |
+| **5. Widgets** | Three home screen widget sizes (4×2, 2×2, 2×1) |
+| **6. Backup** | Google Drive sync, JSON/CSV/PDF export, restore |
+| **7. Multi-Currency** | 150+ currencies with real-time exchange rates |
 
 <br>
 
@@ -241,7 +267,12 @@ This project is built with modern Android development best practices and librari
 - ✅ Advanced analytics dashboard
 - ✅ Recurring payment history
 
-**v1.4 (Current)**
+**v1.4.1 (Current)**
+- ✅ Fixed notification lock screen bug - reminders now appear on time even when device is locked/screen off
+- ✅ Alarms now survive device reboot
+- ✅ Uses `setAlarmClock()` for reliable Doze mode wake-up
+
+**v1.4**
 - ✅ PayPal Integration
 - ✅ Live Preview Customization
 - ✅ Enhanced Exports (Notes, Website, Description)

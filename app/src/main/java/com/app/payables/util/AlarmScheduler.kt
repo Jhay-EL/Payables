@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import com.app.payables.MainActivity
 import com.app.payables.data.Payable
 import com.app.payables.work.NotificationBroadcastReceiver
 import java.time.LocalDate
@@ -48,11 +49,18 @@ class AlarmScheduler(private val context: Context) {
                 }
             }
             
-            alarmManager.setExact(
-                AlarmManager.RTC_WAKEUP,
-                timeInMillis,
-                pendingIntent
+            // Use setAlarmClock() to ensure the alarm fires even in Doze mode
+            // This is the only reliable way to wake the device and show notifications
+            // on the lock screen at the exact scheduled time
+            val showIntent = PendingIntent.getActivity(
+                context,
+                payableId.hashCode() + 1, // Unique request code for show intent
+                Intent(context, MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
+            
+            val alarmInfo = AlarmManager.AlarmClockInfo(timeInMillis, showIntent)
+            alarmManager.setAlarmClock(alarmInfo, pendingIntent)
             
             Log.d(TAG, "Scheduled alarm for payable $payableId at $timeInMillis")
             true
