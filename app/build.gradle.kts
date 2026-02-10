@@ -14,19 +14,23 @@ android {
         applicationId = "com.app.payables"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.4.1"
+        versionCode = 6
+        versionName = "1.4.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
         }
     }
     compileOptions {
@@ -62,9 +66,9 @@ dependencies {
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.32.0")
 
     // Room database
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    kapt("androidx.room:room-compiler:2.6.1")
+    implementation("androidx.room:room-runtime:2.7.0-beta01")
+    implementation("androidx.room:room-ktx:2.7.0-beta01")
+    kapt("androidx.room:room-compiler:2.7.0-beta01")
 
     // WorkManager for background tasks
     implementation("androidx.work:work-runtime-ktx:2.9.0")
