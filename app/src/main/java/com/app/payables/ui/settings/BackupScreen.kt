@@ -95,13 +95,15 @@ fun BackupScreen(
     ) { result ->
         // Google Sign-In can succeed regardless of result code, check the intent data
         coroutineScope.launch {
-            val account = googleDriveManager.handleSignInResult(result.data)
-            if (account != null) {
-                isSignedIn = true
-                signedInEmail = account.email
-                Toast.makeText(context, "Signed in as ${account.email}", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(context, "Sign-in failed", Toast.LENGTH_SHORT).show()
+            when (val signInResult = googleDriveManager.handleSignInResult(result.data)) {
+                is GoogleDriveManager.SignInResult.Success -> {
+                    isSignedIn = true
+                    signedInEmail = signInResult.account.email
+                    Toast.makeText(context, "Signed in as ${signInResult.account.email}", Toast.LENGTH_SHORT).show()
+                }
+                is GoogleDriveManager.SignInResult.Failure -> {
+                    Toast.makeText(context, signInResult.message, Toast.LENGTH_LONG).show()
+                }
             }
         }
     }

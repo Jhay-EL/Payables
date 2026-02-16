@@ -23,7 +23,7 @@
 
 Payables is a modern Android app that helps you manage all your recurring expenses in one place. Get a clear, beautiful overview of where your money is going with smart due date calculations, customizable categories, and powerful filtering options. Managing your finances has never been easier.
 
-**Status:** 🚧 Active Development | v1.4.3
+**Status:** 🚧 Active Development | v1.4.4
 
 <br>
 
