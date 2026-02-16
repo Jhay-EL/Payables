@@ -42,6 +42,10 @@ Payables is a modern Android app that helps you manage all your recurring expens
 </div>
 
 
+<p align="center">
+  <a href="https://github.com/Jhay-EL/Payables/releases"><img src="https://img.shields.io/badge/Download%20Latest%20Release-2ea44f?style=for-the-badge&logo=android&logoColor=white" alt="Download Latest Release"></a>
+</p>
+
 <br>
 
 ## ✨ Key Features
